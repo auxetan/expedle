@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
-import { copyText, seededRng, shuffle, todayKey } from '../../lib/util'
+import { seededRng, shuffle, todayKey } from '../../lib/util'
 import { WEIGHTS, type WeightItem } from './estimates'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
+import MgSummary, { recordTotal } from './MgSummary'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import { emojiSilhouette } from './silhouette'
 import './mg.css'
@@ -41,8 +42,8 @@ function Pan({ x, y, item, color, size }: { x: number; y: number; item: WeightIt
   )
 }
 
-export default function Balance() {
-  const day = todayKey()
+export default function Balance({ date }: { date?: string | null }) {
+  const day = date ?? todayKey()
   const [daily, setDaily] = useState(() => dailyResult('balance', day) === null)
   const [seed, setSeed] = useState(0)
   const rounds = useMemo(() => makeRounds(daily ? seededRng('balance-' + day) : Math.random), [daily, day, seed])
@@ -51,7 +52,7 @@ export default function Balance() {
   const [scores, setScores] = useState<number[]>([])
   const [revealed, setRevealed] = useState(false)
   const [summary, setSummary] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [answers, setAnswers] = useState<number[]>([])
 
   const [ref, tgt] = rounds[index]
   const truth = ref.kg / tgt.kg
@@ -83,12 +84,14 @@ export default function Balance() {
     if (!valid) return
     setRevealed(true)
     setScores([...scores, score])
+    setAnswers([...answers, q])
   }
 
   function next() {
     if (index + 1 >= ROUNDS) {
       setSummary(true)
       recordPlay('balance')
+      recordTotal('balance', scores.reduce((a, b) => a + b, 0))
       if (daily) saveDailyResult('balance', { scores }, day)
       return
     }
@@ -191,45 +194,34 @@ export default function Balance() {
 
       {summary && (
         <div className="mg-modal-bg">
-          <div className="mg-modal">
-            <h2>Bilan</h2>
-            <div className="mg-big">
-              {total}
-              <small>/ {ROUNDS * 100}</small>
-            </div>
-            <ul className="mg-rounds">
-              {rounds.map(([r, t], i) => (
-                <li key={i}>
-                  <span>
+          <div className="mg-modal mg-help">
+            <MgSummary
+              title=""
+              rounds={rounds.map(([r, t], i) => ({
+                score: scores[i],
+                title: (
+                  <>
                     1 <span className="blue">{r.name}</span> = {formatNumber(Math.round((r.kg / t.kg) * 10) / 10)}{' '}
                     <span className="red">{t.name}</span>
-                  </span>
-                  <b>{scores[i]}</b>
-                </li>
-              ))}
-            </ul>
-            <div className="mg-modal-actions">
-              <button
-                className="mg-ghost-btn"
-                onClick={async () => setCopied(await copyText(`La Balance ${daily ? day : ''}\n${total}/${ROUNDS * 100}`))}
-              >
-                {copied ? 'Copié !' : 'Partager'}
-              </button>
-              <button
-                className="mg-cta"
-                onClick={() => {
-                  setDaily(false)
-                  setSeed(seed + 1)
-                  setIndex(0)
-                  setScores([])
-                  setValue('')
-                  setRevealed(false)
-                  setSummary(false)
-                }}
-              >
-                Rejouer ↻
-              </button>
-            </div>
+                  </>
+                ),
+                detail: `Ta réponse : ${formatNumber(answers[i] ?? 0)}`,
+              }))}
+              max={ROUNDS * 100}
+              historyKey="balance"
+              shareText={`La Balance ${daily ? day : ''}\n${total}/${ROUNDS * 100}`}
+              archiveHref="#/estimation/archive"
+              onReplay={() => {
+                setDaily(false)
+                setSeed(seed + 1)
+                setIndex(0)
+                setScores([])
+                setAnswers([])
+                setValue('')
+                setRevealed(false)
+                setSummary(false)
+              }}
+            />
           </div>
         </div>
       )}
