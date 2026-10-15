@@ -8,7 +8,7 @@ import { getWorld } from '../../geo/world'
 import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
 import { formatTime, normalize, shuffle } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import AppBar, { SubLink } from '../../ui/AppBar'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
 
@@ -23,14 +23,18 @@ export default function Cartographe({ quizId: id, params }: { quizId?: string; p
 }
 
 function Brand() {
+  const current = window.location.hash.split('?')[0]
   return (
-    <header className="st-top">
-      <a href="#/cartographe" className="st-brand">
-        Seterra
-        <small>sur Méridien</small>
-      </a>
-      <HomeButton className="st-hub" />
-    </header>
+    <AppBar title="Seterra">
+      <SubLink href="#/cartographe" active={current === '#/cartographe'}>
+        Tous les quiz
+      </SubLink>
+      {REGIONS.map((r) => (
+        <SubLink key={r.id} href={`#/cartographe/${r.id}`} active={current === `#/cartographe/${r.id}`}>
+          {r.name}
+        </SubLink>
+      ))}
+    </AppBar>
   )
 }
 
@@ -93,11 +97,11 @@ interface Target {
 }
 
 const FILL: Record<Target['status'], string> = {
-  pending: '#4c8250',
-  ok1: '#ffffff',
-  ok2: '#f6d55c',
-  ok3: '#f39c3c',
-  fail: '#e2453c',
+  pending: 'var(--land)',
+  ok1: 'var(--ok1)',
+  ok2: 'var(--warn)',
+  ok3: 'var(--orange)',
+  fail: 'var(--bad)',
 }
 
 function prompt(code: string, ask: Ask): string {
@@ -297,7 +301,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               </span>
               <span className="st-target">{hover ? countryName(hover) : 'Survole ou clique un pays'}</span>
               <span className="st-right">
-                <button className="st-pill" onClick={() => setPinned(pinned.size ? new Set() : new Set(members))}>
+                <button className="st-pill ui-btn line" onClick={() => setPinned(pinned.size ? new Set() : new Set(members))}>
                   {pinned.size ? 'Masquer les noms' : 'Tous les noms'}
                 </button>
                 <button className="st-x" onClick={() => go('/cartographe')} aria-label="Quitter">
@@ -341,16 +345,16 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               {shapes.map(({ code, d }) => {
                 const inQuiz = memberSet.has(code)
                 const t = targets.get(code)
-                let fill = inQuiz ? FILL[t!.status] : '#3a6a3e'
-                if (flash?.code === code && flash.kind === 'wrong') fill = '#7fb07f'
-                if (learning && inQuiz && (hover === code || pinned.has(code))) fill = '#f6d55c'
+                let fill = inQuiz ? FILL[t!.status] : 'var(--land-off)'
+                if (flash?.code === code && flash.kind === 'wrong') fill = 'var(--flash)'
+                if (learning && inQuiz && (hover === code || pinned.has(code))) fill = 'var(--warn)'
                 const cls = [
                   'st-land',
                   inQuiz ? 'q' : '',
                   blink && code === current ? 'blink' : '',
                   mode === 'saisir' && ask === 'pays' && started && !finished && code === current ? 'ask' : '',
                 ].join(' ')
-                return <path key={code} data-code={code} d={d} fill={fill} className={cls} onClick={() => onCountry(code)} />
+                return <path key={code} data-code={code} d={d} style={{ fill }} className={cls} onClick={() => onCountry(code)} />
               })}
               {members.map((code) => {
                 const c = centers.get(code)
@@ -365,7 +369,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                     cy={c.y}
                     r={7 / Math.sqrt(k)}
                     className={['st-dot', blink && code === current ? 'blink' : '', isAsk ? 'ask' : ''].join(' ')}
-                    fill={flash?.code === code && flash.kind === 'wrong' ? '#7fb07f' : FILL[t.status]}
+                    style={{ fill: flash?.code === code && flash.kind === 'wrong' ? 'var(--flash)' : FILL[t.status] }}
                     onClick={() => onCountry(code)}
                   />
                 )
@@ -408,7 +412,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           {!started && (
             <div className="st-start">
               <div className="st-start-top">
-                <button className="st-pill" onClick={() => go('/cartographe')}>
+                <button className="st-pill ui-btn line" onClick={() => go('/cartographe')}>
                   Retour
                 </button>
               </div>
@@ -428,7 +432,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   Apprendre
                 </a>
               </div>
-              <button className="st-go" onClick={start}>
+              <button className="st-go ui-btn" onClick={start}>
                 {learning ? 'Explorer la carte' : 'Commencer le quiz'}
               </button>
             </div>
@@ -442,10 +446,10 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               </p>
               {record && <p className="st-record">Nouveau record !</p>}
               <div className="st-modes">
-                <button className="st-go" onClick={restart}>
+                <button className="st-go ui-btn" onClick={restart}>
                   Rejouer
                 </button>
-                <button className="st-pill" onClick={() => go('/cartographe')}>
+                <button className="st-pill ui-btn line" onClick={() => go('/cartographe')}>
                   Autres quiz
                 </button>
               </div>
@@ -464,7 +468,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onType()}
             />
-            <button className="st-go" onClick={onType}>
+            <button className="st-go ui-btn" onClick={onType}>
               Valider
             </button>
           </div>
