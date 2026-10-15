@@ -1,8 +1,9 @@
 import { geoAzimuthalEqualArea, geoCentroid, geoDistance, geoPath } from 'd3-geo'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
-import { feature } from 'topojson-client'
-import type { GeometryObject, Topology } from 'topojson-specification'
+import { loadUsaAtlas } from '../../geo/atlas'
+import { countryName } from '../../geo/countries'
 import { getWorld } from '../../geo/world'
+import { COUNTRY_STATS } from '../classement/data'
 
 export interface GeoShape {
   name: string
@@ -15,7 +16,6 @@ export interface GeoShape {
 type Source =
   | { country: string }
   | { part: string; near: [number, number] }
-  | { state: string }
   | { rect: [number, number] }
 
 const DEFS: [string, string, Source][] = [
@@ -66,11 +66,6 @@ const DEFS: [string, string, Source][] = [
   ['Crète', 'île', { part: 'GR', near: [24.9, 35.2] }],
   ['Tasmanie', 'île', { part: 'AU', near: [146.6, -42] }],
   ['Hokkaidō', 'île', { part: 'JP', near: [143, 43.3] }],
-  ['Texas', 'État américain', { state: 'Texas' }],
-  ['Californie', 'État américain', { state: 'California' }],
-  ['Floride', 'État américain', { state: 'Florida' }],
-  ['Alaska', 'État américain', { state: 'Alaska' }],
-  ['Rhode Island', 'État américain', { state: 'Rhode Island' }],
   ['Central Park', 'New York', { rect: [0.83, 4.0] }],
 ]
 
@@ -99,20 +94,22 @@ function nearestPart(code: string, near: [number, number]): Feature {
 
 let cache: Promise<GeoShape[]> | null = null
 export function loadGeoShapes(): Promise<GeoShape[]> {
-  cache ??= import('us-atlas/states-10m.json').then((mod) => {
-    const topo = (mod.default ?? mod) as unknown as Topology
-    const states = (feature(topo, topo.objects.states as GeometryObject) as unknown as FeatureCollection).features
-    return DEFS.map(([name, detail, src]) => {
+  cache ??= loadUsaAtlas().then((usa) => {
+    const fc = (features: Feature[]): FeatureCollection => ({ type: 'FeatureCollection', features: features as Feature<Geometry>[] })
+    const named = DEFS.map(([name, detail, src]) => {
       if ('rect' in src) {
         const [w, h] = src.rect
         return { name, detail, d: `M0 0H${w}V${h}H0Z`, w, h }
       }
-      let features: Feature[]
-      if ('country' in src) features = mainParts(src.country)
-      else if ('part' in src) features = [nearestPart(src.part, src.near)]
-      else features = states.filter((f) => (f.properties as { name: string }).name === src.state)
-      return shape(name, detail, { type: 'FeatureCollection', features: features as Feature<Geometry>[] })
+      return shape(name, detail, fc('country' in src ? mainParts(src.country) : [nearestPart(src.part, src.near)]))
     })
+    const taken = new Set(named.map((n) => n.name))
+    const present = new Set(getWorld().codes)
+    const countries = COUNTRY_STATS.filter((c) => present.has(c.code) && !taken.has(countryName(c.code))).map((c) =>
+      shape(countryName(c.code), 'pays', fc(mainParts(c.code))),
+    )
+    const usStates = usa.codes.map((code) => shape(usa.name(code), 'État américain', fc([usa.features.get(code)!])))
+    return [...named, ...countries, ...usStates].filter((s) => s.w > 0 && s.h > 0 && Number.isFinite(s.w))
   })
   return cache
 }
