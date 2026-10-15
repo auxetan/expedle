@@ -6,6 +6,7 @@ import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import { emojiSilhouette } from './silhouette'
+import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 
 const ROUNDS = 3
@@ -36,7 +37,7 @@ function Pan({ x, y, item, color, size }: { x: number; y: number; item: WeightIt
   const w = h * s.aspect
   return (
     <g>
-      <line x1={x - 60} x2={x + 60} y1={y} y2={y} stroke="#4c5470" strokeWidth={3} />
+      <line x1={x - 60} x2={x + 60} y1={y} y2={y} style={{ stroke: 'var(--muted)' }} strokeWidth={3} />
       <image href={s.href} x={x - w / 2} y={y - h - 2} width={w} height={h} />
     </g>
   )
@@ -54,6 +55,8 @@ export default function Balance({ date }: { date?: string | null }) {
   const [summary, setSummary] = useState(false)
   const [answers, setAnswers] = useState<number[]>([])
 
+  const theme = useTheme()
+  const colors = useMemo(() => [cssColor('--ref'), cssColor('--target')], [theme])
   const [ref, tgt] = rounds[index]
   const truth = ref.kg / tgt.kg
   const q = parseNumber(value)
@@ -137,20 +140,20 @@ export default function Balance({ date }: { date?: string | null }) {
       </div>
       <div className="mg-board bal-board">
         <svg viewBox="0 0 900 400" width="100%" style={{ display: 'block' }}>
-          <line x1={0} x2={900} y1={330} y2={330} stroke="#2a3150" strokeWidth={2} />
-          <line x1={PX} x2={PX} y1={PY} y2={330} stroke="#4c5470" strokeWidth={4} />
-          <line x1={PX - 40} x2={PX + 40} y1={330} y2={330} stroke="#4c5470" strokeWidth={6} />
+          <line x1={0} x2={900} y1={330} y2={330} style={{ stroke: 'var(--line)' }} strokeWidth={2} />
+          <line x1={PX} x2={PX} y1={PY} y2={330} style={{ stroke: 'var(--muted)' }} strokeWidth={4} />
+          <line x1={PX - 40} x2={PX + 40} y1={330} y2={330} style={{ stroke: 'var(--muted)' }} strokeWidth={6} />
           <g className="bal-beam">
-            <line x1={lx} y1={ly} x2={rx} y2={ry} stroke="#4c5470" strokeWidth={4} />
-            <line x1={lx} y1={ly} x2={lx} y2={ly + 80} stroke="#4c5470" strokeWidth={2} />
-            <line x1={rx} y1={ry} x2={rx} y2={ry + 60} stroke="#4c5470" strokeWidth={2} />
-            <Pan x={lx} y={ly + 80} item={ref} color="#3f5fd6" size={110} />
-            <Pan x={rx} y={ry + 60} item={tgt} color="#e8131c" size={70} />
-            <text x={lx + 70} y={ly + 70} fill="#7aa2ff" fontFamily="JetBrains Mono" fontSize={20}>
+            <line x1={lx} y1={ly} x2={rx} y2={ry} style={{ stroke: 'var(--muted)' }} strokeWidth={4} />
+            <line x1={lx} y1={ly} x2={lx} y2={ly + 80} style={{ stroke: 'var(--muted)' }} strokeWidth={2} />
+            <line x1={rx} y1={ry} x2={rx} y2={ry + 60} style={{ stroke: 'var(--muted)' }} strokeWidth={2} />
+            <Pan x={lx} y={ly + 80} item={ref} color={colors[0]} size={110} />
+            <Pan x={rx} y={ry + 60} item={tgt} color={colors[1]} size={70} />
+            <text x={lx + 70} y={ly + 70} style={{ fill: 'var(--ref)' }} fontFamily="Ubuntu" fontSize={20}>
               × 1
             </text>
           </g>
-          <circle cx={PX} cy={PY} r={11} fill="#0b1020" stroke="#4c5470" strokeWidth={3} />
+          <circle cx={PX} cy={PY} r={11} style={{ fill: 'var(--bg)', stroke: 'var(--muted)' }} strokeWidth={3} />
         </svg>
         {revealed && (
           <div className="mg-result bal-result">
