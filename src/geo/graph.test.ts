@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGraph, guessLimit, isSolved, nextCountries, remaining, scoreGuess, shortestPath, startConnected } from './graph'
+import { buildGraph, filterGraph, guessLimit, isSolved, nextCountries, remaining, scoreGuess, shortestPath, startConnected } from './graph'
 
 const edges = [
   'ES-PT', 'ES-FR', 'FR-DE', 'FR-CH', 'FR-IT', 'DE-AT', 'CH-AT', 'IT-AT', 'DE-CZ', 'DE-PL',
@@ -58,6 +58,13 @@ describe('itinerary graph', () => {
     expect(guessLimit(6)).toBe(11)
     expect(guessLimit(9)).toBe(15)
     expect(guessLimit(13)).toBe(21)
+  })
+
+  it('reroutes around an avoided country', () => {
+    const noFrance = filterGraph(g, (c) => c !== 'FR')
+    expect(remaining(noFrance, 'ES', 'AT', new Set())).toBe(Infinity)
+    const noGermany = filterGraph(g, (c) => c !== 'DE')
+    expect(remaining(noGermany, 'FR', 'PL', new Set())).toBe(3)
   })
 
   it('lets an exclave reach the end but not bridge the mainland', () => {
