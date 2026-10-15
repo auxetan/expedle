@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadAtlas, worldAtlas, type Atlas, type AtlasId } from '../../geo/atlas'
 import { go } from '../../lib/router'
 import { seededRng, todayKey, weekKey } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import AppBar, { SubLink } from '../../ui/AppBar'
+import { useTheme } from '../../ui/theme'
 import { loadSettings, saveSettings, type ItinSettings } from './history'
 import ItinGame, { type GameSlot } from './ItinGame'
 import { Archive, dailyPuzzle, Maps, playUrl, Practice, Stats } from './ItinPages'
@@ -30,8 +31,8 @@ function useAtlas(id: AtlasId): Atlas | null {
 export default function Itineraire({ mode, params }: { mode?: string; params: URLSearchParams }) {
   const view: View = (['hebdo', 'usa', 'libre', 'archive', 'stats', 'cartes'] as View[]).includes(mode as View) ? (mode as View) : 'jour'
   const [settings, setSettings] = useState<ItinSettings>(loadSettings)
-  const [menu, setMenu] = useState(false)
-  const [modal, setModal] = useState<'help' | 'settings' | null>(null)
+  const [help, setHelp] = useState(false)
+  const theme = useTheme()
   const playing = view === 'jour' || view === 'hebdo' || view === 'usa' || (view === 'libre' && params.has('de'))
   const atlasId: AtlasId = view === 'usa' || params.get('carte') === 'usa' ? 'usa' : 'monde'
   const atlas = useAtlas(atlasId)
@@ -88,84 +89,53 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
     if (p) go(`${playUrl({ ...p, hard: params.get('mode') === 'difficile' })}&n=${Date.now()}`)
   }
 
-  const links: [string, string, View | null][] = [
+  const subnav: [string, string, View][] = [
     ['#/itineraire', 'Quotidien', 'jour'],
-    ['#/itineraire/hebdo', 'Défi hebdomadaire', 'hebdo'],
+    ['#/itineraire/hebdo', 'Défi hebdo', 'hebdo'],
+    ['#/itineraire/usa', 'États-Unis', 'usa'],
     ['#/itineraire/libre', 'Entraînement & défi', 'libre'],
     ['#/itineraire/cartes', 'Cartes', 'cartes'],
+    ['#/itineraire/archive', 'Archive', 'archive'],
+    ['#/itineraire/stats', 'Statistiques', 'stats'],
   ]
 
-  return (
-    <div className={`itin itin-${settings.theme}`}>
-      <nav className="itin-nav">
-        <div className="itin-nav-left">
-          <HomeButton className="itin-home" />
-          <a href="#/itineraire" className="itin-logo">
-            <span className="itin-logo-mark">◎</span>travle
-            {view === 'usa' || atlasId === 'usa' ? <small className="itin-logo-sub">usa</small> : null}
-          </a>
-        </div>
-        <div className="itin-links">
-          {links.map(([href, label, v]) => (
-            <a key={href} href={href} className={view === v ? 'on' : ''}>
-              {v === 'hebdo' && <small>CHAQUE LUNDI</small>}
-              {label}
-            </a>
-          ))}
-          <button className="itin-burger" onClick={() => setMenu(!menu)} aria-label="Menu">
-            ☰
-          </button>
-        </div>
-      </nav>
+  const travleSettings = (
+    <>
+      <div className="ui-field">
+        <span>Travle · modificateurs</span>
+        <label className="ui-check">
+          <input type="checkbox" checked={settings.hard} onChange={(e) => update({ hard: e.target.checked })} />
+          Mode difficile : masquer les noms et les indices
+        </label>
+        <label className="ui-check">
+          <input type="checkbox" checked={settings.hideMap} onChange={(e) => update({ hideMap: e.target.checked })} />
+          Masquer la carte
+        </label>
+      </div>
+      <div className="ui-field">
+        <span>Travle · projection</span>
+        <label className="ui-check">
+          <input type="radio" name="proj" checked={settings.projection === 'azimutale'} onChange={() => update({ projection: 'azimutale' })} />
+          Azimutale équidistante : déforme le moins les pays visibles
+        </label>
+        <label className="ui-check">
+          <input type="radio" name="proj" checked={settings.projection === 'mercator'} onChange={() => update({ projection: 'mercator' })} />
+          Mercator : la carte imprimée classique
+        </label>
+      </div>
+    </>
+  )
 
-      {menu && (
-        <div className="itin-drawer-bg" onClick={() => setMenu(false)}>
-          <aside className="itin-drawer" onClick={(e) => e.stopPropagation()}>
-            <a href="#/itineraire" onClick={() => setMenu(false)}>
-              🗓 Quotidien
-            </a>
-            <a href="#/itineraire/hebdo" onClick={() => setMenu(false)}>
-              🏁 Défi hebdomadaire
-            </a>
-            <a href="#/itineraire/usa" onClick={() => setMenu(false)}>
-              🇺🇸 États-Unis
-            </a>
-            <a href="#/itineraire/libre" onClick={() => setMenu(false)}>
-              🎲 Entraînement & défi
-            </a>
-            <a href="#/itineraire/cartes" onClick={() => setMenu(false)}>
-              🗺 Cartes
-            </a>
-            <a href="#/itineraire/archive" onClick={() => setMenu(false)}>
-              📚 Archive
-            </a>
-            <hr />
-            <button
-              onClick={() => {
-                setMenu(false)
-                setModal('settings')
-              }}
-            >
-              ⚙ Réglages
-            </button>
-            <a href="#/itineraire/stats" onClick={() => setMenu(false)}>
-              📊 Statistiques
-            </a>
-            <button
-              onClick={() => {
-                setMenu(false)
-                setModal('help')
-              }}
-            >
-              ❓ Comment jouer
-            </button>
-            <hr />
-            <a href="#/" onClick={() => setMenu(false)}>
-              ⌂ Accueil Méridien
-            </a>
-          </aside>
-        </div>
-      )}
+  return (
+    <div className={`itin itin-${theme}`}>
+      <AppBar title={atlasId === 'usa' ? 'Travle USA' : 'Travle'} settings={travleSettings}>
+        {subnav.map(([href, label, v]) => (
+          <SubLink key={href} href={href} active={view === v}>
+            {label}
+          </SubLink>
+        ))}
+        <button onClick={() => setHelp(true)}>Comment jouer</button>
+      </AppBar>
 
       <main className="itin-main">
         {view === 'archive' && <Archive />}
@@ -188,18 +158,17 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
             hard={game.hard}
             shareUrl={`${location.origin}${location.pathname}#${playUrl({ ...game.puzzle, hard: game.hard })}`}
             onAnother={another}
-            onHelp={() => setModal('help')}
+            onHelp={() => setHelp(true)}
           />
         )}
       </main>
 
-      {modal && (
-        <div className="itin-modal-bg" onClick={() => setModal(null)}>
+      {help && (
+        <div className="itin-modal-bg" onClick={() => setHelp(false)}>
           <article className="itin-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close" onClick={() => setModal(null)} aria-label="Fermer">
+            <button className="close" onClick={() => setHelp(false)} aria-label="Fermer">
               ✕
             </button>
-            {modal === 'help' ? (
               <>
                 <h2>travle</h2>
                 <p>
@@ -225,50 +194,6 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
                 <h4>Essais</h4>
                 <p>Longueur du plus court chemin + 4 à 8 essais bonus selon la difficulté.</p>
               </>
-            ) : (
-              <>
-                <h2>Réglages</h2>
-                <h4>Thème</h4>
-                <div className="seg">
-                  {(['sombre', 'clair'] as const).map((t) => (
-                    <button key={t} className={settings.theme === t ? 'on' : ''} onClick={() => update({ theme: t })}>
-                      {t === 'sombre' ? 'Sombre' : 'Clair'}
-                    </button>
-                  ))}
-                </div>
-                <h4>Modificateurs de jeu</h4>
-                <label className="check">
-                  <input type="checkbox" checked={settings.hard} onChange={(e) => update({ hard: e.target.checked })} />
-                  Mode difficile : masquer les noms et les indices
-                </label>
-                <label className="check">
-                  <input type="checkbox" checked={settings.hideMap} onChange={(e) => update({ hideMap: e.target.checked })} />
-                  Masquer la carte
-                </label>
-                <h4>Projection de la carte</h4>
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="proj"
-                    checked={settings.projection === 'azimutale'}
-                    onChange={() => update({ projection: 'azimutale' })}
-                  />
-                  Azimutale équidistante (par défaut) : déforme le moins les pays visibles
-                </label>
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="proj"
-                    checked={settings.projection === 'mercator'}
-                    onChange={() => update({ projection: 'mercator' })}
-                  />
-                  Mercator : la carte imprimée classique
-                </label>
-                <button className="pink wide" onClick={() => setModal(null)}>
-                  Terminé
-                </button>
-              </>
-            )}
           </article>
         </div>
       )}
