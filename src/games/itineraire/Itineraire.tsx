@@ -1,307 +1,195 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { countryName } from '../../geo/countries'
-import { isSolved, MARK_EMOJI, nextCountries, scoreGuess, shortestPath, startConnected, type Mark } from '../../geo/graph'
-import { getWorld } from '../../geo/world'
+import { useEffect, useMemo, useState } from 'react'
+import { loadAtlas, worldAtlas, type Atlas, type AtlasId } from '../../geo/atlas'
 import { go } from '../../lib/router'
-import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
-import { copyText, load, save, seededRng, todayKey, weekKey } from '../../lib/util'
-import RouteMap, { type Layer } from './RouteMap'
-import { exactMatch, makePuzzle, matchSuggestions, puzzleFor, type Puzzle } from './puzzle'
+import { seededRng, todayKey, weekKey } from '../../lib/util'
+import HomeButton from '../../ui/HomeButton'
+import { loadSettings, saveSettings, type ItinSettings } from './history'
+import ItinGame, { type GameSlot } from './ItinGame'
+import { Archive, dailyPuzzle, Maps, playUrl, Practice, Stats } from './ItinPages'
+import { makePuzzle, puzzleFor, type Extra, type Puzzle } from './puzzle'
 import './itineraire.css'
 
-type Kind = 'jour' | 'hebdo' | 'libre'
+type View = 'jour' | 'hebdo' | 'usa' | 'libre' | 'archive' | 'stats' | 'cartes'
 
-const COLORS = {
-  start: '#c9899a',
-  end: '#88afa2',
-  connected: '#d7c7a2',
-  loose: '#4f4a45',
-  solution: '#7d7464',
+function frDate(date: string): string {
+  return new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
 }
 
-interface Saved {
-  guesses: string[]
-  hints: number
-}
-
-interface Stats {
-  played: number
-  won: number
-  perfect: number
-}
-
-function initialPuzzle(kind: Kind, params: URLSearchParams): Puzzle {
-  if (kind === 'jour') return makePuzzle(seededRng('itin-' + todayKey()), 3, 7)
-  if (kind === 'hebdo') return makePuzzle(seededRng('itin-hebdo-' + weekKey()), 7, 11)
-  const de = params.get('de')
-  const a = params.get('a')
-  if (de && a) {
-    const p = puzzleFor(de, a)
-    if (p) return p
-  }
-  return makePuzzle(Math.random, 3, 8)
-}
-
-function Highlight({ label, at, len }: { label: string; at: number; len: number }) {
-  if (at < 0) return <>{label}</>
-  return (
-    <>
-      {label.slice(0, at)}
-      <mark>{label.slice(at, at + len)}</mark>
-      {label.slice(at + len)}
-    </>
-  )
+function useAtlas(id: AtlasId): Atlas | null {
+  const [atlas, setAtlas] = useState<Atlas | null>(id === 'monde' ? worldAtlas() : null)
+  useEffect(() => {
+    let alive = true
+    loadAtlas(id).then((a) => alive && setAtlas(a))
+    return () => {
+      alive = false
+    }
+  }, [id])
+  return atlas && atlas.id === id ? atlas : null
 }
 
 export default function Itineraire({ mode, params }: { mode?: string; params: URLSearchParams }) {
-  const kind: Kind = mode === 'hebdo' ? 'hebdo' : mode === 'libre' ? 'libre' : 'jour'
-  const storageKey = kind === 'jour' ? `itin:jour:${todayKey()}` : kind === 'hebdo' ? `itin:hebdo:${weekKey()}` : null
-  const [puzzle] = useState(() => initialPuzzle(kind, params))
-  const saved = storageKey ? load<Saved>(storageKey, { guesses: [], hints: 0 }) : { guesses: [], hints: 0 }
-  const [guesses, setGuesses] = useState<string[]>(saved.guesses)
-  const [hints, setHints] = useState(saved.hints)
-  const [hidden, setHidden] = useState<Set<string>>(new Set())
-  const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
-  const [open, setOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [shake, setShake] = useState(false)
-  const [modal, setModal] = useState<'help' | 'results' | null>(null)
-  const [toast, setToast] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const view: View = (['hebdo', 'usa', 'libre', 'archive', 'stats', 'cartes'] as View[]).includes(mode as View) ? (mode as View) : 'jour'
+  const [settings, setSettings] = useState<ItinSettings>(loadSettings)
+  const [menu, setMenu] = useState(false)
+  const [modal, setModal] = useState<'help' | 'settings' | null>(null)
+  const playing = view === 'jour' || view === 'hebdo' || view === 'usa' || (view === 'libre' && params.has('de'))
+  const atlasId: AtlasId = view === 'usa' || params.get('carte') === 'usa' ? 'usa' : 'monde'
+  const atlas = useAtlas(atlasId)
 
-  const g = getWorld().graph
-  const { start, end, maxGuesses, shortest } = puzzle
-  const guessedSet = useMemo(() => new Set(guesses), [guesses])
-  const marks: Mark[] = useMemo(
-    () => guesses.map((c, i) => scoreGuess(g, start, end, guesses.slice(0, i), c)),
-    [g, start, end, guesses],
-  )
-  const won = useMemo(() => isSolved(g, start, end, guessedSet), [g, start, end, guessedSet])
-  const lost = !won && guesses.length >= maxGuesses
-  const over = won || lost
-  const connected = useMemo(() => startConnected(g, start, guessedSet), [g, start, guessedSet])
-  const next = useMemo(() => (hints >= 1 && !over ? nextCountries(g, start, end, guessedSet) : []), [g, start, end, guessedSet, hints, over])
-  const solution = useMemo(() => shortestPath(g, start, end), [g, start, end])
-
-  useEffect(() => {
-    if (storageKey) save(storageKey, { guesses, hints })
-  }, [storageKey, guesses, hints])
-
-  const recorded = useRef(false)
-  useEffect(() => {
-    if (!over || recorded.current) return
-    recorded.current = true
-    const dailyId = kind === 'jour' ? 'itineraire' : kind === 'hebdo' ? 'itineraire-hebdo' : null
-    const day = kind === 'hebdo' ? weekKey() : todayKey()
-    if (dailyId && dailyResult(dailyId, day)) return
-    if (dailyId) saveDailyResult(dailyId, { won, guesses: guesses.length }, day)
-    const stats = load<Stats>('itin-stats', { played: 0, won: 0, perfect: 0 })
-    stats.played += 1
-    if (won) stats.won += 1
-    if (won && guesses.length === shortest) stats.perfect += 1
-    save('itin-stats', stats)
-    recordPlay('itineraire')
-    setTimeout(() => setModal('results'), 900)
-  }, [over, won, kind, guesses.length, shortest])
-
-  const suggestions = useMemo(() => matchSuggestions(query), [query])
-
-  function flash(text: string) {
-    setMessage(text)
-    setShake(true)
-    setTimeout(() => setShake(false), 400)
+  function update(patch: Partial<ItinSettings>) {
+    const next = { ...settings, ...patch }
+    setSettings(next)
+    saveSettings(next)
   }
 
-  function submit(code?: string) {
-    if (over) return
-    const target = code ?? suggestions[active]?.s.code ?? exactMatch(query)?.code
-    if (!target) return flash('Pays inconnu')
-    if (target === start) return flash(`${countryName(start)} est le pays de départ`)
-    if (target === end) return flash(`${countryName(end)} est le pays d’arrivée`)
-    if (guessedSet.has(target)) return flash('Déjà essayé')
-    setGuesses([...guesses, target])
-    setQuery('')
-    setOpen(false)
-    setMessage('')
-    setActive(0)
+  const game = useMemo(() => {
+    if (!atlas || !playing) return null
+    const date = params.get('date') ?? todayKey()
+    const archive = date !== todayKey()
+    if (view === 'jour' || view === 'usa') {
+      const kind = view === 'usa' ? 'usa' : 'jour'
+      const slot: GameSlot = {
+        kind,
+        storageKey: `itin:${kind}:${date}`,
+        dailyId: view === 'usa' ? 'itineraire-usa' : 'itineraire',
+        dayKey: date,
+        label: `${view === 'usa' ? 'USA ' : ''}${date}`,
+        intro: archive ? `Le ${frDate(date)}` : "Aujourd'hui",
+      }
+      return { puzzle: dailyPuzzle(atlas, date), slot, hard: settings.hard }
+    }
+    if (view === 'hebdo') {
+      const week = weekKey()
+      const slot: GameSlot = {
+        kind: 'hebdo',
+        storageKey: `itin:hebdo:${week}`,
+        dailyId: 'itineraire-hebdo',
+        dayKey: week,
+        label: `hebdo ${week}`,
+        intro: 'Cette semaine',
+      }
+      return { puzzle: makePuzzle(atlas, seededRng('itin-hebdo-' + week), 7, 11)!, slot, hard: settings.hard }
+    }
+    const rules = {
+      region: params.get('region'),
+      avoid: params.get('sans'),
+      extra: (params.get('bonus') as Extra | null) ?? 'defaut',
+    }
+    const puzzle: Puzzle | null = puzzleFor(atlas, params.get('de')!, params.get('a')!, rules)
+    if (!puzzle) return null
+    const slot: GameSlot = { kind: 'libre', storageKey: null, dailyId: null, dayKey: todayKey(), label: 'entraînement', intro: 'En route' }
+    return { puzzle, slot, hard: settings.hard || params.get('mode') === 'difficile' }
+  }, [atlas, playing, view, params, settings.hard])
+
+  function another() {
+    if (!atlas) return
+    const rules = game?.slot.kind === 'libre' ? { region: game.puzzle.region, avoid: game.puzzle.avoid, extra: game.puzzle.extra } : {}
+    const p = makePuzzle(atlas, Math.random, 3, 8, rules)
+    if (p) go(`${playUrl({ ...p, hard: params.get('mode') === 'difficile' })}&n=${Date.now()}`)
   }
 
-  function onKey(e: React.KeyboardEvent) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive((a) => Math.min(a + 1, suggestions.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive((a) => Math.max(a - 1, 0))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      submit()
-    } else if (e.key === 'Escape') setOpen(false)
-  }
-
-  const visibleGuesses = guesses.filter((c) => !hidden.has(c))
-  const layers: Layer[] = [
-    ...(lost ? solution.filter((c) => !guessedSet.has(c)).map((c) => ({ code: c, fill: COLORS.solution })) : []),
-    ...visibleGuesses.map((c) => ({ code: c, fill: connected.has(c) ? COLORS.connected : COLORS.loose })),
-    { code: start, fill: COLORS.start },
-    { code: end, fill: COLORS.end },
-  ]
-  const focus = [start, end, ...visibleGuesses, ...next, ...(lost ? solution : [])]
-
-  const shareUrl = `${location.origin}${location.pathname}#/itineraire/libre?de=${start}&a=${end}`
-  const label = kind === 'jour' ? todayKey() : kind === 'hebdo' ? weekKey() : 'entraînement'
-  const shareText = `#Itinéraire ${label}\n${countryName(start)} ➡️ ${countryName(end)}\n${marks.map((m) => MARK_EMOJI[m]).join('')}${won ? '' : '❌'} (${guesses.length}/${maxGuesses})\n${shareUrl}`
-
-  async function copy(text: string, ok: string) {
-    setToast((await copyText(text)) ? ok : 'Copie impossible')
-    setTimeout(() => setToast(''), 1800)
-  }
-
-  const stats = load<Stats>('itin-stats', { played: 0, won: 0, perfect: 0 })
-  const hintLabels = [
-    'Montrer les contours du (des) pays suivant(s)',
-    'Montrer les contours de tous les pays',
-    'Montrer les initiales des pays',
+  const links: [string, string, View | null][] = [
+    ['#/itineraire', 'Quotidien', 'jour'],
+    ['#/itineraire/hebdo', 'Défi hebdomadaire', 'hebdo'],
+    ['#/itineraire/libre', 'Entraînement & défi', 'libre'],
+    ['#/itineraire/cartes', 'Cartes', 'cartes'],
   ]
 
   return (
-    <div className="itin">
+    <div className={`itin itin-${settings.theme}`}>
       <nav className="itin-nav">
-        <a href="#/" className="itin-logo">
-          <span className="itin-logo-mark">◎</span>itinéraire
-        </a>
+        <div className="itin-nav-left">
+          <HomeButton className="itin-home" />
+          <a href="#/itineraire" className="itin-logo">
+            <span className="itin-logo-mark">◎</span>itinéraire
+            {view === 'usa' || atlasId === 'usa' ? <small className="itin-logo-sub">états-unis</small> : null}
+          </a>
+        </div>
         <div className="itin-links">
-          <a href="#/itineraire" className={kind === 'jour' ? 'on' : ''}>
-            Quotidien
-          </a>
-          <a href="#/itineraire/hebdo" className={kind === 'hebdo' ? 'on' : ''}>
-            <small>CHAQUE LUNDI</small>
-            Défi hebdomadaire
-          </a>
-          <a href={`#/itineraire/libre?n=${Date.now()}`} className={kind === 'libre' ? 'on' : ''}>
-            Entraînement
-          </a>
-          <a href="#/">Hub</a>
+          {links.map(([href, label, v]) => (
+            <a key={href} href={href} className={view === v ? 'on' : ''}>
+              {v === 'hebdo' && <small>CHAQUE LUNDI</small>}
+              {label}
+            </a>
+          ))}
+          <button className="itin-burger" onClick={() => setMenu(!menu)} aria-label="Menu">
+            ☰
+          </button>
         </div>
       </nav>
 
-      <main className="itin-main">
-        <p className="itin-title">
-          {kind === 'hebdo' ? 'Cette semaine' : kind === 'jour' ? "Aujourd'hui" : 'En route'}, j'aimerais <b>voyager</b> de{' '}
-          <span className="c-start">{countryName(start)}</span> à <span className="c-end">{countryName(end)}</span>
-        </p>
-        <div className="itin-actions">
-          <button className="itin-help" onClick={() => setModal('help')}>
-            <span className="q">?</span> Aide
-          </button>
-          <button className="itin-send" onClick={() => copy(shareUrl, 'Lien copié !')}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
-              <path d="M2 11.5 21.5 3l-5 18-5.2-6.3-4.8 4.1.9-6.4L2 11.5Zm7.4 1.4-.4 3 2-1.7 7.4-9.5-9 8.2Z" />
-            </svg>
-            Envoyer cet itinéraire à un ami
-          </button>
-        </div>
-
-        <RouteMap layers={layers} focus={focus} outlines={next} showAll={hints >= 2 || over} initials={hints >= 3} />
-
-        {over ? (
-          <>
-            <div className="itin-over">
-              <button className="big-teal" onClick={() => go(`/itineraire/libre?n=${Date.now()}`)}>
-                Jouer une autre <span className="ico">⟳</span>
-              </button>
-              <div className="itin-over-side">
-                <button className="pink" onClick={() => setModal('results')}>
-                  Voir les résultats <span className="ico">⇄</span>
-                </button>
-                <button className="pink" onClick={() => copy(shareText, 'Résultat copié !')}>
-                  Partager avec des amis <span className="ico">📋</span>
-                </button>
-              </div>
-            </div>
-            <p className="itin-more">
-              <a href="#/classement">Jouez à Classement !</a> · <a href="#/echelle/geo">Essayez Géographie à l’échelle</a> ·{' '}
-              <a href="#/cartographe">Cartographe</a>
-            </p>
-          </>
-        ) : (
-          <div className="itin-input-row">
-            {open && suggestions.length > 0 && (
-              <ul className="itin-suggest">
-                {suggestions.map(({ s, at }, i) => (
-                  <li
-                    key={s.code}
-                    className={i === active ? 'active' : ''}
-                    onMouseEnter={() => setActive(i)}
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      submit(s.code)
-                    }}
-                  >
-                    <Highlight label={s.label} at={at} len={query.trim().length} />
-                  </li>
-                ))}
-              </ul>
-            )}
-            <input
-              ref={inputRef}
-              className={shake ? 'shake' : ''}
-              value={query}
-              placeholder="Entrez un pays, un territoire..."
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setActive(0)
-                setOpen(true)
-                setMessage('')
-              }}
-              onFocus={() => setOpen(true)}
-              onBlur={() => setOpen(false)}
-              onKeyDown={onKey}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button className="itin-guess" onClick={() => submit()}>
-              Essais ({guesses.length + 1}/{maxGuesses})
-            </button>
-          </div>
-        )}
-        {message && <p className="itin-msg">{message}</p>}
-        {lost && (
-          <p className="itin-msg">
-            Le chemin le plus court : {[start, ...solution, end].map(countryName).join(' → ')}
-          </p>
-        )}
-
-        <h3 className="itin-h">Essais précédents (cliquer pour afficher/masquer) :</h3>
-        <div className="itin-chips">
-          {guesses.map((c, i) => (
+      {menu && (
+        <div className="itin-drawer-bg" onClick={() => setMenu(false)}>
+          <aside className="itin-drawer" onClick={(e) => e.stopPropagation()}>
+            <a href="#/itineraire" onClick={() => setMenu(false)}>
+              🗓 Quotidien
+            </a>
+            <a href="#/itineraire/hebdo" onClick={() => setMenu(false)}>
+              🏁 Défi hebdomadaire
+            </a>
+            <a href="#/itineraire/usa" onClick={() => setMenu(false)}>
+              🇺🇸 États-Unis
+            </a>
+            <a href="#/itineraire/libre" onClick={() => setMenu(false)}>
+              🎲 Entraînement & défi
+            </a>
+            <a href="#/itineraire/cartes" onClick={() => setMenu(false)}>
+              🗺 Cartes
+            </a>
+            <a href="#/itineraire/archive" onClick={() => setMenu(false)}>
+              📚 Archive
+            </a>
+            <hr />
             <button
-              key={c}
-              className={hidden.has(c) ? 'chip off' : 'chip'}
               onClick={() => {
-                const h = new Set(hidden)
-                if (h.has(c)) h.delete(c)
-                else h.add(c)
-                setHidden(h)
+                setMenu(false)
+                setModal('settings')
               }}
             >
-              <span className="n">{i + 1}.</span> {countryName(c)} <span className="e">{MARK_EMOJI[marks[i]]}</span>
+              ⚙ Réglages
             </button>
-          ))}
+            <a href="#/itineraire/stats" onClick={() => setMenu(false)}>
+              📊 Statistiques
+            </a>
+            <button
+              onClick={() => {
+                setMenu(false)
+                setModal('help')
+              }}
+            >
+              ❓ Comment jouer
+            </button>
+            <hr />
+            <a href="#/" onClick={() => setMenu(false)}>
+              ⌂ Accueil Méridien
+            </a>
+          </aside>
         </div>
+      )}
 
-        {!over && (
-          <>
-            <h3 className="itin-h">Avoir un indice ({hints}/3) :</h3>
-            <div className="itin-hints">
-              {hintLabels.map((text, i) => (
-                <button key={text} disabled={i !== hints} className={i === hints ? 'hint on' : 'hint'} onClick={() => setHints(hints + 1)}>
-                  {text}
-                </button>
-              ))}
-            </div>
-          </>
+      <main className="itin-main">
+        {view === 'archive' && <Archive />}
+        {view === 'stats' && <Stats />}
+        {view === 'cartes' && <Maps />}
+        {view === 'libre' && !params.has('de') && <Practice />}
+        {playing && !atlas && <p className="itin-muted">Chargement de la carte…</p>}
+        {playing && atlas && !game && (
+          <p className="itin-msg">
+            Ce trajet n’existe pas. <a href="#/itineraire/libre">Configurer un entraînement</a>
+          </p>
+        )}
+        {game && atlas && (
+          <ItinGame
+            key={`${view}-${params.toString()}`}
+            atlas={atlas}
+            puzzle={game.puzzle}
+            slot={game.slot}
+            settings={settings}
+            hard={game.hard}
+            shareUrl={`${location.origin}${location.pathname}#${playUrl({ ...game.puzzle, hard: game.hard })}`}
+            onAnother={another}
+            onHelp={() => setModal('help')}
+          />
         )}
       </main>
 
@@ -321,57 +209,69 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
                 <h4>Score</h4>
                 <ul className="legend">
                   <li>✅ Essai optimal ! Vous vous rapprochez d’un pas.</li>
-                  <li>🟩 Bon essai : ce pays est sur un chemin le plus court, mais ce n’est pas le prochain pays.</li>
+                  <li>🟩 Bon essai : il réduit le chemin restant, mais n’est pas encore relié au départ.</li>
                   <li>🟧 Plutôt bien : ce pays est proche, mais ne vous rapproche pas.</li>
                   <li>🟥 Pas terrible : ce pays est un gros détour.</li>
                 </ul>
                 <p>Les essais qui ne sont pas reliés au pays de départ sont affichés en gris.</p>
                 <h4>Frontières & connexions</h4>
                 <p>
-                  Il s’agit de voyager à pied : ponts et tunnels comptent (tunnel sous la Manche, pont de l’Øresund…), pas les
-                  exclaves ni les territoires lointains. L’Irlande se relie au Royaume-Uni, l’Indonésie au continent via la
-                  Malaisie. La Russie ne touche pas la Pologne via Kaliningrad.
+                  On voyage à pied : ponts et tunnels comptent (tunnel sous la Manche, pont de l’Øresund…), pas les exclaves ni les
+                  territoires lointains. L’Irlande se relie au Royaume-Uni, l’Indonésie au continent via la Malaisie. La Russie ne
+                  touche pas la Pologne via Kaliningrad. Les coins comptent (Four Corners aux États-Unis).
                 </p>
-                <p>
-                  Nombre d’essais : longueur du plus court chemin + 4 à 8 essais bonus selon la difficulté.
-                </p>
+                <h4>Carte</h4>
+                <p>Faites glisser pour déplacer la carte, molette ou pincement pour zoomer, ⟳ pour recentrer. Survolez un pays pour voir son nom.</p>
+                <h4>Essais</h4>
+                <p>Longueur du plus court chemin + 4 à 8 essais bonus selon la difficulté.</p>
               </>
             ) : (
               <>
-                <h2>{won ? 'Bravo !' : over ? 'Dommage !' : 'Résultats'}</h2>
-                <p>
-                  {countryName(start)} → {countryName(end)}
-                </p>
-                {over && (
-                  <p>
-                    {won ? `Trajet trouvé en ${guesses.length} essai${guesses.length > 1 ? 's' : ''}` : 'Trajet non trouvé'} (minimum :{' '}
-                    {shortest})
-                  </p>
-                )}
-                <p className="emoji-line">{marks.map((m) => MARK_EMOJI[m]).join('')}</p>
-                <p>
-                  Un plus court chemin : {[start, ...solution, end].map(countryName).join(' → ')}
-                </p>
-                <div className="stat-row">
-                  <div>
-                    <b>{stats.played}</b>Parties
-                  </div>
-                  <div>
-                    <b>{stats.played ? Math.round((stats.won / stats.played) * 100) : 0}%</b>Victoires
-                  </div>
-                  <div>
-                    <b>{stats.perfect}</b>Parfaites
-                  </div>
+                <h2>Réglages</h2>
+                <h4>Thème</h4>
+                <div className="seg">
+                  {(['sombre', 'clair'] as const).map((t) => (
+                    <button key={t} className={settings.theme === t ? 'on' : ''} onClick={() => update({ theme: t })}>
+                      {t === 'sombre' ? 'Sombre' : 'Clair'}
+                    </button>
+                  ))}
                 </div>
-                <button className="pink wide" onClick={() => copy(shareText, 'Résultat copié !')}>
-                  Partager avec des amis 📋
+                <h4>Modificateurs de jeu</h4>
+                <label className="check">
+                  <input type="checkbox" checked={settings.hard} onChange={(e) => update({ hard: e.target.checked })} />
+                  Mode difficile : masquer les noms et les indices
+                </label>
+                <label className="check">
+                  <input type="checkbox" checked={settings.hideMap} onChange={(e) => update({ hideMap: e.target.checked })} />
+                  Masquer la carte
+                </label>
+                <h4>Projection de la carte</h4>
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="proj"
+                    checked={settings.projection === 'azimutale'}
+                    onChange={() => update({ projection: 'azimutale' })}
+                  />
+                  Azimutale équidistante (par défaut) : déforme le moins les pays visibles
+                </label>
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="proj"
+                    checked={settings.projection === 'mercator'}
+                    onChange={() => update({ projection: 'mercator' })}
+                  />
+                  Mercator : la carte imprimée classique
+                </label>
+                <button className="pink wide" onClick={() => setModal(null)}>
+                  Terminé
                 </button>
               </>
             )}
           </article>
         </div>
       )}
-      {toast && <div className="toast-copy">{toast}</div>}
     </div>
   )
 }
