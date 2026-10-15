@@ -110,6 +110,7 @@
 
 .st-score,
 .st-time {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -399,4 +400,23 @@
 
 .st-list-names {
   font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .st-play {
+    padding: 12px 10px 40px;
+  }
+  .st-bar {
+    position: static;
+    flex-wrap: wrap;
+    backdrop-filter: none;
+  }
+  .st-target {
+    order: 3;
+    flex: 1 0 100%;
+    font-size: 15px;
+  }
+  .st-frame {
+    border-radius: 16px;
+  }
 }
