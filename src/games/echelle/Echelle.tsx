@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
-import { hashString, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
+import { hashString, load, save, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
 import { loadGeoShapes, type GeoShape } from './geoItems'
 import { OBJECTS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -39,15 +39,15 @@ export function formatLength(v: number, variant: Variant): string {
   return `${nf(v / 100000, 1)} km`
 }
 
+// La silhouette est étirée à ses vraies proportions : la dimension non mesurée reste réaliste.
 function objectThing(i: ObjectItem): Thing {
-  const { aspect } = emojiSilhouette(i.emoji, RED)
   return {
     name: i.name,
     detail: i.detail,
     dim: i.dim,
     value: i.cm,
-    heightUnits: i.dim === 'h' ? i.cm : i.cm / aspect,
-    aspect,
+    heightUnits: i.dim === 'h' ? i.cm : i.cm / i.aspect,
+    aspect: i.aspect,
     emoji: i.emoji,
   }
 }
@@ -58,11 +58,12 @@ function geoThing(s: GeoShape): Thing {
   return { name: s.name, detail: s.detail, dim: wide ? 'l' : 'h', value: wide ? s.w : s.h, heightUnits: s.h, aspect: s.w / s.h, shape: s }
 }
 
-function makeRounds(things: Thing[], rng: () => number, count: number): [Thing, Thing][] {
+function makeRounds(things: Thing[], rng: () => number, count: number, seen = new Set<string>()): [Thing, Thing][] {
   const out: [Thing, Thing][] = []
   let used = new Set<string>()
   for (let pass = 0; pass < 4 && out.length < count; pass++) {
-    const pool = shuffle(things, rng)
+    // les objets déjà vus récemment passent en dernier
+    const pool = [...shuffle(things.filter((t) => !seen.has(t.name)), rng), ...shuffle(things.filter((t) => seen.has(t.name)), rng)]
     for (const ref of pool) {
       if (out.length === count) break
       if (used.has(ref.name)) continue
@@ -102,9 +103,9 @@ function Figure({ t, x, y, h, color, opacity = 1 }: { t: Thing; x: number; y: nu
 }
 
 export const TITLES: Record<Variant, string> = {
-  objets: "À l'échelle",
-  geo: "À l'échelle : Géographie",
-  '1000': 'Le 1 000 de la semaine',
+  objets: 'Size It Up',
+  geo: 'Size It Up : Géographie',
+  '1000': 'The Weekly 1K',
 }
 
 export function weeklyTheme(week = weekKey()) {
@@ -125,9 +126,14 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
 
   const [seed, setSeed] = useState(0)
   const rounds = useMemo(
-    () => (things ? makeRounds(things, daily ? seededRng(`${dailyId}-${dayKey}`) : Math.random, count) : []),
+    () =>
+      things
+        ? daily
+          ? makeRounds(things, seededRng(`${dailyId}-${dayKey}`), count)
+          : makeRounds(things, Math.random, count, new Set(load<string[]>(`mg-seen:${variant}`, [])))
+        : [],
     // seed : « Rejouer » relance un tirage aléatoire
-    [things, daily, seed, dailyId, dayKey, count],
+    [things, daily, seed, dailyId, dayKey, count, variant],
   )
 
   const title = TITLES[variant]
@@ -158,6 +164,11 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
       daily={daily}
       dayKey={dayKey}
       onFinish={(scores) => {
+        if (things) {
+          const names = rounds.flatMap(([a, b]) => [a.name, b.name])
+          const seen = [...load<string[]>(`mg-seen:${variant}`, []).filter((n) => !names.includes(n)), ...names]
+          save(`mg-seen:${variant}`, seen.slice(-Math.floor(things.length * 0.7)))
+        }
         recordPlay(dailyId)
         recordTotal(dailyId, scores.reduce((a, b) => a + b, 0))
         if (daily) saveDailyResult(dailyId, { scores }, dayKey)
@@ -172,7 +183,7 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
 
 function EchelleHelp() {
   return (
-    <MgHelp title="Comment jouer à l’échelle" intro="Retrouve l’échelle réelle en t’aidant uniquement de la référence visuelle.">
+    <MgHelp title="Comment jouer à Size It Up" intro="Retrouve l’échelle réelle en t’aidant uniquement de la référence visuelle.">
       <HelpStep n="01" title="Comparer">
         Utilise l’objet bleu comme référence fixe : sa taille ne change pas.
       </HelpStep>
