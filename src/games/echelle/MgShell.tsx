@@ -1,43 +1,38 @@
 import { useState, type ReactNode } from 'react'
-import HomeButton from '../../ui/HomeButton'
+import AppBar, { SubLink } from '../../ui/AppBar'
 
-const MENU = [
-  ['#/', 'Accueil Méridien'],
-  ['#/estimation', 'Magnitudle : tous les jeux'],
+const SUBNAV: [string, string][] = [
+  ['#/estimation', 'Tous les jeux'],
   ['#/echelle', 'Size It Up'],
-  ['#/echelle/geo', 'Size It Up : Géographie'],
-  ['#/echelle/1000', 'The Weekly 1K'],
+  ['#/echelle/geo', 'Géographie'],
+  ['#/echelle/1000', 'Weekly 1K'],
   ['#/balance', 'Weigh It Up'],
   ['#/question', 'Daily Question'],
   ['#/survie', 'Survival Mode'],
   ['#/estimation/archive', 'Archive'],
 ]
 
+export function MgNav() {
+  const current = window.location.hash.split('?')[0]
+  return (
+    <>
+      {SUBNAV.map(([href, label]) => (
+        <SubLink key={href} href={href} active={current === href}>
+          {label}
+        </SubLink>
+      ))}
+    </>
+  )
+}
+
 export default function MgShell({ title, help, children }: { title: string; help: ReactNode; children: ReactNode }) {
   const [helpOpen, setHelpOpen] = useState(false)
-  const [menu, setMenu] = useState(false)
   return (
     <div className="mg">
-      <div className="mg-top">
-        <HomeButton />
-        <a href="#/estimation" className="mg-logo" aria-label="Tous les jeux Magnitudle">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />
-          </svg>
-        </a>
-        <button className="mg-burger" onClick={() => setMenu(!menu)} aria-label="Menu">
-          ☰
-        </button>
-        {menu && (
-          <nav className="mg-menu" onClick={() => setMenu(false)}>
-            {MENU.map(([href, label]) => (
-              <a key={href} href={href}>
-                {label}
-              </a>
-            ))}
-          </nav>
-        )}
-      </div>
+      <AppBar title="Magnitudle">
+        <MgNav />
+      </AppBar>
+      <div className="mg-body">
       <header className="mg-head">
         <h1>
           {title}
@@ -48,9 +43,10 @@ export default function MgShell({ title, help, children }: { title: string; help
       </header>
       <main className="mg-main">{children}</main>
       <footer className="mg-foot">
-        <span className="mg-kicker">UN JEU MAGNITUDLE · MÉRIDIEN</span>
-        <a href="#/estimation">← Tous les jeux Magnitudle</a>
+        <span className="mg-kicker">MAGNITUDLE · MÉRIDIEN</span>
+        <a href="#/estimation">Tous les jeux Magnitudle →</a>
       </footer>
+      </div>
       {helpOpen && (
         <div className="mg-modal-bg" onClick={() => setHelpOpen(false)}>
           <div className="mg-modal mg-help" onClick={(e) => e.stopPropagation()}>
