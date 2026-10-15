@@ -2,13 +2,12 @@ import { load, save, todayKey } from '../../lib/util'
 import type { ProjectionKind } from './RouteMap'
 
 export interface ItinSettings {
-  theme: 'sombre' | 'clair'
   hard: boolean
   hideMap: boolean
   projection: ProjectionKind
 }
 
-export const DEFAULT_SETTINGS: ItinSettings = { theme: 'sombre', hard: false, hideMap: false, projection: 'azimutale' }
+export const DEFAULT_SETTINGS: ItinSettings = { hard: false, hideMap: false, projection: 'azimutale' }
 
 export function loadSettings(): ItinSettings {
   return { ...DEFAULT_SETTINGS, ...load<Partial<ItinSettings>>('itin-settings', {}) }
