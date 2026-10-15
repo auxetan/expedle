@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { COUNTRIES, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
 import { copyText, seededRng, shuffle, todayKey } from '../../lib/util'
+import HomeButton from '../../ui/HomeButton'
 import { QUESTIONS } from './questions'
 import './quiz.css'
 
@@ -147,9 +148,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   return (
     <div className="qz">
       <header className="qz-top">
-        <a href="#/" className="qz-back">
-          ← Hub
-        </a>
+        <HomeButton className="qz-back" />
         <h1>{TITLES[kind]}</h1>
         <nav className="qz-modes">
           {(['culture', 'jour', 'drapeaux', 'capitales'] as Kind[]).map((k) => (
