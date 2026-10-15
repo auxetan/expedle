@@ -6,6 +6,8 @@ const Itineraire = lazy(() => import('./games/itineraire/Itineraire'))
 const Echelle = lazy(() => import('./games/echelle/Echelle'))
 const Balance = lazy(() => import('./games/echelle/Balance'))
 const Estimation = lazy(() => import('./games/echelle/Estimation'))
+const MgHome = lazy(() => import('./games/echelle/MgHome'))
+const MgArchive = lazy(() => import('./games/echelle/MgHome').then((m) => ({ default: m.MgArchive })))
 const Classement = lazy(() => import('./games/classement/Classement'))
 const Cartographe = lazy(() => import('./games/cartographe/Cartographe'))
 const Quiz = lazy(() => import('./games/quiz/Quiz'))
@@ -14,6 +16,7 @@ export default function App() {
   const route = useRoute()
   const [page, sub] = route.segments
   const key = route.segments.join('/') + '?' + route.params.toString()
+  const date = route.params.get('date')
 
   let content
   switch (page) {
@@ -21,13 +24,16 @@ export default function App() {
       content = <Itineraire key={key} mode={sub} params={route.params} />
       break
     case 'echelle':
-      content = <Echelle key={key} variant={sub === 'geo' ? 'geo' : 'objets'} />
+      content = <Echelle key={key} variant={sub === 'geo' ? 'geo' : sub === '1000' ? '1000' : 'objets'} date={date} />
+      break
+    case 'estimation':
+      content = sub === 'archive' ? <MgArchive key={key} /> : <MgHome key={key} />
       break
     case 'balance':
-      content = <Balance key={key} />
+      content = <Balance key={key} date={date} />
       break
     case 'question':
-      content = <Estimation key={key} mode="daily" />
+      content = <Estimation key={key} mode="daily" date={date} />
       break
     case 'survie':
       content = <Estimation key={key} mode="survival" />
