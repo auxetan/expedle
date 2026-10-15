@@ -195,7 +195,7 @@ export function Practice() {
         ▶ Jouer en solo
       </button>
       <a className="cfg-back" href="#/itineraire">
-        ← Retour à l’itinéraire du jour
+        ← Retour à Travle
       </a>
       {toast && <div className="toast-copy">{toast}</div>}
     </div>
@@ -263,7 +263,7 @@ export function Stats() {
   const s = computeStats()
   const [toast, setToast] = useState('')
   const max = Math.max(1, ...s.distribution.map((d) => d.count))
-  const text = `Mes statistiques Itinéraire\n🎮 ${s.played} parties · 🏆 ${s.winRate}% · 🔥 ${s.streak} (max ${s.maxStreak})\nParfaites : ${s.perfectRate}% · Sans indice : ${s.noHintRate}%`
+  const text = `Mes statistiques Travle\n🎮 ${s.played} parties · 🏆 ${s.winRate}% · 🔥 ${s.streak} (max ${s.maxStreak})\nParfaites : ${s.perfectRate}% · Sans indice : ${s.noHintRate}%`
   return (
     <div className="itin-page">
       <h2>Statistiques</h2>
