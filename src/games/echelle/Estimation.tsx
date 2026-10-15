@@ -47,8 +47,8 @@ function Scale({ guess, answer }: { guess: number; answer: number }) {
   )
 }
 
-export default function Estimation({ mode }: { mode: 'daily' | 'survival' }) {
-  return mode === 'daily' ? <Daily /> : <Survival />
+export default function Estimation({ mode, date }: { mode: 'daily' | 'survival'; date?: string | null }) {
+  return mode === 'daily' ? <Daily date={date ?? todayKey()} /> : <Survival />
 }
 
 function DailyHelp() {
@@ -71,8 +71,7 @@ function DailyHelp() {
   )
 }
 
-function Daily() {
-  const day = todayKey()
+function Daily({ date: day }: { date: string }) {
   const done = dailyResult<{ guess: number }>('question', day)
   const [practice, setPractice] = useState(0)
   const question = useMemo(() => {
@@ -94,7 +93,7 @@ function Daily() {
     if (!practice) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
   }
 
-  const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).toUpperCase()
+  const date = new Date(day + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).toUpperCase()
   return (
     <MgShell title="Question du jour" help={<DailyHelp />}>
       <section className="dq">
