@@ -111,9 +111,9 @@ export default function Balance({ date }: { date?: string | null }) {
 
   return (
     <MgShell
-      title="La Balance"
+      title="Weigh It Up"
       help={
-        <MgHelp title="Comment jouer à la Balance" intro="Équilibre la référence avec le bon nombre d’objets identiques.">
+        <MgHelp title="Comment jouer à Weigh It Up" intro="Équilibre la référence avec le bon nombre d’objets identiques.">
           <HelpStep n="01" title="Observer">
             À gauche, une référence (×1). À droite, l’objet à empiler.
           </HelpStep>
@@ -209,7 +209,7 @@ export default function Balance({ date }: { date?: string | null }) {
               }))}
               max={ROUNDS * 100}
               historyKey="balance"
-              shareText={`La Balance ${daily ? day : ''}\n${total}/${ROUNDS * 100}`}
+              shareText={`Weigh It Up ${daily ? day : ''}\n${total}/${ROUNDS * 100}`}
               archiveHref="#/estimation/archive"
               onReplay={() => {
                 setDaily(false)
