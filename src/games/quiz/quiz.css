@@ -327,3 +327,27 @@
     padding: 18px;
   }
 }
+
+.qz-cats {
+  max-width: 820px;
+  margin: 0 auto 16px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.qz-cats button {
+  flex: none;
+  background: #121527;
+  border: 1px solid #262a3d;
+  color: #b8bccb;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 14px;
+}
+
+.qz-cats button.on {
+  border-color: var(--red);
+  color: #fff;
+}
