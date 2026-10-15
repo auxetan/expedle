@@ -31,6 +31,18 @@ export function buildGraph(nodes: { country: string }[], edges: [number, number]
   return { country: nodes.map((n) => n.country), adj, nodesOf }
 }
 
+// Garde les indices de zones : seules les liaisons vers des pays refusés disparaissent.
+export function filterGraph(g: Graph, allow: (country: string) => boolean): Graph {
+  const ok = g.country.map(allow)
+  const nodesOf = new Map<string, number[]>()
+  for (const [c, nodes] of g.nodesOf) if (allow(c)) nodesOf.set(c, nodes)
+  return {
+    country: g.country,
+    adj: g.adj.map((list, i) => (ok[i] ? list.filter((j) => ok[j]) : [])),
+    nodesOf,
+  }
+}
+
 interface Field {
   dist: number[]
   parent: number[]
