@@ -83,24 +83,20 @@ export function allSuggestions(atlas: Atlas): Suggestion[] {
   return list
 }
 
-export function matchSuggestions(atlas: Atlas, query: string, limitTo = 6): { s: Suggestion; at: number }[] {
+// D'abord les noms qui commencent par la saisie, puis ceux qui la contiennent ; tout est listé.
+export function matchSuggestions(atlas: Atlas, query: string): { s: Suggestion; at: number }[] {
   const q = normalize(query)
   if (!q) return []
-  const out: { s: Suggestion; at: number; key: number }[] = []
+  const out: { s: Suggestion; at: number; group: number }[] = []
   for (const s of allSuggestions(atlas)) {
-    let best = -1
-    let alias = false
-    s.keys.forEach((k, i) => {
-      const at = k.indexOf(q)
-      if (at >= 0 && (best < 0 || at < best)) {
-        best = at
-        alias = i > 0
-      }
-    })
-    if (best >= 0) out.push({ s, at: alias ? -1 : best, key: best })
+    const at = s.keys[0].indexOf(q)
+    if (at === 0) out.push({ s, at, group: 0 })
+    else if (s.keys.slice(1).some((k) => k.startsWith(q))) out.push({ s, at, group: 1 })
+    else if (at > 0) out.push({ s, at, group: 2 })
+    else if (s.keys.slice(1).some((k) => k.includes(q))) out.push({ s, at: -1, group: 3 })
   }
-  out.sort((a, b) => a.key - b.key || a.s.label.localeCompare(b.s.label, 'fr'))
-  return out.slice(0, limitTo).map(({ s, at }) => ({ s, at }))
+  out.sort((a, b) => a.group - b.group || a.s.label.localeCompare(b.s.label, 'fr'))
+  return out.map(({ s, at }) => ({ s, at }))
 }
 
 export function exactMatch(atlas: Atlas, query: string): Suggestion | undefined {
