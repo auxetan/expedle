@@ -6,6 +6,7 @@ import { OBJECTS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
 import { emojiSilhouette } from './silhouette'
+import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 
 export type Variant = 'objets' | 'geo' | '1000'
@@ -26,9 +27,6 @@ interface Camera {
   camX: number
 }
 
-const BLUE = '#5ea3f7'
-const RED = '#e8131c'
-const GHOST = '#5b6478'
 
 export function formatLength(v: number, variant: Variant): string {
   const nf = (n: number, d = 0) => n.toLocaleString('fr-FR', { maximumFractionDigits: d })
@@ -213,6 +211,8 @@ interface GameProps {
 }
 
 function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onReplay }: GameProps) {
+  const theme = useTheme()
+  const [BLUE, RED, GHOST] = useMemo(() => [cssColor('--ref'), cssColor('--target'), cssColor('--muted')], [theme])
   const ROUNDS = rounds.length
   const [index, setIndex] = useState(0)
   const [scores, setScores] = useState<number[]>([])
@@ -433,19 +433,19 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
         >
           <defs>
             <linearGradient id="mg-ground" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#16213d" />
-              <stop offset="1" stopColor="#0b1020" stopOpacity="0" />
+              <stop offset="0" style={{ stopColor: 'var(--hover)' }} />
+              <stop offset="1" style={{ stopColor: 'var(--card)', stopOpacity: 0 }} />
             </linearGradient>
           </defs>
           <rect x={0} y={ground} width={W} height={H - ground} fill="url(#mg-ground)" />
-          <line x1={0} x2={W} y1={ground} y2={ground} stroke="#2c4f9c" strokeWidth={2} />
+          <line x1={0} x2={W} y1={ground} y2={ground} style={{ stroke: 'var(--muted)' }} strokeWidth={1.5} />
 
           <line
             x1={sx(0) - 12}
             x2={sx(0) + refH * ref.aspect + 12}
             y1={ground - refH - 14}
             y2={ground - refH - 14}
-            stroke="#4f6aa8"
+            style={{ stroke: 'var(--muted)' }}
             strokeWidth={1.5}
             strokeDasharray="3 4"
           />
@@ -474,8 +474,8 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
               transform={`translate(${tLeft + tH * tgt.aspect + 6},${ground - tH - 22})`}
               onPointerDown={(e) => onDown(e, 'resize')}
             >
-              <rect x={-4} y={-4} width={30} height={30} rx={8} fill="#141c33" opacity={0.9} />
-              <path d="M5 17L17 5M10 5h7v7M5 10v7h7" stroke="#c9d4ee" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+              <rect x={-4} y={-4} width={30} height={30} rx={8} style={{ fill: 'var(--card)', stroke: 'var(--line)' }} />
+              <path d="M5 17L17 5M10 5h7v7M5 10v7h7" style={{ stroke: 'var(--fg)' }} strokeWidth={1.8} fill="none" strokeLinecap="round" />
             </g>
           )}
         </svg>
