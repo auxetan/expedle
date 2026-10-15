@@ -670,3 +670,321 @@
     flex-wrap: wrap;
   }
 }
+
+.gh-side .gh-home {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.gh-b-home {
+  padding: 0;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ghh {
+  min-height: 100vh;
+  background: radial-gradient(900px 500px at 50% -10%, #23336f 0%, #121a3a 55%, #0d1430 100%);
+  color: #e8ecff;
+  font-family: Nunito, system-ui, sans-serif;
+  padding: 18px 16px 60px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+}
+
+.ghh > * {
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ghh-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ghh-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 900;
+  font-size: 24px;
+}
+
+.ghh-brand span {
+  font-size: 28px;
+}
+
+.ghh-home {
+  color: #e8ecff;
+}
+
+.ghh-panel {
+  background: rgba(18, 26, 62, 0.85);
+  border: 1px solid #263467;
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.ghh-panel h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #c9d1f5;
+}
+
+.ghh-week {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f1736;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.ghh-streak {
+  font-weight: 900;
+  margin-right: auto;
+}
+
+.ghh-day {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #34437c;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #8e9ad0;
+}
+
+.ghh-day.today {
+  border-color: #fff;
+  color: #fff;
+}
+
+.ghh-day.done {
+  background: #3aa760;
+  border-color: #3aa760;
+  color: #fff;
+}
+
+.ghh-challenges {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ghh-ch {
+  border-radius: 14px;
+  padding: 12px;
+  text-decoration: none;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.15s;
+}
+
+.ghh-ch:hover {
+  transform: translateY(-2px);
+}
+
+.ghh-ch.daily {
+  background: #1b2a66;
+  border: 1px solid #34478f;
+}
+
+.ghh-ch.weekly {
+  background: #c46c63;
+}
+
+.ghh-ch-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ghh-ch-top small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.ghh-ch-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  display: grid;
+  place-items: center;
+}
+
+.ghh-ch-play {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+
+.ghh-ch-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.ghh-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ghh-row h2 {
+  margin: 0;
+}
+
+.ghh-toggle {
+  display: flex;
+  background: #0f1736;
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.ghh-toggle button {
+  border: none;
+  background: none;
+  color: #a9b3df;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.ghh-toggle button.on {
+  background: #3a58d6;
+  color: #fff;
+}
+
+.ghh-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.ghh-tiles button {
+  aspect-ratio: 1.15;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: #1d2752;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ghh-tiles button span {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.ghh-tiles .classique span {
+  background: #7c3aed;
+}
+
+.ghh-tiles .villes span {
+  background: #2f8f6a;
+}
+
+.ghh-tiles button.on.classique {
+  background: #8b3fd9;
+  border-color: #c49cf5;
+}
+
+.ghh-tiles button.on.villes {
+  background: #23775a;
+  border-color: #79d6ad;
+}
+
+.ghh-tiles small {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+.ghh-launch {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f1736;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ghh-launch-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #7c3aed;
+  display: grid;
+  place-items: center;
+}
+
+.ghh-launch b {
+  display: block;
+  font-size: 18px;
+}
+
+.ghh-launch small {
+  color: #a9b3df;
+  font-size: 12px;
+}
+
+.ghh-best {
+  margin-left: auto;
+  font-weight: 800;
+  color: #a9b3df;
+}
+
+.ghh-go {
+  background: #3a58d6;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.ghh-how p {
+  margin: 0;
+  color: #c9d1f5;
+  line-height: 1.5;
+}
