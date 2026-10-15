@@ -1,42 +1,69 @@
-import { COUNTRIES, COUNTRY_BY_CODE } from '../../geo/countries'
-import { distancesFrom, guessLimit } from '../../geo/graph'
-import { getWorld } from '../../geo/world'
+import type { Atlas, AtlasId } from '../../geo/atlas'
+import { distancesFrom, filterGraph, guessLimit, type Graph } from '../../geo/graph'
 import { normalize, pick } from '../../lib/util'
 
-export interface Puzzle {
+export type Extra = 'defaut' | 'aucun' | 'illimite'
+
+export interface RouteRules {
+  region?: string | null
+  avoid?: string | null
+  extra?: Extra
+}
+
+export interface Puzzle extends RouteRules {
+  atlas: AtlasId
   start: string
   end: string
   shortest: number
   maxGuesses: number
 }
 
-function candidates(): string[] {
-  const w = getWorld()
-  return w.codes.filter((c) => w.neighbors.has(c) && !COUNTRY_BY_CODE.get(c)?.territory)
+export function routeGraph(atlas: Atlas, rules: RouteRules): Graph {
+  if (!rules.region && !rules.avoid) return atlas.graph
+  return filterGraph(atlas.graph, (c) => (!rules.region || atlas.region(c) === rules.region) && c !== rules.avoid)
 }
 
-export function makePuzzle(rng: () => number, minLen: number, maxLen: number): Puzzle {
-  const w = getWorld()
-  const pool = candidates()
+function limit(shortest: number, extra: Extra = 'defaut'): number {
+  if (extra === 'aucun') return shortest
+  if (extra === 'illimite') return Infinity
+  return guessLimit(shortest)
+}
+
+export function makePuzzle(
+  atlas: Atlas,
+  rng: () => number,
+  minLen: number,
+  maxLen: number,
+  rules: RouteRules & { start?: string | null; end?: string | null } = {},
+): Puzzle | null {
+  const { start: fixedStart, end: fixedEnd, ...routeRules } = rules
+  const g = routeGraph(atlas, routeRules)
+  const pool = atlas.playable.filter((c) => (!rules.region || atlas.region(c) === rules.region) && c !== rules.avoid)
   for (let attempt = 0; attempt < 200; attempt++) {
-    const start = pick(pool, rng)
-    const dist = distancesFrom(w.graph, start)
-    const ends = pool.filter((c) => {
-      const d = dist.get(c)
-      return d !== undefined && d >= minLen && d <= maxLen
-    })
-    if (!ends.length) continue
+    const start = fixedStart ?? pick(pool, rng)
+    const dist = distancesFrom(g, start)
+    const ends = fixedEnd
+      ? [fixedEnd].filter((c) => dist.has(c))
+      : pool.filter((c) => {
+          const d = dist.get(c)
+          return d !== undefined && d >= minLen && d <= maxLen
+        })
+    if (!ends.length) {
+      if (fixedStart) return null
+      continue
+    }
     const end = pick(ends, rng)
     const shortest = dist.get(end)!
-    return { start, end, shortest, maxGuesses: guessLimit(shortest) }
+    return { atlas: atlas.id, start, end, shortest, maxGuesses: limit(shortest, routeRules.extra), ...routeRules }
   }
-  throw new Error('Aucun trajet trouvé')
+  return null
 }
 
-export function puzzleFor(start: string, end: string): Puzzle | null {
-  const d = distancesFrom(getWorld().graph, start).get(end)
-  if (d === undefined || start === end) return null
-  return { start, end, shortest: d, maxGuesses: guessLimit(d) }
+export function puzzleFor(atlas: Atlas, start: string, end: string, rules: RouteRules = {}): Puzzle | null {
+  if (start === end) return null
+  const d = distancesFrom(routeGraph(atlas, rules), start).get(end)
+  if (d === undefined) return null
+  return { atlas: atlas.id, start, end, shortest: d, maxGuesses: limit(d, rules.extra), ...rules }
 }
 
 export interface Suggestion {
@@ -45,23 +72,22 @@ export interface Suggestion {
   keys: string[]
 }
 
-let suggestionCache: Suggestion[] | null = null
-export function allSuggestions(): Suggestion[] {
-  if (suggestionCache) return suggestionCache
-  const present = new Set(getWorld().codes)
-  suggestionCache = COUNTRIES.filter((c) => present.has(c.code)).map((c) => ({
-    code: c.code,
-    label: c.name,
-    keys: [c.name, ...c.aliases].map(normalize),
-  }))
-  return suggestionCache
+const suggestionCache = new Map<AtlasId, Suggestion[]>()
+export function allSuggestions(atlas: Atlas): Suggestion[] {
+  const cached = suggestionCache.get(atlas.id)
+  if (cached) return cached
+  const list = atlas.codes
+    .map((code) => ({ code, label: atlas.name(code), keys: [atlas.name(code), ...atlas.aliases(code)].map(normalize) }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+  suggestionCache.set(atlas.id, list)
+  return list
 }
 
-export function matchSuggestions(query: string, limit = 6): { s: Suggestion; at: number }[] {
+export function matchSuggestions(atlas: Atlas, query: string, limitTo = 6): { s: Suggestion; at: number }[] {
   const q = normalize(query)
   if (!q) return []
-  const out: { s: Suggestion; at: number; key: number; alias: boolean }[] = []
-  for (const s of allSuggestions()) {
+  const out: { s: Suggestion; at: number; key: number }[] = []
+  for (const s of allSuggestions(atlas)) {
     let best = -1
     let alias = false
     s.keys.forEach((k, i) => {
@@ -71,13 +97,13 @@ export function matchSuggestions(query: string, limit = 6): { s: Suggestion; at:
         alias = i > 0
       }
     })
-    if (best >= 0) out.push({ s, at: alias ? -1 : best, key: best, alias })
+    if (best >= 0) out.push({ s, at: alias ? -1 : best, key: best })
   }
   out.sort((a, b) => a.key - b.key || a.s.label.localeCompare(b.s.label, 'fr'))
-  return out.slice(0, limit).map(({ s, at }) => ({ s, at }))
+  return out.slice(0, limitTo).map(({ s, at }) => ({ s, at }))
 }
 
-export function exactMatch(query: string): Suggestion | undefined {
+export function exactMatch(atlas: Atlas, query: string): Suggestion | undefined {
   const q = normalize(query)
-  return allSuggestions().find((s) => s.keys.includes(q))
+  return allSuggestions(atlas).find((s) => s.keys.includes(q))
 }
