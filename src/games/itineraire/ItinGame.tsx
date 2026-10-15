@@ -6,6 +6,7 @@ import { copyText, load, save, todayKey } from '../../lib/util'
 import { addRecord, computeStats, type GameRecord, type ItinSettings } from './history'
 import { exactMatch, matchSuggestions, routeGraph, type Puzzle } from './puzzle'
 import RouteMap, { type Layer } from './RouteMap'
+import { useTheme } from '../../ui/theme'
 
 const PALETTES = {
   sombre: { start: '#c9899a', end: '#88afa2', connected: '#d7c7a2', loose: '#4f4a45', solution: '#7d7464' },
@@ -63,7 +64,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
 
   const g = useMemo(() => routeGraph(atlas, puzzle), [atlas, puzzle])
   const { start, end, maxGuesses, shortest } = puzzle
-  const palette = PALETTES[settings.theme]
+  const palette = PALETTES[useTheme()]
   const guessedSet = useMemo(() => new Set(guesses), [guesses])
   const marks: Mark[] = useMemo(() => guesses.map((c, i) => scoreGuess(g, start, end, guesses.slice(0, i), c)), [g, start, end, guesses])
   const won = useMemo(() => isSolved(g, start, end, guessedSet), [g, start, end, guessedSet])
