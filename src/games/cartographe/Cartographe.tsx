@@ -134,7 +134,8 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const svgRef = useRef<SVGSVGElement>(null)
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const [width, setWidth] = useState(900)
-  const height = Math.round(width * (region.world ? 0.52 : 0.72))
+  // sur téléphone la carte est plus haute que large pour rester lisible
+  const height = Math.round(width * (width < 640 ? (region.world ? 0.8 : 1.15) : region.world ? 0.52 : 0.72))
   const [zt, setZt] = useState<ZoomTransform>(zoomIdentity)
 
   useLayoutEffect(() => {
