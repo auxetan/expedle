@@ -65,12 +65,24 @@ const EXTRA_LINKS: [string, string][] = [
   ['ZM', 'BW'],
 ]
 
-type PolygonArcs = number[][]
+export type PolygonArcs = number[][]
+
+export interface RawPolygon {
+  code: string
+  comp: string
+  arcs: PolygonArcs
+  part: PolygonPart
+}
+
+export function polygonPart(t: Topology, code: string, arcs: PolygonArcs): PolygonPart {
+  const f = feature(t, { type: 'Polygon', arcs } as GeometryObject) as unknown as Feature<Polygon>
+  return { code, feature: f, centroid: geoCentroid(f) as [number, number], area: geoArea(f) }
+}
 
 function build(): World {
   const geoms = (topo.objects.countries as { geometries: (GeometryObject & { properties?: { name: string } })[] })
     .geometries
-  const polys: { code: string; comp: string; arcs: PolygonArcs; part: PolygonPart }[] = []
+  const polys: RawPolygon[] = []
 
   for (const geom of geoms) {
     const name = geom.properties?.name ?? ''
@@ -79,23 +91,23 @@ function build(): World {
     if (geom.type !== 'Polygon' && geom.type !== 'MultiPolygon') continue
     const list = (geom.type === 'Polygon' ? [geom.arcs] : geom.arcs) as PolygonArcs[]
     for (const arcs of list) {
-      const f = feature(topo, { type: 'Polygon', arcs } as GeometryObject) as unknown as Feature<Polygon>
-      const centroid = geoCentroid(f) as [number, number]
-      const region = regionCode(code, centroid[0], centroid[1])
-      polys.push({
-        code: region,
-        comp: region + exclaveTag(region, centroid[0], centroid[1]),
-        arcs,
-        part: { code: region, feature: f, centroid, area: geoArea(f) },
-      })
+      const part = polygonPart(topo, code, arcs)
+      const [lon, lat] = part.centroid
+      const region = regionCode(code, lon, lat)
+      polys.push({ code: region, comp: region + exclaveTag(region, lon, lat), arcs, part: { ...part, code: region } })
     }
   }
+  return assemble(topo, polys, EXTRA_LINKS)
+}
+
+// Regroupe les polygones en pays (dessin) et en zones reliées par des frontières partagées (graphe).
+export function assemble(t: Topology, polys: RawPolygon[], extraLinks: [string, string][]): World {
 
   const byCode = new Map<string, PolygonArcs[]>()
   for (const p of polys) byCode.set(p.code, [...(byCode.get(p.code) ?? []), p.arcs])
   const features = new Map<string, Feature<MultiPolygon>>()
   for (const [code, arcs] of byCode) {
-    const f = feature(topo, { type: 'MultiPolygon', arcs } as GeometryObject) as unknown as Feature<MultiPolygon>
+    const f = feature(t, { type: 'MultiPolygon', arcs } as GeometryObject) as unknown as Feature<MultiPolygon>
     f.id = code
     features.set(code, f)
   }
@@ -125,7 +137,7 @@ function build(): World {
     const list = [...set]
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) addEdge(list[i], list[j])
   }
-  for (const [a, b] of EXTRA_LINKS) {
+  for (const [a, b] of extraLinks) {
     const ia = compIndex.get(a)
     const ib = compIndex.get(b)
     if (ia !== undefined && ib !== undefined) addEdge(ia, ib)
