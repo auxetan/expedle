@@ -1,12 +1,16 @@
 import { useState, type ReactNode } from 'react'
+import HomeButton from '../../ui/HomeButton'
 
 const MENU = [
-  ['#/', 'Hub Culture G'],
+  ['#/', 'Accueil Méridien'],
+  ['#/estimation', 'Grandeurs : tous les jeux'],
   ['#/echelle', "À l'échelle"],
   ['#/echelle/geo', "À l'échelle : Géographie"],
   ['#/balance', 'La Balance'],
   ['#/question', 'Question du jour'],
   ['#/survie', 'Survie'],
+  ['#/echelle/1000', 'Le 1 000 de la semaine'],
+  ['#/estimation/archive', 'Archive'],
 ]
 
 export default function MgShell({ title, help, children }: { title: string; help: ReactNode; children: ReactNode }) {
@@ -15,7 +19,8 @@ export default function MgShell({ title, help, children }: { title: string; help
   return (
     <div className="mg">
       <div className="mg-top">
-        <a href="#/" className="mg-logo" aria-label="Accueil">
+        <HomeButton />
+        <a href="#/estimation" className="mg-logo" aria-label="Tous les jeux Grandeurs">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />
           </svg>
@@ -43,8 +48,8 @@ export default function MgShell({ title, help, children }: { title: string; help
       </header>
       <main className="mg-main">{children}</main>
       <footer className="mg-foot">
-        <span className="mg-kicker">UN JEU CULTURE G</span>
-        <a href="#/">← Retour au hub</a>
+        <span className="mg-kicker">UN JEU GRANDEURS · MÉRIDIEN</span>
+        <a href="#/estimation">← Tous les jeux Grandeurs</a>
       </footer>
       {helpOpen && (
         <div className="mg-modal-bg" onClick={() => setHelpOpen(false)}>
