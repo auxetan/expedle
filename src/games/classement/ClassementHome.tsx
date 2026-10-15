@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { bestScore, dailyResult } from '../../lib/stats'
 import { todayKey, weekKey } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import GhBar from './GhBar'
 import { dailyObjective, weeklyTheme } from './setup'
 import './classement.css'
 
@@ -46,11 +46,10 @@ export default function ClassementHome() {
 
   return (
     <div className="ghh">
+      <GhBar />
       <header className="ghh-head">
-        <a href="#/classement" className="ghh-brand">
-          <span>🌍</span> GeoHunter
-        </a>
-        <HomeButton className="ghh-home" />
+        <h1>GeoHunter</h1>
+        <p>Place chaque pays là où il est le mieux classé.</p>
       </header>
 
       <section className="ghh-panel">
