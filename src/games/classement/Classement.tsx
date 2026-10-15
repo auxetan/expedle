@@ -2,18 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { go } from '../../lib/router'
 import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
 import { copyText, todayKey, weekKey } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import GhBar from './GhBar'
 import ClassementHome from './ClassementHome'
 import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
 import { MODE_LABEL, rankMatrix, setupFor, type Mode } from './setup'
 import './classement.css'
 
 function rankColor(r: number): string {
-  if (r <= 5) return '#5fd38d'
-  if (r <= 20) return '#b6e36b'
-  if (r <= 40) return '#ffc94d'
-  if (r <= 70) return '#ff9a4d'
-  return '#ff5d6c'
+  if (r <= 5) return 'var(--good)'
+  if (r <= 20) return 'color-mix(in srgb, var(--good) 55%, var(--warn))'
+  if (r <= 40) return 'var(--warn)'
+  if (r <= 70) return 'var(--orange)'
+  return 'var(--bad)'
 }
 
 const rankText = (r: number) => (r >= MISSING_RANK ? '100+' : String(r))
@@ -49,7 +49,6 @@ function ClassementGame({ mode }: { mode: Mode }) {
   const [toast, setToast] = useState<Toast | null>(null)
   const [float, setFloat] = useState<number | null>(null)
   const [help, setHelp] = useState(false)
-  const [menu, setMenu] = useState(false)
   const [showPerfect, setShowPerfect] = useState(false)
   const [copied, setCopied] = useState(false)
   const toastTimer = useRef(0)
@@ -117,17 +116,12 @@ function ClassementGame({ mode }: { mode: Mode }) {
 
   return (
     <div className={`gh gh-${mode}`}>
-      <div className="gh-sky" aria-hidden />
+      <GhBar />
       {!finished ? (
         <div className="gh-wrap">
           <header className="gh-head">
-            <a href="#/classement" className="gh-logo glass">
-              <span className="gh-globe">🌍</span>
-              <span className="gh-logo-text">GeoHunter</span>
-              <span className="gh-mode">{MODE_LABEL[mode]}</span>
-            </a>
-            <div className="gh-total glass">
-              <span className="gh-total-label">TOTAL</span>
+            <div className="gh-total">
+              <span className="gh-total-label">{MODE_LABEL[mode]} · total</span>
               <span className="gh-total-value">
                 {current ? total : '–'}
                 {float !== null && <span className="gh-float">+{rankText(float)}</span>}
@@ -140,37 +134,19 @@ function ClassementGame({ mode }: { mode: Mode }) {
                   {Math.min(current + 1, 8)}/{entities.length}
                 </b>
               </div>
-              {dailyId && <span className="gh-goal">OBJECTIF : {perfect.total}</span>}
+              {dailyId && <span className="gh-goal">Objectif : {perfect.total}</span>}
             </div>
-            <div className="gh-side glass">
-              <HomeButton className="gh-home" label={false} />
-              <button onClick={() => setHelp(true)} aria-label="Aide">
+            <div className="gh-side">
+              <button className="ui-tool" onClick={() => setHelp(true)} aria-label="Aide">
                 ?
               </button>
-              <button onClick={restart} aria-label="Recommencer">
+              <button className="ui-tool" onClick={restart} aria-label="Recommencer">
                 ↻
               </button>
-              <button onClick={() => setMenu(!menu)} aria-label="Modes">
-                ⚙
-              </button>
-              {menu && (
-                <nav className="gh-menu" onClick={() => setMenu(false)}>
-                  <a href="#/classement">Accueil GeoHunter</a>
-                  <a href="#/classement/classique">Classique</a>
-                  <a href="#/classement/facile">Facile (80 pays)</a>
-                  <a href="#/classement/villes">Villes</a>
-                  <a href="#/classement/jour">Défi du jour</a>
-                  <a href="#/classement/hebdo">Hebdo</a>
-                  <a href="#/">Accueil Méridien</a>
-                </nav>
-              )}
             </div>
           </header>
 
           <main className="gh-card">
-            <button className="gh-q" onClick={() => setHelp(true)} aria-label="Aide">
-              ?
-            </button>
             <div className={between ? 'gh-entity between' : 'gh-entity'} key={entity.id}>
               {between ? (
                 <span className="gh-ready">🎯 Prêt à jouer !</span>
@@ -204,7 +180,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
               })}
             </ul>
           </main>
-          <button className="gh-restart glass" onClick={restart}>
+          <button className="gh-restart ui-btn line" onClick={restart}>
             ↻ Recommencer
           </button>
         </div>
@@ -237,7 +213,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
                 const r = matrix[i][c]
                 const ok = matrix[i][picks[i]] === matrix[i][perfect.perm[i]] || picks[i] === perfect.perm[i]
                 return (
-                  <li key={e.id} style={{ borderLeftColor: showPerfect || ok ? '#5fd38d' : '#ff6b6b' }}>
+                  <li key={e.id} style={{ borderLeftColor: showPerfect || ok ? 'var(--good)' : 'var(--bad)' }}>
                     <span className="gh-flag-s">{e.flag}</span>
                     <b>{e.name}</b>
                     <span className="gh-end-cat">
@@ -256,7 +232,6 @@ function ClassementGame({ mode }: { mode: Mode }) {
             </p>
           </section>
           <nav className="gh-bottom">
-            <HomeButton className="gh-b gh-b-home" />
             <a href="#/classement" className="gh-b">
               ←<small>Modes</small>
             </a>
@@ -264,7 +239,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
               {copied ? '✓' : '⇪'}
               <small>{copied ? 'Copié' : 'Partager'}</small>
             </button>
-            <button className="gh-replay" onClick={restart}>
+            <button className="gh-replay ui-btn" onClick={restart}>
               ↗ Rejouer
             </button>
           </nav>
@@ -294,7 +269,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
             <p>Un n°1 ajoute seulement 1 point. Les moins bons rangs en ajoutent davantage.</p>
             <h3>Chaque catégorie ne sert qu’une fois</h3>
             <p>Sans donnée, on compte le rang 100 : évite-les !</p>
-            <button className="gh-replay" onClick={() => setHelp(false)}>
+            <button className="gh-replay ui-btn" onClick={() => setHelp(false)}>
               C’est parti
             </button>
           </div>
