@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { COUNTRIES, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import AppBar, { SubLink } from '../../ui/AppBar'
 import { CATEGORIES, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 
@@ -174,16 +174,15 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
 
   return (
     <div className="qz">
+      <AppBar title="Quiz">
+        {(['culture', 'jour', 'drapeaux', 'capitales'] as Kind[]).map((k) => (
+          <SubLink key={k} href={`#/quiz/${k === 'culture' ? '' : k}`} active={k === kind}>
+            {MODE_TABS[k]}
+          </SubLink>
+        ))}
+      </AppBar>
       <header className="qz-top">
-        <HomeButton className="qz-back" />
         <h1>{TITLES[kind]}</h1>
-        <nav className="qz-modes">
-          {(['culture', 'jour', 'drapeaux', 'capitales'] as Kind[]).map((k) => (
-            <a key={k} href={`#/quiz/${k === 'culture' ? '' : k}`} className={k === kind ? 'on' : ''}>
-              {MODE_TABS[k]}
-            </a>
-          ))}
-        </nav>
       </header>
       {kind === 'culture' && (
         <div className="qz-cats">
