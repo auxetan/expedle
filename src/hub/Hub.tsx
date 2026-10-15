@@ -3,6 +3,7 @@ import { playStats } from '../lib/stats'
 import { normalize } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
+import { dailyStatus } from '../ui/daily'
 import { Icon, ICONS, isDoneToday, loadProfile } from '../ui/Panels'
 import './hub.css'
 
@@ -60,6 +61,29 @@ export default function Hub() {
             {doneToday}/{dailies.length} jeux du jour · série de {streak} jour{streak > 1 ? 's' : ''} · {total} partie{total > 1 ? 's' : ''}
           </p>
         </section>
+
+        {!q && (
+          <section className="home-today">
+            <div className="home-today-head">
+              <h2>Aujourd’hui</h2>
+              <div className="home-progress" aria-label={`${doneToday} jeux du jour sur ${dailies.length}`}>
+                <i style={{ width: `${(doneToday / dailies.length) * 100}%` }} />
+              </div>
+            </div>
+            <div className="home-today-row">
+              {dailies.map((g) => {
+                const st = dailyStatus(g)
+                return (
+                  <a key={g.href} href={g.href} className={`home-today-card ${st.state}`}>
+                    <span className="home-today-glyph">{g.glyph}</span>
+                    <b>{g.title}</b>
+                    <span>{st.state === 'done' ? `✓ ${st.label}` : st.label}</span>
+                  </a>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {sections.length === 0 && <p className="home-empty">Aucun jeu ne correspond à « {query} ».</p>}
         {sections.map((section) => (
