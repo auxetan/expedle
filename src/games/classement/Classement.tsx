@@ -106,7 +106,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
   const entity = entities[Math.min(current, entities.length - 1)]
   const correct = picks.filter((c, i) => perfect.perm[i] === c || matrix[i][c] === matrix[i][perfect.perm[i]]).length
 
-  const shareText = `Classement ${MODE_LABEL[mode]}${dailyId ? ' ' + dayKey : ''}\nTotal : ${total} (parfait : ${perfect.total})\n${picks
+  const shareText = `GeoHunter ${MODE_LABEL[mode]}${dailyId ? ' ' + dayKey : ''}\nTotal : ${total} (parfait : ${perfect.total})\n${picks
     .map((c, i) => {
       const r = matrix[i][c]
       return r <= 5 ? '🟩' : r <= 20 ? '🟨' : r <= 40 ? '🟧' : '🟥'
@@ -123,7 +123,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
           <header className="gh-head">
             <a href="#/classement" className="gh-logo glass">
               <span className="gh-globe">🌍</span>
-              <span className="gh-logo-text">Classement</span>
+              <span className="gh-logo-text">GeoHunter</span>
               <span className="gh-mode">{MODE_LABEL[mode]}</span>
             </a>
             <div className="gh-total glass">
@@ -155,7 +155,7 @@ function ClassementGame({ mode }: { mode: Mode }) {
               </button>
               {menu && (
                 <nav className="gh-menu" onClick={() => setMenu(false)}>
-                  <a href="#/classement">Accueil Classement</a>
+                  <a href="#/classement">Accueil GeoHunter</a>
                   <a href="#/classement/classique">Classique</a>
                   <a href="#/classement/facile">Facile (80 pays)</a>
                   <a href="#/classement/villes">Villes</a>
