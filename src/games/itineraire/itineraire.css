@@ -1,0 +1,536 @@
+.itin {
+  --bg: #232220;
+  --col: #2b2a28;
+  --text: #e6dac2;
+  --muted: #8f877a;
+  --olive: #b7c46c;
+  --pink: #c9899a;
+  --teal: #88afa2;
+  --line: #45423d;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Ubuntu, 'Segoe UI', system-ui, sans-serif;
+}
+
+.itin-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: #353330;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.itin-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 22px;
+  color: #efe6d3;
+}
+
+.itin-logo-mark {
+  font-size: 20px;
+}
+
+.itin-links {
+  display: flex;
+  gap: 26px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.itin-links a {
+  position: relative;
+  text-decoration: none;
+  font-size: 15px;
+  color: #efe6d3;
+  opacity: 0.85;
+}
+
+.itin-links a.on,
+.itin-links a:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.itin-links small {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+.itin-main {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--col);
+  min-height: calc(100vh - 52px);
+  padding: 56px 28px 60px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
+}
+
+.itin-title {
+  text-align: right;
+  font-size: 19px;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+.itin-title b,
+.c-start,
+.c-end {
+  font-weight: 700;
+}
+
+.c-start {
+  color: var(--pink);
+}
+
+.c-end {
+  color: var(--teal);
+}
+
+.itin-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.itin-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 18px 6px 10px;
+  font-size: 17px;
+}
+
+.itin-help .q {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--teal);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.itin-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 17px;
+  padding: 0;
+}
+
+.rm-wrap {
+  position: relative;
+  border: 1px solid #3d3b37;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #31302d;
+}
+
+.rm-svg {
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.rm-svg:active {
+  cursor: grabbing;
+}
+
+.rm-grat {
+  fill: none;
+  stroke: #4a4844;
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.rm-base {
+  fill: #2f2e2b;
+  stroke: #514d47;
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.rm-country {
+  stroke: #2b2a28;
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.4s;
+}
+
+.rm-outline {
+  fill: none;
+  stroke: #e6dac2;
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.rm-label {
+  fill: #b8ad98;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #2b2a28;
+  stroke-width: 3px;
+}
+
+.rm-watermark {
+  fill: #3e3c38;
+  font-size: 40px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.rm-zoom {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #7c7262;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rm-zoom button {
+  width: 40px;
+  height: 40px;
+  background: #31302d;
+  border: none;
+  color: #9d9483;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.rm-zoom button + button {
+  border-top: 2px solid #7c7262;
+}
+
+.itin-input-row {
+  position: relative;
+  display: flex;
+  margin-top: 10px;
+}
+
+.itin-input-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--col);
+  border: 1px solid #4b4843;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  padding: 14px 12px;
+  font-size: 18px;
+  color: var(--text);
+  outline: none;
+}
+
+.itin-input-row input:focus {
+  border: 2px solid #2f5ca8;
+  border-right: none;
+  padding: 13px 11px;
+}
+
+.itin-input-row input::placeholder {
+  color: #9b9283;
+}
+
+.itin-guess {
+  background: var(--col);
+  border: 1px solid var(--olive);
+  border-radius: 0 6px 6px 0;
+  color: var(--olive);
+  font-size: 19px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.itin-suggest {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  background: var(--col);
+  border: 1px solid #3f3c38;
+  border-radius: 6px;
+  z-index: 4;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.itin-suggest li {
+  padding: 8px 16px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.itin-suggest li.active {
+  background: #44403c;
+}
+
+.itin-suggest mark {
+  background: none;
+  color: #e46a64;
+  font-weight: 700;
+}
+
+.itin-msg {
+  margin: 10px 0 0;
+  color: #e9a59c;
+  font-size: 15px;
+}
+
+.itin-h {
+  font-weight: 400;
+  font-size: 22px;
+  margin: 26px 0 12px;
+}
+
+.itin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  background: #353330;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 18px;
+  color: var(--text);
+  animation: chip-in 0.35s ease-out;
+}
+
+.chip .n {
+  margin-right: 6px;
+}
+
+.chip .e {
+  margin-left: 6px;
+}
+
+.chip.off {
+  opacity: 0.4;
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.itin-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint {
+  background: none;
+  border: 1px solid #6e685f;
+  color: #8a8376;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 18px;
+}
+
+.hint.on {
+  border-color: var(--olive);
+  color: var(--olive);
+}
+
+.hint.on:hover {
+  background: rgba(183, 196, 108, 0.08);
+}
+
+.itin-over {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  margin-top: 40px;
+}
+
+.itin-over-side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.big-teal,
+.pink {
+  border: none;
+  border-radius: 10px;
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.big-teal {
+  background: var(--teal);
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 700;
+  min-height: 140px;
+}
+
+.pink {
+  background: var(--pink);
+  font-size: 18px;
+  padding: 18px;
+  flex: 1;
+}
+
+.pink.wide {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.big-teal:hover,
+.pink:hover {
+  filter: brightness(1.06);
+}
+
+.itin-more {
+  margin-top: 20px;
+  font-size: 16px;
+}
+
+.itin-more a {
+  color: var(--pink);
+  text-decoration-style: dotted;
+}
+
+.itin-modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 20;
+  animation: toast-in 0.2s;
+}
+
+.itin-modal {
+  position: relative;
+  background: var(--col);
+  border-radius: 10px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: auto;
+  padding: 28px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.itin-modal h2 {
+  margin: 0 0 12px;
+  font-size: 30px;
+}
+
+.itin-modal h4 {
+  margin: 18px 0 6px;
+  color: var(--teal);
+}
+
+.itin-modal .close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--muted);
+}
+
+.legend {
+  padding-left: 0;
+  list-style: none;
+}
+
+.legend li {
+  margin: 6px 0;
+}
+
+.emoji-line {
+  font-size: 26px;
+  letter-spacing: 2px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  margin: 18px 0 6px;
+  color: var(--muted);
+}
+
+.stat-row b {
+  display: block;
+  font-size: 28px;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .itin-nav {
+    padding: 8px 14px;
+  }
+  .itin-links {
+    gap: 14px;
+  }
+  .itin-links a {
+    font-size: 13px;
+  }
+  .itin-links small {
+    display: none;
+  }
+  .itin-main {
+    padding: 28px 16px 40px;
+  }
+  .itin-over {
+    grid-template-columns: 1fr;
+  }
+  .big-teal {
+    min-height: 90px;
+  }
+  .itin-h {
+    font-size: 18px;
+  }
+}
