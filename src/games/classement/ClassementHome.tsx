@@ -48,7 +48,7 @@ export default function ClassementHome() {
     <div className="ghh">
       <header className="ghh-head">
         <a href="#/classement" className="ghh-brand">
-          <span>🌍</span> Classement
+          <span>🌍</span> GeoHunter
         </a>
         <HomeButton className="ghh-home" />
       </header>
