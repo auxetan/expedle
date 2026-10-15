@@ -1,8 +1,9 @@
 import { useMemo, type ReactNode } from 'react'
 import { dailyResult, playStats } from '../../lib/stats'
 import { load, todayKey, weekKey } from '../../lib/util'
-import HomeButton from '../../ui/HomeButton'
+import AppBar from '../../ui/AppBar'
 import { weeklyTheme } from './Echelle'
+import { MgNav } from './MgShell'
 import './mg.css'
 
 interface Card {
@@ -21,14 +22,6 @@ const Sil = ({ e, red, size }: { e: string; red?: boolean; size?: number }) => (
   </span>
 )
 const Arrow = () => <span className="mgh-arrow">→</span>
-
-function Logo() {
-  return (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />
-    </svg>
-  )
-}
 
 export default function MgHome() {
   const { streak } = playStats()
@@ -65,11 +58,11 @@ export default function MgHome() {
       dailyId: 'echelle-geo',
       art: (
         <svg viewBox="0 0 140 70" width="150" height="75" aria-hidden>
-          <path d="M14 22l16-3 6 9 12 2-2 14-12 5-5 10-10-5-5-12-7-5z" fill="#8a8fa3" />
-          <text x="64" y="40" fill="#8a8fa3" fontSize="10">
+          <path d="M14 22l16-3 6 9 12 2-2 14-12 5-5 10-10-5-5-12-7-5z" style={{ fill: 'var(--muted)' }} />
+          <text x="64" y="40" style={{ fill: 'var(--muted)' }} fontSize="10">
             →
           </text>
-          <path d="M100 14l7 2-2 9 7 7-3 12 9 9-7 5-11-5-2-12 2-9-5-7z" fill="#f2554b" />
+          <path d="M100 14l7 2-2 9 7 7-3 12 9 9-7 5-11-5-2-12 2-9-5-7z" style={{ fill: 'var(--target)' }} />
         </svg>
       ),
     },
@@ -83,12 +76,13 @@ export default function MgHome() {
   const isDone = (c: Card) => (c.dailyId ? dailyResult(c.dailyId, c.day ?? todayKey()) !== null : false)
 
   return (
-    <div className="mg mgh">
+    <div className="mg">
+      <AppBar title="Magnitudle">
+        <MgNav />
+      </AppBar>
+      <div className="mgh">
       <header className="mgh-head">
         <div className="mgh-brand">
-          <div className="mgh-logo">
-            <Logo />
-          </div>
           <div>
             <h1>Magnitudle</h1>
             <p>Le jeu des échelles et des estimations</p>
@@ -103,7 +97,6 @@ export default function MgHome() {
             <small>🏆 RECORD</small>
             <b>{best || '—'}</b>
           </div>
-          <HomeButton className="mgh-home" />
         </div>
       </header>
       <h2 className="mgh-section red">À L’ÉCHELLE</h2>
@@ -136,6 +129,7 @@ export default function MgHome() {
           </a>
         ))}
       </div>
+      </div>
     </div>
   )
 }
@@ -158,18 +152,18 @@ export function MgArchive() {
     return out
   }, [])
   return (
-    <div className="mg mgh">
+    <div className="mg">
+      <AppBar title="Magnitudle">
+        <MgNav />
+      </AppBar>
+      <div className="mgh">
       <header className="mgh-head">
         <div className="mgh-brand">
-          <a href="#/estimation" className="mgh-logo">
-            <Logo />
-          </a>
           <div>
             <h1>Archive</h1>
             <p>Rejoue tous les puzzles passés</p>
           </div>
         </div>
-        <HomeButton className="mgh-home" />
       </header>
       <div className="mga-table">
         <div className="mga-row mga-headrow">
@@ -192,6 +186,7 @@ export function MgArchive() {
             })}
           </div>
         ))}
+      </div>
       </div>
     </div>
   )
