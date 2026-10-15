@@ -36,7 +36,7 @@ export default function MgHome() {
   const big: Card[] = [
     {
       href: '#/echelle',
-      title: 'À l’échelle',
+      title: 'Size It Up',
       text: 'L’échelle des objets réels.',
       badge: 'QUOTIDIEN',
       dailyId: 'echelle-objets',
@@ -50,7 +50,7 @@ export default function MgHome() {
     },
     {
       href: '#/echelle/1000',
-      title: 'Le 1 000',
+      title: 'The Weekly 1K',
       text: `Dix manches · ${weeklyTheme().name.toLowerCase()}.`,
       badge: 'HEBDO',
       dailyId: 'echelle-1000',
@@ -75,9 +75,9 @@ export default function MgHome() {
     },
   ]
   const more: Card[] = [
-    { href: '#/balance', title: 'La Balance', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <span className="mgh-glyph">⚖</span> },
-    { href: '#/question', title: 'Question du jour', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <span className="mgh-glyph">Σ</span> },
-    { href: '#/survie', title: 'Survie', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <span className="mgh-glyph">♡</span> },
+    { href: '#/balance', title: 'Weigh It Up', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <span className="mgh-glyph">⚖</span> },
+    { href: '#/question', title: 'Daily Question', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <span className="mgh-glyph">Σ</span> },
+    { href: '#/survie', title: 'Survival Mode', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <span className="mgh-glyph">♡</span> },
     { href: '#/estimation/archive', title: 'Archive', text: 'Rejoue tous les puzzles passés.', badge: 'TOUS LES PUZZLES', art: <span className="mgh-glyph">≋</span> },
   ]
   const isDone = (c: Card) => (c.dailyId ? dailyResult(c.dailyId, c.day ?? todayKey()) !== null : false)
@@ -90,7 +90,7 @@ export default function MgHome() {
             <Logo />
           </div>
           <div>
-            <h1>Grandeurs</h1>
+            <h1>Magnitudle</h1>
             <p>Le jeu des échelles et des estimations</p>
           </div>
         </div>
@@ -141,10 +141,10 @@ export default function MgHome() {
 }
 
 const ARCHIVE_GAMES = [
-  { id: 'echelle-objets', label: 'À l’échelle', href: '#/echelle' },
+  { id: 'echelle-objets', label: 'Size It Up', href: '#/echelle' },
   { id: 'echelle-geo', label: 'Géographie', href: '#/echelle/geo' },
-  { id: 'balance', label: 'La Balance', href: '#/balance' },
-  { id: 'question', label: 'Question du jour', href: '#/question' },
+  { id: 'balance', label: 'Weigh It Up', href: '#/balance' },
+  { id: 'question', label: 'Daily Question', href: '#/question' },
 ]
 
 export function MgArchive() {
