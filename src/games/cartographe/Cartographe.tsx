@@ -26,8 +26,8 @@ function Brand() {
   return (
     <header className="st-top">
       <a href="#/cartographe" className="st-brand">
-        Cartographe
-        <small>par Méridien</small>
+        Seterra
+        <small>sur Méridien</small>
       </a>
       <HomeButton className="st-hub" />
     </header>
