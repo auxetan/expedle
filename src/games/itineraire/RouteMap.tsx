@@ -257,7 +257,7 @@ export default function RouteMap({ atlas, layers, focus, outlines, showAll, init
           </text>
         ))}
         <text x={10} y={height - 14} className="rm-watermark">
-          itinéraire
+          travle
         </text>
       </svg>
       {tip && (
