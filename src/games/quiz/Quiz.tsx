@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COUNTRIES, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
-import { copyText, seededRng, shuffle, todayKey } from '../../lib/util'
+import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import HomeButton from '../../ui/HomeButton'
-import { QUESTIONS } from './questions'
+import { CATEGORIES, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 
 type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
 
 interface Item {
+  id?: string
   cat: string
   q: string
   big?: string
@@ -38,7 +39,7 @@ function wrongOptions<T>(pool: T[], correct: T, same: (t: T) => boolean, rng: ()
   return [...near, ...far].slice(0, 3)
 }
 
-function buildItems(kind: Kind, rng: () => number): Item[] {
+function buildItems(kind: Kind, rng: () => number, category: string | null): Item[] {
   if (kind === 'drapeaux' || kind === 'capitales') {
     const pool = sovereign()
     return shuffle(pool, rng)
@@ -62,9 +63,32 @@ function buildItems(kind: Kind, rng: () => number): Item[] {
             }
       })
   }
-  return shuffle(QUESTIONS, rng)
-    .slice(0, COUNT)
-    .map((q) => ({ cat: q.cat, q: q.q, answer: q.a, options: shuffle([q.a, ...q.w], rng) }))
+  return pickFromBank(rng, category, kind === 'jour' ? new Set() : new Set(load<string[]>('quiz-seen', []))).map((q) => ({
+    id: q.id,
+    cat: q.cat,
+    q: q.q,
+    big: q.big,
+    answer: q.a,
+    options: shuffle([q.a, ...q.w], rng),
+  }))
+}
+
+// Une catégorie au hasard puis une question : la géographie, très nombreuse, n'écrase pas le reste.
+function pickFromBank(rng: () => number, category: string | null, seen: Set<string>): BankQuestion[] {
+  const bank = questionBank().filter((q) => !category || q.cat === category)
+  const fresh = bank.filter((q) => !seen.has(q.id))
+  const pool = fresh.length >= COUNT ? fresh : bank
+  const byCat = new Map<string, BankQuestion[]>()
+  for (const q of shuffle(pool, rng)) byCat.set(q.cat, [...(byCat.get(q.cat) ?? []), q])
+  const out: BankQuestion[] = []
+  while (out.length < COUNT && byCat.size) {
+    const cats = [...byCat.keys()]
+    const cat = cats[Math.floor(rng() * cats.length)]
+    const list = byCat.get(cat)!
+    out.push(list.pop()!)
+    if (!list.length) byCat.delete(cat)
+  }
+  return out
 }
 
 export default function Quiz({ kind: raw }: { kind?: string }) {
@@ -72,9 +96,10 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   const day = todayKey()
   const done = kind === 'jour' ? dailyResult<{ score: number; good: number }>('quiz-jour', day) : null
   const [run, setRun] = useState(0)
+  const [category, setCategory] = useState<string | null>(null)
   const items = useMemo(
-    () => buildItems(kind, kind === 'jour' && run === 0 ? seededRng('quiz-' + day) : Math.random),
-    [kind, run, day],
+    () => buildItems(kind, kind === 'jour' && run === 0 ? seededRng('quiz-' + day) : Math.random, kind === 'culture' ? category : null),
+    [kind, run, day, category],
   )
   const [i, setI] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -126,6 +151,8 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
       recordPlay('quiz-' + kind)
       if (kind === 'jour' && run === 0 && !done) saveDailyResult('quiz-jour', { score, good }, day)
       setRecord(submitBest('quiz-' + kind, score))
+      const ids = items.map((it) => it.id).filter((x): x is string => !!x)
+      if (ids.length) save('quiz-seen', [...load<string[]>('quiz-seen', []), ...ids].slice(-3000))
       return
     }
     setI(i + 1)
@@ -158,6 +185,22 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
           ))}
         </nav>
       </header>
+      {kind === 'culture' && (
+        <div className="qz-cats">
+          {[null, ...CATEGORIES].map((c) => (
+            <button
+              key={c ?? 'all'}
+              className={category === c ? 'on' : ''}
+              onClick={() => {
+                setCategory(c)
+                replay()
+              }}
+            >
+              {c ?? 'Toutes'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {alreadyPlayed && done ? (
         <main className="qz-card qz-end">
