@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { go } from '../../lib/router'
-import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
-import { copyText, seededRng, shuffle, todayKey } from '../../lib/util'
-import { cityCategories, cityEntities, countryCategories, countryEntities, type Category, type Entity } from './categories'
+import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
+import { copyText, todayKey, weekKey } from '../../lib/util'
+import HomeButton from '../../ui/HomeButton'
+import ClassementHome from './ClassementHome'
 import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
+import { MODE_LABEL, rankMatrix, setupFor, type Mode } from './setup'
 import './classement.css'
-
-type Mode = 'classique' | 'villes' | 'jour'
-
-const MODE_LABEL: Record<Mode, string> = { classique: 'Classique', villes: 'Villes', jour: 'Défi du jour' }
 
 function rankColor(r: number): string {
   if (r <= 5) return '#5fd38d'
@@ -27,25 +25,25 @@ interface Toast {
   good: boolean
 }
 
-function setup(mode: Mode) {
-  const rng = mode === 'jour' ? seededRng('classement-' + todayKey()) : Math.random
-  if (mode === 'villes') {
-    return { entities: shuffle(cityEntities(), rng).slice(0, 8), categories: cityCategories() }
-  }
-  return { entities: shuffle(countryEntities(), rng).slice(0, 8), categories: shuffle(countryCategories(), rng).slice(0, 8) }
-}
+const MODES: Mode[] = ['classique', 'facile', 'villes', 'jour', 'hebdo']
 
 export default function Classement({ mode: raw }: { mode?: string }) {
-  const mode: Mode = raw === 'villes' ? 'villes' : raw === 'jour' ? 'jour' : 'classique'
+  if (!MODES.includes(raw as Mode)) return <ClassementHome />
+  return <ClassementGame mode={raw as Mode} />
+}
+
+function ClassementGame({ mode }: { mode: Mode }) {
   const [seed, setSeed] = useState(0)
   // seed : chaque « Recommencer » relance un tirage
-  const { entities, categories } = useMemo(() => setup(mode), [mode, seed])
-  const rank = (e: Entity, c: Category) => Math.min(MISSING_RANK, c.ranks.get(e.id) ?? MISSING_RANK)
-  const matrix = useMemo(() => entities.map((e) => categories.map((c) => rank(e, c))), [entities, categories])
+  const setup = useMemo(() => setupFor(mode), [mode, seed])
+  const { entities, categories } = setup
+  const matrix = useMemo(() => rankMatrix(setup), [setup])
   const perfect = useMemo(() => optimalAssignment(matrix), [matrix])
   const average = useMemo(() => averageTotal(matrix), [matrix])
 
-  const done = mode === 'jour' ? dailyResult<{ picks: number[] }>('classement-jour') : null
+  const dailyId = mode === 'jour' ? 'classement-jour' : mode === 'hebdo' ? 'classement-hebdo' : null
+  const dayKey = mode === 'hebdo' ? weekKey() : todayKey()
+  const done = dailyId ? dailyResult<{ picks: number[] }>(dailyId, dayKey) : null
   const [picks, setPicks] = useState<number[]>(done?.picks ?? [])
   const [between, setBetween] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
@@ -64,8 +62,9 @@ export default function Classement({ mode: raw }: { mode?: string }) {
   useEffect(() => {
     if (!finished || done) return
     recordPlay('classement-' + mode)
-    if (mode === 'jour') saveDailyResult('classement-jour', { picks, total })
-  }, [finished, done, mode, picks, total])
+    submitBest('classement-' + mode, total, true)
+    if (dailyId) saveDailyResult(dailyId, { picks, total }, dayKey)
+  }, [finished, done, mode, picks, total, dailyId, dayKey])
 
   function choose(ci: number) {
     if (finished || between || usedCats.has(ci)) return
@@ -94,8 +93,8 @@ export default function Classement({ mode: raw }: { mode?: string }) {
   }
 
   function restart() {
-    if (mode === 'jour') {
-      go('/classement')
+    if (dailyId) {
+      go('/classement/classique')
       return
     }
     setPicks([])
@@ -107,7 +106,7 @@ export default function Classement({ mode: raw }: { mode?: string }) {
   const entity = entities[Math.min(current, entities.length - 1)]
   const correct = picks.filter((c, i) => perfect.perm[i] === c || matrix[i][c] === matrix[i][perfect.perm[i]]).length
 
-  const shareText = `Classement ${MODE_LABEL[mode]}${mode === 'jour' ? ' ' + todayKey() : ''}\nTotal : ${total} (parfait : ${perfect.total})\n${picks
+  const shareText = `Classement ${MODE_LABEL[mode]}${dailyId ? ' ' + dayKey : ''}\nTotal : ${total} (parfait : ${perfect.total})\n${picks
     .map((c, i) => {
       const r = matrix[i][c]
       return r <= 5 ? '🟩' : r <= 20 ? '🟨' : r <= 40 ? '🟧' : '🟥'
@@ -122,7 +121,7 @@ export default function Classement({ mode: raw }: { mode?: string }) {
       {!finished ? (
         <div className="gh-wrap">
           <header className="gh-head">
-            <a href="#/" className="gh-logo glass">
+            <a href="#/classement" className="gh-logo glass">
               <span className="gh-globe">🌍</span>
               <span className="gh-logo-text">Classement</span>
               <span className="gh-mode">{MODE_LABEL[mode]}</span>
@@ -141,9 +140,10 @@ export default function Classement({ mode: raw }: { mode?: string }) {
                   {Math.min(current + 1, 8)}/{entities.length}
                 </b>
               </div>
-              {mode === 'jour' && <span className="gh-goal">OBJECTIF : {perfect.total}</span>}
+              {dailyId && <span className="gh-goal">OBJECTIF : {perfect.total}</span>}
             </div>
             <div className="gh-side glass">
+              <HomeButton className="gh-home" label={false} />
               <button onClick={() => setHelp(true)} aria-label="Aide">
                 ?
               </button>
@@ -155,10 +155,13 @@ export default function Classement({ mode: raw }: { mode?: string }) {
               </button>
               {menu && (
                 <nav className="gh-menu" onClick={() => setMenu(false)}>
-                  <a href="#/classement">Classique (pays)</a>
+                  <a href="#/classement">Accueil Classement</a>
+                  <a href="#/classement/classique">Classique</a>
+                  <a href="#/classement/facile">Facile (80 pays)</a>
                   <a href="#/classement/villes">Villes</a>
                   <a href="#/classement/jour">Défi du jour</a>
-                  <a href="#/">Hub Culture G</a>
+                  <a href="#/classement/hebdo">Hebdo</a>
+                  <a href="#/">Accueil Méridien</a>
                 </nav>
               )}
             </div>
@@ -253,8 +256,9 @@ export default function Classement({ mode: raw }: { mode?: string }) {
             </p>
           </section>
           <nav className="gh-bottom">
-            <a href="#/" className="gh-b">
-              ←<small>Accueil</small>
+            <HomeButton className="gh-b gh-b-home" />
+            <a href="#/classement" className="gh-b">
+              ←<small>Modes</small>
             </a>
             <button className="gh-b" onClick={async () => setCopied(await copyText(shareText))}>
               {copied ? '✓' : '⇪'}
