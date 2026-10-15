@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
-import { copyText, formatInt, seededRng, shuffle, todayKey } from '../../lib/util'
-import { QUESTIONS, type EstimateQuestion } from './estimates'
+import { copyText, formatInt, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
+import type { EstimateQuestion } from './estimates'
+import { estimationBank } from './estimationBank'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import './mg.css'
@@ -76,7 +77,8 @@ function Daily({ date: day }: { date: string }) {
   const [practice, setPractice] = useState(0)
   const question = useMemo(() => {
     const rng = practice ? Math.random : seededRng('question-' + day)
-    return QUESTIONS[Math.floor(rng() * QUESTIONS.length)]
+    const bank = estimationBank()
+    return bank[Math.floor(rng() * bank.length)]
   }, [practice, day])
   const [value, setValue] = useState('')
   const [guess, setGuess] = useState<number | null>(!practice && done ? done.guess : null)
@@ -95,7 +97,7 @@ function Daily({ date: day }: { date: string }) {
 
   const date = new Date(day + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).toUpperCase()
   return (
-    <MgShell title="Question du jour" help={<DailyHelp />}>
+    <MgShell title="Daily Question" help={<DailyHelp />}>
       <section className="dq">
         <div className="dq-kicker">
           {practice ? 'ENTRAÎNEMENT' : date} · <span>{question.cat.toUpperCase()}</span>
@@ -115,7 +117,7 @@ function Daily({ date: day }: { date: string }) {
             onShare={async () =>
               setCopied(
                 await copyText(
-                  `Question du jour ${day}\n${question.q}\nScore : ${dailyScore(guess, question.a)}/100 (${offLabel(guess, question.a)})`,
+                  `Daily Question ${day}\n${question.q}\nScore : ${dailyScore(guess, question.a)}/100 (${offLabel(guess, question.a)})`,
                 ),
               )
             }
@@ -182,7 +184,7 @@ function Result({
 
 function SurvivalHelp() {
   return (
-    <MgHelp title="Comment jouer à Survie" intro="Estime vite, protège ta vie et survis au plus grand nombre de questions.">
+    <MgHelp title="Comment jouer à Survival Mode" intro="Estime vite, protège ta vie et survis au plus grand nombre de questions.">
       <HelpStep n="01" title="Course contre la montre">
         Tu as 15 secondes par question. Si le temps s’écoule, ta saisie actuelle (ou 1) est envoyée.
       </HelpStep>
@@ -204,7 +206,7 @@ const TIME = 15000
 
 function Survival() {
   const [phase, setPhase] = useState<'idle' | 'play' | 'feedback' | 'over'>('idle')
-  const [deck, setDeck] = useState<EstimateQuestion[]>([])
+  const [deck, setDeck] = useState<ReturnType<typeof estimationBank>>([])
   const [i, setI] = useState(0)
   const [life, setLife] = useState(10)
   const [value, setValue] = useState('')
@@ -218,7 +220,9 @@ function Survival() {
   const q = deck[i]
 
   function start() {
-    setDeck(shuffle(QUESTIONS))
+    const seen = new Set(load<string[]>('survie-seen', []))
+    const bank = estimationBank()
+    setDeck([...shuffle(bank.filter((q) => !seen.has(q.id))), ...shuffle(bank.filter((q) => seen.has(q.id)))])
     setI(0)
     setLife(10)
     setValue('')
@@ -239,6 +243,7 @@ function Survival() {
     setTimeout(() => {
       if (newLife <= 0) {
         setPhase('over')
+        save('survie-seen', [...load<string[]>('survie-seen', []), ...deck.slice(0, i + 1).map((d) => d.id)].slice(-1200))
         recordPlay('survie')
         setRecord(submitBest('survie', i + 1))
         return
@@ -270,7 +275,7 @@ function Survival() {
   const best = bestScore('survie')
 
   return (
-    <MgShell title="Survie" help={<SurvivalHelp />}>
+    <MgShell title="Survival Mode" help={<SurvivalHelp />}>
       <section className="dq">
         <div className="sv-bar">
           <span className="sv-q">QUESTION {phase === 'idle' ? 1 : i + 1}</span>
