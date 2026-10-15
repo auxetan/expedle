@@ -101,8 +101,8 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
         <div className="itin-nav-left">
           <HomeButton className="itin-home" />
           <a href="#/itineraire" className="itin-logo">
-            <span className="itin-logo-mark">◎</span>itinéraire
-            {view === 'usa' || atlasId === 'usa' ? <small className="itin-logo-sub">états-unis</small> : null}
+            <span className="itin-logo-mark">◎</span>travle
+            {view === 'usa' || atlasId === 'usa' ? <small className="itin-logo-sub">usa</small> : null}
           </a>
         </div>
         <div className="itin-links">
@@ -201,7 +201,7 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
             </button>
             {modal === 'help' ? (
               <>
-                <h2>itinéraire</h2>
+                <h2>travle</h2>
                 <p>
                   Nommez les pays à traverser pour aller du <span className="c-start">pays de départ</span> au{' '}
                   <span className="c-end">pays d’arrivée</span>. Essayez d’y arriver en un minimum d’essais !
