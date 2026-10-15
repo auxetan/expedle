@@ -3,13 +3,13 @@ import HomeButton from '../../ui/HomeButton'
 
 const MENU = [
   ['#/', 'Accueil Méridien'],
-  ['#/estimation', 'Grandeurs : tous les jeux'],
-  ['#/echelle', "À l'échelle"],
-  ['#/echelle/geo', "À l'échelle : Géographie"],
-  ['#/balance', 'La Balance'],
-  ['#/question', 'Question du jour'],
-  ['#/survie', 'Survie'],
-  ['#/echelle/1000', 'Le 1 000 de la semaine'],
+  ['#/estimation', 'Magnitudle : tous les jeux'],
+  ['#/echelle', 'Size It Up'],
+  ['#/echelle/geo', 'Size It Up : Géographie'],
+  ['#/echelle/1000', 'The Weekly 1K'],
+  ['#/balance', 'Weigh It Up'],
+  ['#/question', 'Daily Question'],
+  ['#/survie', 'Survival Mode'],
   ['#/estimation/archive', 'Archive'],
 ]
 
@@ -20,7 +20,7 @@ export default function MgShell({ title, help, children }: { title: string; help
     <div className="mg">
       <div className="mg-top">
         <HomeButton />
-        <a href="#/estimation" className="mg-logo" aria-label="Tous les jeux Grandeurs">
+        <a href="#/estimation" className="mg-logo" aria-label="Tous les jeux Magnitudle">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />
           </svg>
@@ -48,8 +48,8 @@ export default function MgShell({ title, help, children }: { title: string; help
       </header>
       <main className="mg-main">{children}</main>
       <footer className="mg-foot">
-        <span className="mg-kicker">UN JEU GRANDEURS · MÉRIDIEN</span>
-        <a href="#/estimation">← Tous les jeux Grandeurs</a>
+        <span className="mg-kicker">UN JEU MAGNITUDLE · MÉRIDIEN</span>
+        <a href="#/estimation">← Tous les jeux Magnitudle</a>
       </footer>
       {helpOpen && (
         <div className="mg-modal-bg" onClick={() => setHelpOpen(false)}>
