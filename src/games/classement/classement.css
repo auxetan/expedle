@@ -1,129 +1,64 @@
-.gh {
-  position: relative;
+.gh,
+.ghh {
   min-height: 100vh;
-  font-family: Nunito, system-ui, sans-serif;
-  color: #1f2a44;
-  background: linear-gradient(160deg, #c595ec 0%, #a066d8 45%, #7b3fc4 100%);
-  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
 }
 
-.gh-villes,
-.gh-jour {
-  background: linear-gradient(180deg, #6c6fd6 0%, #9b82dc 30%, #d690c9 62%, #f4a27a 100%);
-}
-
-.gh-sky {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 42vh;
-  pointer-events: none;
-  opacity: 0.22;
-  background:
-    linear-gradient(transparent 70%, rgba(60, 20, 90, 0.5)),
-    repeating-linear-gradient(90deg, transparent 0 34px, rgba(70, 30, 120, 0.9) 34px 70px, transparent 70px 96px),
-    repeating-linear-gradient(90deg, transparent 0 60px, rgba(90, 40, 140, 0.9) 60px 84px, transparent 84px 130px);
-  mask-image: linear-gradient(to top, #000 30%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent 100%);
-  clip-path: polygon(0 60%, 4% 60%, 4% 30%, 9% 30%, 9% 52%, 14% 52%, 14% 18%, 18% 18%, 18% 45%, 24% 45%, 24% 35%, 30% 35%, 30% 62%, 36% 62%, 36% 25%, 40% 25%, 40% 50%, 46% 50%, 46% 70%, 52% 70%, 52% 40%, 57% 40%, 57% 15%, 61% 15%, 61% 48%, 67% 48%, 67% 33%, 72% 33%, 72% 58%, 78% 58%, 78% 22%, 83% 22%, 83% 46%, 89% 46%, 89% 30%, 94% 30%, 94% 55%, 100% 55%, 100% 100%, 0 100%);
+.ghh {
+  padding-bottom: 60px;
 }
 
 .gh-wrap {
-  position: relative;
-  max-width: 780px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 20px 16px 120px;
-  padding-top: calc(20px + env(safe-area-inset-top, 0px));
-}
-
-.glass {
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 22px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding: 22px 16px 120px;
 }
 
 .gh-head {
   display: grid;
-  grid-template-columns: 140px 1fr 58px;
+  grid-template-columns: 1fr auto;
   gap: 12px;
-  margin-bottom: 16px;
-}
-
-.gh-logo {
-  position: relative;
-  text-decoration: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  min-height: 140px;
-}
-
-.gh-globe {
-  font-size: 64px;
-  line-height: 1;
-  filter: drop-shadow(0 6px 10px rgba(40, 0, 80, 0.35));
-}
-
-.gh-logo-text {
-  margin-top: -14px;
-  font-weight: 900;
-  font-style: italic;
-  font-size: 22px;
-  color: #fff;
-  -webkit-text-stroke: 1px #3b1b63;
-  text-shadow: 0 3px 0 #3b1b63;
-  letter-spacing: -0.02em;
-}
-
-.gh-mode {
-  margin-top: 6px;
-  background: #9333ea;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 3px 12px;
-  border-radius: 999px;
-  box-shadow: 0 2px 0 #5b1a99;
+  align-items: stretch;
+  margin-bottom: 14px;
 }
 
 .gh-total {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  position: relative;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
 }
 
-.gh-total-label {
+.gh-total-label,
+.gh-goal {
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.25em;
-  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .gh-total-value {
   position: relative;
-  font-size: 54px;
-  font-weight: 900;
+  font-size: 46px;
   line-height: 1;
-  color: #ffd43b;
-  text-shadow: 0 3px 0 #c98a00, 0 6px 18px rgba(80, 30, 0, 0.35);
+  font-variant-numeric: tabular-nums;
 }
 
 .gh-float {
   position: absolute;
   left: 50%;
-  top: -18px;
+  top: -16px;
   transform: translateX(-50%);
-  font-size: 18px;
-  color: #b9ffcc;
-  text-shadow: none;
+  font-size: 16px;
+  color: var(--good);
   animation: float-up 0.9s ease-out forwards;
 }
 
@@ -145,101 +80,43 @@
 }
 
 .gh-dots span {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  transition: background 0.3s, transform 0.3s;
+  background: var(--line);
+  transition: background 0.3s;
 }
 
 .gh-dots b {
   margin-left: 6px;
+  font-weight: 400;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.gh-goal {
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  color: #fff;
+  color: var(--muted);
 }
 
 .gh-side {
-  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.gh-side button {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.gh-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 8px;
-  background: #fff;
-  border-radius: 16px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  min-width: 200px;
-  box-shadow: 0 16px 40px rgba(40, 0, 80, 0.35);
-  z-index: 5;
-}
-
-.gh-menu a {
-  text-decoration: none;
-  color: #1f2a44;
-  font-weight: 800;
-  padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.gh-menu a:hover {
-  background: #f3ecff;
+  gap: 8px;
+  justify-content: center;
 }
 
 .gh-card {
-  position: relative;
-  background: #fff;
-  border-radius: 30px;
-  padding: 28px 30px 30px;
-  box-shadow: 0 30px 60px -20px rgba(50, 10, 90, 0.5);
-}
-
-.gh-q {
-  position: absolute;
-  top: 18px;
-  right: 22px;
-  border: none;
-  background: none;
-  color: #9aa3b5;
-  font-size: 22px;
-  font-weight: 900;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px;
 }
 
 .gh-entity {
-  margin: 0 auto 22px;
+  margin: 0 auto 20px;
   width: fit-content;
   min-width: 240px;
-  min-height: 132px;
-  padding: 18px 30px 14px;
-  border-radius: 26px;
-  background: linear-gradient(180deg, #f7f8fb, #eceff5);
-  border: 2px solid #e1e5ee;
+  min-height: 150px;
+  padding: 16px 28px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -248,38 +125,31 @@
   animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.gh-entity.between {
-  border-color: #6cbf84;
-}
-
 @keyframes pop-in {
   from {
-    transform: scale(0.85);
+    transform: scale(0.88);
     opacity: 0;
   }
 }
 
 .gh-flag {
-  font-size: 54px;
+  font-size: 52px;
   line-height: 1;
-  padding: 6px 18px;
-  background: #fff;
-  border: 3px solid #6cbf84;
-  border-radius: 16px;
+  padding: 6px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
 }
 
 .gh-name {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
+  font-size: 22px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #2b3446;
   text-align: center;
 }
 
 .gh-ready {
-  font-weight: 800;
-  color: #4b5568;
+  color: var(--muted);
 }
 
 .gh-cats {
@@ -288,7 +158,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .gh-cat {
@@ -296,49 +166,43 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  background: #f6f7fb;
-  border: 2px solid transparent;
-  border-radius: 16px;
-  padding: 11px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
   text-align: left;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.25s;
+  color: var(--fg);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 
 .gh-cat:not(:disabled):hover {
+  background: var(--hover);
+  border-color: var(--muted);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -6px rgba(60, 30, 120, 0.35);
-  background: #fff;
 }
 
 .gh-cat-icon {
-  font-size: 24px;
-  width: 30px;
+  font-size: 22px;
+  width: 28px;
   text-align: center;
 }
 
 .gh-cat-label {
   flex: 1;
-  font-size: 19px;
-  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #232c40;
 }
 
 .gh-cat.taken {
-  background: #bf86e4;
-  border-color: #9a55cf;
+  background: var(--hover);
+  border-color: var(--muted);
   animation: taken 0.4s ease-out;
-}
-
-.gh-cat.taken .gh-cat-label {
-  color: #fff;
-  text-shadow: 0 1px 0 rgba(80, 20, 120, 0.4);
 }
 
 @keyframes taken {
   from {
-    background: #f6f7fb;
+    background: var(--bg);
   }
 }
 
@@ -346,59 +210,56 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .gh-rank {
-  font-size: 15px;
-  font-weight: 900;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.28);
+  font-size: 14px;
   border-radius: 8px;
+  border: 1px solid var(--line);
   border-right: 4px solid;
+  background: var(--card);
   padding: 3px 8px;
-  min-width: 36px;
+  min-width: 38px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .gh-restart {
-  display: block;
+  display: flex;
   margin: 18px auto 0;
-  padding: 12px 28px;
-  border-radius: 999px;
-  color: #fff;
-  font-weight: 900;
-  font-size: 17px;
 }
 
 .gh-toast {
   position: fixed;
-  top: calc(16px + env(safe-area-inset-top, 0px));
+  top: calc(72px + env(safe-area-inset-top, 0px));
   right: 16px;
   max-width: 320px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  background: #fff;
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px 16px;
-  box-shadow: 0 16px 40px rgba(40, 0, 80, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   z-index: 20;
   animation: toast-slide 0.3s ease-out;
 }
 
 .gh-toast span {
-  font-size: 26px;
+  font-size: 24px;
 }
 
 .gh-toast b {
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .gh-toast p {
   margin: 4px 0 0;
   font-size: 14px;
-  color: #4b5568;
+  color: var(--muted);
 }
 
 @keyframes toast-slide {
@@ -409,57 +270,56 @@
 }
 
 .gh-end {
-  background: #121528;
-  color: #fff;
-  border-radius: 26px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 30px 60px -20px rgba(30, 0, 60, 0.6);
   animation: pop-in 0.4s ease-out;
 }
 
 .gh-end-head {
-  padding: 24px 26px 30px;
-  background: linear-gradient(180deg, #1b1f36, #121528);
+  padding: 22px 24px 28px;
 }
 
 .gh-end-title {
-  font-weight: 900;
-  font-size: 22px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .gh-end-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: #262b47;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
 }
 
 .gh-end-score {
   text-align: center;
-  font-size: 76px;
-  font-weight: 900;
-  color: #ffc94d;
+  font-size: 72px;
   line-height: 1.1;
-  margin: 6px 0 26px;
+  margin: 6px 0 28px;
+  font-variant-numeric: tabular-nums;
 }
 
 .gh-bar {
   position: relative;
-  height: 10px;
-  border-radius: 5px;
-  background: #262b47;
-  margin: 0 8px 22px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  margin: 0 8px 26px;
 }
 
 .gh-bar-fill {
   height: 100%;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #5fd38d, #ffc94d, #ff6b6b);
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--good), var(--warn), var(--bad));
   animation: grow 0.9s ease-out;
 }
 
@@ -474,43 +334,40 @@
   top: -22px;
   transform: translateX(-50%);
   font-size: 12px;
-  font-weight: 900;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .gh-bar-mark small {
-  font-weight: 700;
-  color: #9aa3c0;
+  color: var(--muted);
   margin-top: 26px;
 }
 
-.gh-bar-mark.avg,
-.gh-bar-mark.best {
-  color: #ffc94d;
+.gh-bar-mark.avg {
+  color: var(--warn);
 }
 
 .gh-bar-mark.best {
-  color: #5fd38d;
+  color: var(--good);
 }
 
 .gh-end-list {
   list-style: none;
   margin: 0;
-  padding: 18px 16px 6px;
-  background: linear-gradient(180deg, #5a2a91, #4a1f7d);
+  padding: 16px;
+  border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .gh-end-list li {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-left: 4px solid;
   border-radius: 12px;
   padding: 10px 14px;
@@ -522,36 +379,34 @@
 
 .gh-end-list b {
   flex: 1;
-  font-size: 17px;
+  font-weight: 400;
 }
 
 .gh-end-cat {
   font-size: 14px;
-  color: #e3d6f5;
+  color: var(--muted);
 }
 
 .gh-end-rank {
-  font-weight: 900;
-  background: #121528;
   border-radius: 8px;
+  border: 1px solid var(--line);
   padding: 3px 8px;
-  min-width: 40px;
+  min-width: 42px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .gh-end-note {
   margin: 0;
   padding: 14px 18px 20px;
-  background: #4a1f7d;
-  color: #e3d6f5;
   text-align: center;
+  color: var(--muted);
 }
 
 .gh-end-note button {
   background: none;
   border: none;
-  color: #fff;
-  font-weight: 900;
+  color: var(--fg);
   text-decoration: underline;
 }
 
@@ -561,49 +416,43 @@
   right: 0;
   bottom: 0;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
-  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-  background: #1d2236;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  border-top: 1px solid var(--line);
   z-index: 10;
 }
 
 .gh-b {
-  width: 68px;
-  height: 58px;
+  width: 66px;
+  height: 54px;
   border-radius: 14px;
-  background: #2d3350;
-  border: 1px solid #3a4163;
-  color: #fff;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
   text-decoration: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .gh-b small {
   font-size: 11px;
-  font-weight: 800;
+  color: var(--muted);
 }
 
 .gh-replay {
   flex: 1;
   max-width: 440px;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(90deg, #4cc06f, #3aa760);
-  color: #fff;
-  font-weight: 900;
-  font-size: 20px;
-  padding: 14px 20px;
 }
 
 .gh-modal-bg {
   position: fixed;
   inset: 0;
-  background: rgba(30, 0, 60, 0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -611,8 +460,10 @@
 }
 
 .gh-modal {
-  background: #fff;
-  border-radius: 26px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 22px;
   padding: 26px;
   max-width: 460px;
   width: 100%;
@@ -621,144 +472,77 @@
 
 .gh-modal h2 {
   margin: 0 0 10px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .gh-modal h3 {
   margin: 16px 0 4px;
-  font-size: 17px;
-  font-weight: 900;
-  color: #7b3fc4;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .gh-modal p {
   margin: 0;
-  color: #4b5568;
+  color: var(--muted);
 }
 
 .gh-modal .gh-replay {
   width: 100%;
+  max-width: none;
   margin-top: 20px;
 }
 
-@media (max-width: 600px) {
-  .gh-head {
-    grid-template-columns: 96px 1fr 52px;
-  }
-  .gh-logo {
-    min-height: 110px;
-  }
-  .gh-globe {
-    font-size: 46px;
-  }
-  .gh-logo-text {
-    font-size: 15px;
-  }
-  .gh-total-value {
-    font-size: 40px;
-  }
-  .gh-card {
-    padding: 20px 14px;
-  }
-  .gh-cat-label {
-    font-size: 15px;
-  }
-  .gh-name {
-    font-size: 20px;
-  }
-  .gh-end-list li {
-    flex-wrap: wrap;
-  }
-}
-
-.gh-side .gh-home {
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  justify-content: center;
-  border-radius: 14px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
-
-.gh-b-home {
-  padding: 0;
-  justify-content: center;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.ghh {
-  min-height: 100vh;
-  background: radial-gradient(900px 500px at 50% -10%, #23336f 0%, #121a3a 55%, #0d1430 100%);
-  color: #e8ecff;
-  font-family: Nunito, system-ui, sans-serif;
-  padding: 18px 16px 60px;
-  padding-top: calc(18px + env(safe-area-inset-top, 0px));
-}
-
-.ghh > * {
+/* accueil GeoHunter */
+.ghh-head,
+.ghh-panel {
   max-width: 640px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .ghh-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  padding: 30px 16px 14px;
 }
 
-.ghh-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: #fff;
-  font-weight: 900;
-  font-size: 24px;
+.ghh-head h1 {
+  margin: 0;
+  font-weight: 400;
+  font-size: 36px;
 }
 
-.ghh-brand span {
-  font-size: 28px;
-}
-
-.ghh-home {
-  color: #e8ecff;
+.ghh-head p {
+  margin: 8px 0 0;
+  color: var(--muted);
 }
 
 .ghh-panel {
-  background: rgba(18, 26, 62, 0.85);
-  border: 1px solid #263467;
-  border-radius: 18px;
+  width: calc(100% - 32px);
+  margin-top: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
   padding: 16px;
-  margin-bottom: 14px;
 }
 
 .ghh-panel h2 {
   margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  color: #c9d1f5;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
 }
 
 .ghh-week {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #0f1736;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px;
   margin-bottom: 12px;
 }
 
 .ghh-streak {
-  font-weight: 900;
   margin-right: auto;
 }
 
@@ -766,23 +550,22 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #34437c;
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
   font-size: 12px;
-  font-weight: 800;
-  color: #8e9ad0;
+  color: var(--muted);
 }
 
 .ghh-day.today {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--fg);
+  color: var(--fg);
 }
 
 .ghh-day.done {
-  background: #3aa760;
-  border-color: #3aa760;
-  color: #fff;
+  background: var(--good);
+  border-color: var(--good);
+  color: var(--bg);
 }
 
 .ghh-challenges {
@@ -795,24 +578,18 @@
   border-radius: 14px;
   padding: 12px;
   text-decoration: none;
-  color: #fff;
+  color: var(--fg);
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition: transform 0.15s;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  transition: border-color 0.15s, transform 0.15s;
 }
 
 .ghh-ch:hover {
+  border-color: var(--muted);
   transform: translateY(-2px);
-}
-
-.ghh-ch.daily {
-  background: #1b2a66;
-  border: 1px solid #34478f;
-}
-
-.ghh-ch.weekly {
-  background: #c46c63;
 }
 
 .ghh-ch-top {
@@ -824,35 +601,30 @@
 .ghh-ch-top small {
   display: block;
   font-size: 12px;
-  opacity: 0.85;
+  color: var(--muted);
 }
 
-.ghh-ch-icon {
+.ghh-ch-icon,
+.ghh-ch-play {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
+  flex: none;
 }
 
 .ghh-ch-play {
   margin-left: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.18);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .ghh-ch-bottom {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  font-weight: 800;
-  opacity: 0.9;
+  color: var(--muted);
 }
 
 .ghh-row {
@@ -868,7 +640,7 @@
 
 .ghh-toggle {
   display: flex;
-  background: #0f1736;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 3px;
 }
@@ -876,15 +648,14 @@
 .ghh-toggle button {
   border: none;
   background: none;
-  color: #a9b3df;
-  font-weight: 800;
+  color: var(--muted);
   padding: 6px 12px;
   border-radius: 8px;
 }
 
 .ghh-toggle button.on {
-  background: #3a58d6;
-  color: #fff;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 .ghh-tiles {
@@ -894,11 +665,11 @@
 }
 
 .ghh-tiles button {
-  aspect-ratio: 1.15;
-  border-radius: 14px;
-  border: 2px solid transparent;
-  background: #1d2752;
-  color: #fff;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -907,36 +678,21 @@
 }
 
 .ghh-tiles button span {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
+  font-size: 26px;
+  color: var(--muted);
 }
 
-.ghh-tiles .classique span {
-  background: #7c3aed;
+.ghh-tiles button.on {
+  border-color: var(--fg);
 }
 
-.ghh-tiles .villes span {
-  background: #2f8f6a;
-}
-
-.ghh-tiles button.on.classique {
-  background: #8b3fd9;
-  border-color: #c49cf5;
-}
-
-.ghh-tiles button.on.villes {
-  background: #23775a;
-  border-color: #79d6ad;
+.ghh-tiles button.on span {
+  color: var(--fg);
 }
 
 .ghh-tiles small {
   font-size: 12px;
-  font-weight: 800;
-  opacity: 0.85;
+  color: var(--muted);
 }
 
 .ghh-launch {
@@ -944,7 +700,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #0f1736;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
 }
@@ -953,38 +709,64 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #7c3aed;
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
+  flex: none;
 }
 
 .ghh-launch b {
   display: block;
-  font-size: 18px;
+  font-weight: 500;
 }
 
 .ghh-launch small {
-  color: #a9b3df;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .ghh-best {
   margin-left: auto;
-  font-weight: 800;
-  color: #a9b3df;
+  color: var(--muted);
 }
 
 .ghh-go {
-  background: #3a58d6;
-  color: #fff;
+  background: var(--fg);
+  color: var(--bg);
   text-decoration: none;
-  font-weight: 900;
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 999px;
+  padding: 10px 16px;
+  flex: none;
 }
 
 .ghh-how p {
   margin: 0;
-  color: #c9d1f5;
+  color: var(--muted);
   line-height: 1.5;
+}
+
+.ghh-how b {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .gh-card {
+    padding: 16px 12px;
+  }
+  .gh-total-value {
+    font-size: 38px;
+  }
+  .gh-cat-label {
+    font-size: 13px;
+  }
+  .gh-name {
+    font-size: 18px;
+  }
+  .gh-end-list li {
+    flex-wrap: wrap;
+  }
+  .ghh-challenges {
+    grid-template-columns: 1fr;
+  }
 }
