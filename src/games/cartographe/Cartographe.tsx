@@ -8,15 +8,17 @@ import { getWorld } from '../../geo/world'
 import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
 import { formatTime, normalize, shuffle } from '../../lib/util'
+import HomeButton from '../../ui/HomeButton'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
 
-type PlayMode = 'epingler' | 'saisir'
+type PlayMode = 'epingler' | 'saisir' | 'apprendre'
 
 export default function Cartographe({ quizId: id, params }: { quizId?: string; params: URLSearchParams }) {
   const parsed = id ? parseQuizId(id) : null
   if (!parsed) return <QuizList />
-  const mode: PlayMode = params.get('mode') === 'saisir' ? 'saisir' : 'epingler'
+  const m = params.get('mode')
+  const mode: PlayMode = m === 'saisir' || m === 'apprendre' ? m : 'epingler'
   return <Quiz region={parsed.region} ask={parsed.ask} mode={mode} />
 }
 
@@ -25,11 +27,9 @@ function Brand() {
     <header className="st-top">
       <a href="#/cartographe" className="st-brand">
         Cartographe
-        <small>par Culture G</small>
+        <small>par Méridien</small>
       </a>
-      <a href="#/" className="st-hub">
-        Hub
-      </a>
+      <HomeButton className="st-hub" />
     </header>
   )
 }
@@ -116,6 +116,9 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const [clicks, setClicks] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [flash, setFlash] = useState<{ code: string; kind: 'wrong' | 'right' } | null>(null)
+  const [hover, setHover] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<Set<string>>(new Set())
+  const learning = mode === 'apprendre'
   const [started, setStarted] = useState(false)
   const [startAt, setStartAt] = useState(0)
   const [now, setNow] = useState(0)
@@ -224,6 +227,14 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   }
 
   function onCountry(code: string) {
+    if (learning) {
+      if (!memberSet.has(code)) return
+      const next = new Set(pinned)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      setPinned(next)
+      return
+    }
     if (!started || finished || mode !== 'epingler' || !memberSet.has(code)) return
     const t = targets.get(code)!
     if (t.status !== 'pending') return
@@ -279,7 +290,23 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
       <Brand />
       <main className="st-play">
         <div className="st-frame" ref={wrapRef}>
-          {started && (
+          {started && learning && (
+            <div className="st-bar">
+              <span className="st-score">
+                <b>Apprendre</b>
+              </span>
+              <span className="st-target">{hover ? countryName(hover) : 'Survole ou clique un pays'}</span>
+              <span className="st-right">
+                <button className="st-pill" onClick={() => setPinned(pinned.size ? new Set() : new Set(members))}>
+                  {pinned.size ? 'Masquer les noms' : 'Tous les noms'}
+                </button>
+                <button className="st-x" onClick={() => go('/cartographe')} aria-label="Quitter">
+                  ✕
+                </button>
+              </span>
+            </div>
+          )}
+          {started && !learning && (
             <div className="st-bar">
               <span className="st-score">
                 <b>
@@ -300,7 +327,14 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
             </div>
           )}
 
-          <svg ref={svgRef} width={width} height={height} className="st-map">
+          <svg
+            ref={svgRef}
+            width={width}
+            height={height}
+            className="st-map"
+            onPointerMove={(e) => learning && setHover((e.target as Element).closest('[data-code]')?.getAttribute('data-code') ?? null)}
+            onPointerLeave={() => setHover(null)}
+          >
             <rect width={width} height={height} className="st-sea" />
             <g transform={zt.toString()}>
               {region.world && <path d={path({ type: 'Sphere' }) ?? ''} className="st-sphere" />}
@@ -309,6 +343,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 const t = targets.get(code)
                 let fill = inQuiz ? FILL[t!.status] : '#3a6a3e'
                 if (flash?.code === code && flash.kind === 'wrong') fill = '#7fb07f'
+                if (learning && inQuiz && (hover === code || pinned.has(code))) fill = '#f6d55c'
                 const cls = [
                   'st-land',
                   inQuiz ? 'q' : '',
@@ -336,6 +371,18 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 )
               })}
             </g>
+            {learning &&
+              [...new Set([...pinned, ...(hover && memberSet.has(hover) ? [hover] : [])])].map((code) => {
+                const c = centers.get(code)
+                if (!c) return null
+                return (
+                  <g key={'l' + code} transform={`translate(${c.x * k + zt.x},${c.y * k + zt.y})`} className="st-label">
+                    <text y={4} textAnchor="middle">
+                      {ask === 'capitales' ? `${countryName(code)} · ${COUNTRY_BY_CODE.get(code)!.capital}` : ask === 'drapeaux' ? `${flagEmoji(code)} ${countryName(code)}` : countryName(code)}
+                    </text>
+                  </g>
+                )
+              })}
             {flash &&
               centers.get(flash.code) &&
               (() => {
@@ -376,9 +423,13 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   <span>⌨</span>
                   Saisir
                 </a>
+                <a href={`#/cartographe/${quizId(region.id, ask)}?mode=apprendre`} className={mode === 'apprendre' ? 'on' : ''}>
+                  <span>📖</span>
+                  Apprendre
+                </a>
               </div>
               <button className="st-go" onClick={start}>
-                Commencer le quiz
+                {learning ? 'Explorer la carte' : 'Commencer le quiz'}
               </button>
             </div>
           )}
