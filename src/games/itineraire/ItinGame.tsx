@@ -97,6 +97,10 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   }, [over, won, slot, guesses.length, shortest, hints])
 
   const suggestions = useMemo(() => matchSuggestions(atlas, query), [atlas, query])
+  const listRef = useRef<HTMLUListElement>(null)
+  useEffect(() => {
+    listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' })
+  }, [active])
   const name = atlas.name
 
   function flash(text: string) {
@@ -147,7 +151,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
 
   const extra = guesses.length - shortest
   const emojis = marks.map((m) => MARK_EMOJI[m]).join('')
-  const shareText = `#itinéraire ${slot.label} ${won ? `+${extra}` : '❌'}${hints ? ` (${hints} indice${hints > 1 ? 's' : ''})` : ''}\n${name(start)} ➡️ ${name(end)}\n${emojis}\n${shareUrl}`
+  const shareText = `#travle ${slot.label} ${won ? `+${extra}` : '❌'}${hints ? ` (${hints} indice${hints > 1 ? 's' : ''})` : ''}\n${name(start)} ➡️ ${name(end)}\n${emojis}\n${shareUrl}`
 
   async function copy(text: string, ok: string) {
     setToast((await copyText(text)) ? ok : 'Copie impossible')
@@ -161,7 +165,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   return (
     <>
       <p className="itin-title">
-        {slot.intro}, j'aimerais <b>voyager</b> de <span className="c-start">{name(start)}</span> à{' '}
+        {slot.intro}, j'aimerais <b>travle</b> de <span className="c-start">{name(start)}</span> à{' '}
         <span className="c-end">{name(end)}</span>
       </p>
       <div className="itin-actions">
@@ -207,19 +211,19 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
             </div>
           </div>
           <p className="itin-more">
-            <a href="#/classement">Jouez à Classement !</a> · <a href="#/echelle/geo">Essayez À l’échelle : Géographie</a> ·{' '}
-            <a href="#/cartographe">Cartographe</a> · <a href="#/itineraire/stats">Statistiques</a>
+            <a href="#/classement">Jouez à GeoHunter !</a> · <a href="#/echelle/geo">Essayez Size It Up : Géographie</a> ·{' '}
+            <a href="#/cartographe">Seterra</a> · <a href="#/itineraire/stats">Statistiques</a>
           </p>
         </>
       ) : (
         <div className="itin-input-row">
           {open && suggestions.length > 0 && (
-            <ul className="itin-suggest">
+            <ul className="itin-suggest" ref={listRef}>
               {suggestions.map(({ s, at }, i) => (
                 <li
                   key={s.code}
                   className={i === active ? 'active' : ''}
-                  onMouseEnter={() => setActive(i)}
+                  onMouseMove={() => i !== active && setActive(i)}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     submit(s.code)
