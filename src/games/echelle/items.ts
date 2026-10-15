@@ -80,3 +80,14 @@ const RAW: [string, string, string, Dim, number][] = [
 ]
 
 export const OBJECTS: ObjectItem[] = RAW.map(([emoji, name, detail, dim, cm]) => ({ emoji, name, detail, dim, cm }))
+
+const ANIMALS = '🐘🦒🐎🐄🐖🐑🐕🐈🐁🐜🐝🐞🦋🐌🐊🦈🐋🐬🦖🦕🐓🦩🐧🦘🐪🦏🦛🦓🐅🦣🐢🐿️🦔🦉'
+const EVERYDAY = '🍎🥚🍍🎃🥫⚽🏀🎾🎱📱🪑🚪🏆🎩👟🧳💡🧍'
+const LANDMARKS = '🗿🗽🗼🎡🗻🌴🌵🌻🌲🚲🛵🚜🚁🛶🚙🧍🐘🦒'
+
+// Thèmes du « 1 000 de la semaine »
+export const WEEKLY_THEMES: { name: string; items: ObjectItem[] }[] = [
+  { name: 'Le règne animal', items: OBJECTS.filter((o) => ANIMALS.includes(o.emoji)) },
+  { name: 'La vie quotidienne', items: OBJECTS.filter((o) => EVERYDAY.includes(o.emoji)) },
+  { name: 'Monuments, nature et véhicules', items: OBJECTS.filter((o) => LANDMARKS.includes(o.emoji)) },
+]
