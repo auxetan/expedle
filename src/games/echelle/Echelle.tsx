@@ -1,13 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { recordPlay, saveDailyResult, dailyResult } from '../../lib/stats'
-import { copyText, seededRng, shuffle, todayKey } from '../../lib/util'
+import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
+import { hashString, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
 import { loadGeoShapes, type GeoShape } from './geoItems'
-import { OBJECTS, type Dim } from './items'
+import { OBJECTS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
+import MgSummary, { recordTotal } from './MgSummary'
 import { emojiSilhouette } from './silhouette'
 import './mg.css'
 
-type Variant = 'objets' | 'geo'
+export type Variant = 'objets' | 'geo' | '1000'
 
 interface Thing {
   name: string
@@ -25,9 +26,9 @@ interface Camera {
   camX: number
 }
 
-const ROUNDS = 5
 const BLUE = '#5ea3f7'
 const RED = '#e8131c'
+const GHOST = '#5b6478'
 
 export function formatLength(v: number, variant: Variant): string {
   const nf = (n: number, d = 0) => n.toLocaleString('fr-FR', { maximumFractionDigits: d })
@@ -38,7 +39,7 @@ export function formatLength(v: number, variant: Variant): string {
   return `${nf(v / 100000, 1)} km`
 }
 
-function objectThing(i: (typeof OBJECTS)[number]): Thing {
+function objectThing(i: ObjectItem): Thing {
   const { aspect } = emojiSilhouette(i.emoji, RED)
   return {
     name: i.name,
@@ -51,26 +52,32 @@ function objectThing(i: (typeof OBJECTS)[number]): Thing {
   }
 }
 
+// Les territoires plus larges que hauts se mesurent en longueur, comme dans le jeu d'origine.
 function geoThing(s: GeoShape): Thing {
-  return { name: s.name, detail: s.detail, dim: 'h', value: s.h, heightUnits: s.h, aspect: s.w / s.h, shape: s }
+  const wide = s.w > s.h * 1.25
+  return { name: s.name, detail: s.detail, dim: wide ? 'l' : 'h', value: wide ? s.w : s.h, heightUnits: s.h, aspect: s.w / s.h, shape: s }
 }
 
-function makeRounds(things: Thing[], rng: () => number): [Thing, Thing][] {
+function makeRounds(things: Thing[], rng: () => number, count: number): [Thing, Thing][] {
   const out: [Thing, Thing][] = []
-  const used = new Set<string>()
-  const pool = shuffle(things, rng)
-  for (const ref of pool) {
-    if (out.length === ROUNDS) break
-    if (used.has(ref.name)) continue
-    const tgt = pool.find((t) => {
-      if (t === ref || used.has(t.name)) return false
-      const r = Math.abs(Math.log10(t.heightUnits / ref.heightUnits))
-      return r > 0.12 && r < 1.1
-    })
-    if (!tgt) continue
-    used.add(ref.name)
-    used.add(tgt.name)
-    out.push([ref, tgt])
+  let used = new Set<string>()
+  for (let pass = 0; pass < 4 && out.length < count; pass++) {
+    const pool = shuffle(things, rng)
+    for (const ref of pool) {
+      if (out.length === count) break
+      if (used.has(ref.name)) continue
+      const tgt = pool.find((t) => {
+        if (t === ref || used.has(t.name)) return false
+        const r = Math.abs(Math.log10(t.heightUnits / ref.heightUnits))
+        return r > 0.12 && r < 1.1
+      })
+      if (!tgt) continue
+      used.add(ref.name)
+      used.add(tgt.name)
+      out.push([ref, tgt])
+    }
+    // petits thèmes : on réutilise les objets pour atteindre dix manches
+    used = new Set()
   }
   return out
 }
@@ -94,31 +101,49 @@ function Figure({ t, x, y, h, color, opacity = 1 }: { t: Thing; x: number; y: nu
   )
 }
 
-export default function Echelle({ variant }: { variant: Variant }) {
+export const TITLES: Record<Variant, string> = {
+  objets: "À l'échelle",
+  geo: "À l'échelle : Géographie",
+  '1000': 'Le 1 000 de la semaine',
+}
+
+export function weeklyTheme(week = weekKey()) {
+  return WEEKLY_THEMES[hashString(week) % WEEKLY_THEMES.length]
+}
+
+export default function Echelle({ variant, date }: { variant: Variant; date?: string | null }) {
   const dailyId = `echelle-${variant}`
+  const dayKey = variant === '1000' ? weekKey() : (date ?? todayKey())
+  const count = variant === '1000' ? 10 : 5
   const [things, setThings] = useState<Thing[] | null>(null)
-  const [daily, setDaily] = useState(() => dailyResult(dailyId) === null)
+  const [daily, setDaily] = useState(() => dailyResult(dailyId, dayKey) === null)
 
   useEffect(() => {
-    if (variant === 'objets') setThings(OBJECTS.map(objectThing))
-    else loadGeoShapes().then((s) => setThings(s.filter((x) => x.h > 0).map(geoThing)))
+    if (variant === 'geo') loadGeoShapes().then((s) => setThings(s.filter((x) => x.h > 0).map(geoThing)))
+    else setThings((variant === '1000' ? weeklyTheme().items : OBJECTS).map(objectThing))
   }, [variant])
 
   const [seed, setSeed] = useState(0)
   const rounds = useMemo(
-    () => (things ? makeRounds(things, daily ? seededRng(`${dailyId}-${todayKey()}`) : Math.random) : []),
-    // seed : "Rejouer" relance un tirage aléatoire
-    [things, daily, seed, dailyId],
+    () => (things ? makeRounds(things, daily ? seededRng(`${dailyId}-${dayKey}`) : Math.random, count) : []),
+    // seed : « Rejouer » relance un tirage aléatoire
+    [things, daily, seed, dailyId, dayKey, count],
   )
 
-  const title = variant === 'geo' ? "À l'échelle : Géographie" : "À l'échelle"
+  const title = TITLES[variant]
+  const subtitle =
+    variant === '1000'
+      ? `Thème de la semaine : ${weeklyTheme().name}`
+      : date && date !== todayKey()
+        ? `Archive du ${new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+        : null
   if (!rounds.length)
     return (
       <MgShell title={title} help={<EchelleHelp />}>
         <div className="mg-loading">
           <span className="spinner" />
           <b>Préparation de l’échelle</b>
-          <small>Chargement des cinq silhouettes…</small>
+          <small>Chargement des silhouettes…</small>
         </div>
       </MgShell>
     )
@@ -127,12 +152,15 @@ export default function Echelle({ variant }: { variant: Variant }) {
     <Game
       key={`${daily}-${seed}`}
       title={title}
+      subtitle={subtitle}
       variant={variant}
       rounds={rounds}
       daily={daily}
+      dayKey={dayKey}
       onFinish={(scores) => {
         recordPlay(dailyId)
-        if (daily) saveDailyResult(dailyId, { scores })
+        recordTotal(dailyId, scores.reduce((a, b) => a + b, 0))
+        if (daily) saveDailyResult(dailyId, { scores }, dayKey)
       }}
       onReplay={() => {
         setDaily(false)
@@ -164,16 +192,20 @@ function EchelleHelp() {
 
 interface GameProps {
   title: string
+  subtitle: string | null
   variant: Variant
   rounds: [Thing, Thing][]
   daily: boolean
+  dayKey: string
   onFinish: (scores: number[]) => void
   onReplay: () => void
 }
 
-function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) {
+function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onReplay }: GameProps) {
+  const ROUNDS = rounds.length
   const [index, setIndex] = useState(0)
   const [scores, setScores] = useState<number[]>([])
+  const [answers, setAnswers] = useState<number[]>([])
   const [revealed, setRevealed] = useState(false)
   const [summary, setSummary] = useState(false)
   const [ref, tgt] = rounds[index]
@@ -312,6 +344,7 @@ function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) 
   function lockIn() {
     setRevealed(true)
     setScores([...scores, score])
+    setAnswers([...answers, answer])
     const maxH = Math.max(targetH, tgt.heightUnits)
     const wUnits = maxH * tgt.aspect
     const ppu = Math.min((ground - 40) / maxH, (W * 0.6) / wUnits)
@@ -342,13 +375,32 @@ function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) 
     return () => cancelAnimationFrame(raf)
   }, [revealed, score])
 
-  const [copied, setCopied] = useState(false)
-  const shareText = `${title} ${daily ? todayKey() : ''}\n${scores.map((s) => (s >= 90 ? '🟩' : s >= 60 ? '🟨' : s >= 30 ? '🟧' : '🟥')).join('')} ${total}/${ROUNDS * 100}`
+  const shareText = `${title} ${daily ? dayKey : ''}\n${scores.map((s) => (s >= 90 ? '🟩' : s >= 60 ? '🟨' : s >= 30 ? '🟧' : '🟥')).join('')} ${total}/${ROUNDS * 100}`
   const dimLabel = (d: Dim) => (d === 'h' ? 'la hauteur' : 'la longueur')
 
   return (
     <MgShell title={title} help={<EchelleHelp />}>
-      <p className="mg-sub">Fais correspondre la silhouette à sa taille réelle.</p>
+      <p className="mg-sub">{subtitle ?? 'Fais correspondre la silhouette à sa taille réelle.'}</p>
+      {summary ? (
+        <MgSummary
+          title=""
+          rounds={rounds.map(([r, t], i) => ({
+            score: scores[i],
+            title: (
+              <>
+                <span className="blue">{r.name}</span> → <span className="red">{t.name}</span>
+              </>
+            ),
+            detail: `Ta réponse : ${formatLength(answers[i], variant)} · Réel : ${formatLength(t.value, variant)} (${t.dim === 'h' ? 'hauteur' : 'longueur'})`,
+          }))}
+          max={ROUNDS * 100}
+          historyKey={`echelle-${variant}`}
+          shareText={shareText}
+          archiveHref="#/estimation/archive"
+          onReplay={onReplay}
+        />
+      ) : (
+        <>
       <div className="mg-counter">
         <span>
           MANCHE <b>{index + 1}</b> / {ROUNDS}
@@ -392,12 +444,17 @@ function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) 
             className={revealed ? 'mg-target' : 'mg-target live'}
             onPointerDown={(e) => onDown(e, 'move')}
           >
+            {revealed && tgt.heightUnits > targetH && (
+              <g className="mg-ghost">
+                <Figure t={tgt} x={tLeft} y={ground} h={tgt.heightUnits * cam.ppu} color={GHOST} />
+              </g>
+            )}
             <Figure t={tgt} x={tLeft} y={ground} h={tH} color={RED} />
             <rect x={tLeft} y={ground - tH} width={Math.max(tH * tgt.aspect, 8)} height={Math.max(tH, 8)} fill="transparent" />
           </g>
-          {revealed && (
+          {revealed && tgt.heightUnits <= targetH && (
             <g className="mg-ghost">
-              <Figure t={tgt} x={tLeft} y={ground} h={tgt.heightUnits * cam.ppu} color="#ffffff" opacity={0.4} />
+              <Figure t={tgt} x={tLeft} y={ground} h={tgt.heightUnits * cam.ppu} color={GHOST} opacity={0.75} />
             </g>
           )}
           {!revealed && (
@@ -462,7 +519,7 @@ function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) 
         </div>
         {revealed ? (
           <button className="mg-cta" onClick={nextRound}>
-            {index + 1 >= rounds.length ? 'Voir le bilan' : 'Manche suivante →'}
+            {index + 1 >= rounds.length ? 'Voir le score final 🏆' : 'Manche suivante →'}
           </button>
         ) : (
           <button className="mg-cta" onClick={lockIn}>
@@ -471,39 +528,7 @@ function Game({ title, variant, rounds, daily, onFinish, onReplay }: GameProps) 
         )}
       </div>
 
-      {summary && (
-        <div className="mg-modal-bg">
-          <div className="mg-modal">
-            <h2>Bilan</h2>
-            <div className="mg-big">
-              {total}
-              <small>/ {ROUNDS * 100}</small>
-            </div>
-            <ul className="mg-rounds">
-              {rounds.map(([r, t], i) => (
-                <li key={i}>
-                  <span>
-                    <span className="blue">{r.name}</span> → <span className="red">{t.name}</span>
-                  </span>
-                  <b>{scores[i]}</b>
-                </li>
-              ))}
-            </ul>
-            <div className="mg-modal-actions">
-              <button
-                className="mg-ghost-btn"
-                onClick={async () => {
-                  setCopied(await copyText(shareText))
-                }}
-              >
-                {copied ? 'Copié !' : 'Partager'}
-              </button>
-              <button className="mg-cta" onClick={onReplay}>
-                Rejouer ↻
-              </button>
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </MgShell>
   )
