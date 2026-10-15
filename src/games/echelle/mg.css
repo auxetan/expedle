@@ -1,83 +1,34 @@
 .mg {
-  --red: #f2554b;
-  --cta: #f0504a;
-  --blue: #5ea3f7;
-  --line: #1c2236;
+  --red: var(--fg);
+  --cta: var(--fg);
+  --blue: var(--ref);
   min-height: 100vh;
-  background: #0a0c16;
-  color: #f2f3f7;
-  font-family: Outfit, system-ui, sans-serif;
-  padding: 0 24px 0;
-  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
   display: flex;
   flex-direction: column;
 }
 
-.mg-top {
-  position: fixed;
-  top: calc(14px + env(safe-area-inset-top, 0px));
-  right: 18px;
-  display: flex;
-  gap: 12px;
-  z-index: 10;
-}
-
-.mg-logo,
-.mg-burger {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-}
-
-.mg-logo {
-  background: var(--red);
-  box-shadow: 0 8px 30px -4px rgba(242, 85, 75, 0.7);
-}
-
-.mg-burger {
-  background: #0d0f1b;
-  border: 1px solid #262a3d;
-  font-size: 20px;
-}
-
-.mg-menu {
-  position: absolute;
-  top: 62px;
-  right: 0;
-  background: #121527;
-  border: 1px solid #262a3d;
-  border-radius: 14px;
-  padding: 8px;
+.mg-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 220px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-}
-
-.mg-menu a {
-  text-decoration: none;
-  padding: 10px 14px;
-  border-radius: 8px;
-}
-
-.mg-menu a:hover {
-  background: #1b1f35;
+  padding: 0 24px;
 }
 
 .mg-head {
   max-width: 1100px;
   width: 100%;
   margin: 0 auto;
-  padding: 44px 0 22px;
+  padding: 30px 0 18px;
   border-bottom: 1px solid var(--line);
   text-align: center;
 }
 
 .mg-head h1 {
   margin: 0;
-  font-weight: 700;
+  font-weight: 500;
   font-size: clamp(28px, 4.5vw, 44px);
   letter-spacing: -0.02em;
   display: inline-flex;
@@ -89,11 +40,11 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1.5px solid #8e93a7;
+  border: 1.5px solid var(--muted);
   background: none;
-  color: #8e93a7;
+  color: var(--muted);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   display: grid;
   place-items: center;
   padding: 0;
@@ -108,8 +59,8 @@
 
 .mg-sub {
   text-align: center;
-  color: #b3b7c6;
-  font-weight: 300;
+  color: var(--muted);
+  font-weight: 400;
   font-size: 18px;
   margin: 26px 0 14px;
 }
@@ -118,30 +69,31 @@
   display: flex;
   justify-content: center;
   gap: 36px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   letter-spacing: 0.15em;
-  color: #a7abba;
+  color: var(--muted);
   margin-bottom: 22px;
 }
 
 .mg-counter b {
   font-size: 19px;
-  color: #fff;
+  color: var(--fg);
   margin: 0 4px;
 }
 
 .mg-board {
   position: relative;
   margin: 0 auto;
-  border: 2px solid #1d2742;
+  border: 2px solid var(--line);
   border-radius: 24px;
   overflow: hidden;
-  background-color: #0b1020;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-color: var(--card);
+  background-image: linear-gradient(color-mix(in srgb, var(--fg) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--fg) 6%, transparent) 1px, transparent 1px);
   background-size: 64px 64px;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.5);
+  
   user-select: none;
 }
 
@@ -185,23 +137,23 @@
   width: 46px;
   height: 46px;
   border-radius: 12px;
-  border: 1px solid #263150;
-  background: #0d1426;
-  color: #d9def0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
   display: grid;
   place-items: center;
 }
 
 .mg-zoom button:hover {
-  background: #14203b;
+  background: var(--hover);
 }
 
 .mg-result {
   position: absolute;
   top: 18px;
   left: 18px;
-  background: rgba(10, 14, 28, 0.88);
-  border: 1px solid #1d2742;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px 20px;
   animation: toast-in 0.3s ease-out;
@@ -209,15 +161,15 @@
 }
 
 .mg-result-score {
-  font-weight: 700;
+  font-weight: 500;
   font-size: 22px;
-  color: #e6e8f0;
+  color: var(--fg);
 }
 
 .mg-result-score span {
   font-size: 64px;
-  font-weight: 800;
-  color: #ffd43b;
+  font-weight: 500;
+  color: var(--fg);
   margin-right: 8px;
   line-height: 1;
 }
@@ -230,7 +182,7 @@
 .mg-result small {
   display: block;
   margin-top: 4px;
-  color: #a8adbf;
+  color: var(--muted);
   font-size: 15px;
 }
 
@@ -238,12 +190,12 @@
   position: absolute;
   top: 18px;
   right: 18px;
-  background: rgba(30, 14, 22, 0.92);
-  border: 1px solid #3a2330;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 16px;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .mg-footer {
@@ -264,27 +216,27 @@
 
 .blue {
   color: var(--blue);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .red {
-  color: #f45a54;
-  font-weight: 600;
+  color: var(--target);
+  font-weight: 500;
 }
 
 .dim {
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .mg-cta {
   background: var(--cta);
   border: none;
-  color: #fff;
-  border-radius: 14px;
-  padding: 16px 48px;
-  font-size: 18px;
-  font-weight: 600;
-  box-shadow: 0 10px 30px -8px rgba(240, 80, 74, 0.7);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 14px 40px;
+  font-size: 17px;
+  font-weight: 500;
+  box-shadow: 0 10px 30px -8px transparent;
   transition: transform 0.15s, filter 0.15s;
 }
 
@@ -303,8 +255,8 @@
 
 .mg-ghost-btn {
   background: none;
-  border: 1px solid #2c3249;
-  color: #e3e6ef;
+  border: 1px solid var(--line);
+  color: var(--fg);
   border-radius: 14px;
   padding: 16px 28px;
   font-size: 17px;
@@ -324,11 +276,12 @@
 
 .mg-foot a {
   text-decoration: none;
-  color: #c9ccd8;
+  color: var(--fg);
 }
 
 .mg-kicker {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.25em;
   color: var(--red);
@@ -344,14 +297,14 @@
 }
 
 .mg-loading small {
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .spinner {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2.5px solid #3b1f26;
+  border: 2.5px solid var(--line);
   border-top-color: var(--red);
   animation: spin 0.8s linear infinite;
   margin-bottom: 8px;
@@ -366,7 +319,7 @@
 .mg-modal-bg {
   position: fixed;
   inset: 0;
-  background: rgba(3, 4, 10, 0.72);
+  background: rgba(0, 0, 0, 0.45);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -380,8 +333,8 @@
   max-width: 560px;
   max-height: 88vh;
   overflow: auto;
-  background: #111426;
-  border: 1px solid #262a3d;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 22px;
   padding: 28px;
 }
@@ -402,13 +355,13 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid #f2554b;
+  border: 1px solid var(--fg);
   background: none;
-  color: #f2554b;
+  color: var(--fg);
 }
 
 .mg-intro {
-  color: #a8adbf;
+  color: var(--muted);
   margin: 0 0 18px;
 }
 
@@ -422,11 +375,12 @@
   display: flex;
   gap: 18px;
   padding: 14px 0;
-  border-top: 1px solid #1f2338;
+  border-top: 1px solid var(--line);
 }
 
 .mg-step-n {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   color: var(--red);
   font-size: 13px;
   padding-top: 3px;
@@ -438,25 +392,25 @@
 
 .mg-step p {
   margin: 6px 0 0;
-  color: #b3b7c6;
+  color: var(--muted);
 }
 
 .mg-tip {
   margin-top: 14px;
-  color: #b3b7c6;
+  color: var(--muted);
 }
 
 .mg-big {
   font-size: 84px;
-  font-weight: 800;
-  color: #ffd43b;
+  font-weight: 500;
+  color: var(--fg);
   line-height: 1;
   margin: 10px 0 18px;
 }
 
 .mg-big small {
   font-size: 26px;
-  color: #a8adbf;
+  color: var(--muted);
   margin-left: 8px;
 }
 
@@ -471,11 +425,12 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 0;
-  border-top: 1px solid #1f2338;
+  border-top: 1px solid var(--line);
 }
 
 .mg-rounds b {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
 }
 
 .mg-modal-actions {
@@ -486,11 +441,8 @@
 }
 
 @media (max-width: 640px) {
-  .mg {
+  .mg-body {
     padding: 0 16px;
-  }
-  .mg-head {
-    padding-top: 84px;
   }
   .mg-cta {
     width: 100%;
@@ -513,10 +465,11 @@
 }
 
 .dq-kicker {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   letter-spacing: 0.18em;
-  color: #9a9eb0;
+  color: var(--muted);
 }
 
 .dq-kicker span {
@@ -525,7 +478,7 @@
 
 .dq-q {
   font-size: clamp(28px, 4.5vw, 42px);
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.01em;
   margin: 14px 0 26px;
@@ -540,14 +493,14 @@
 .num-field {
   display: flex;
   align-items: center;
-  background: #121527;
-  border: 1px solid #262a3d;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 6px 12px 6px 20px;
 }
 
 .num-field:focus-within {
-  border-color: #4a5170;
+  border-color: var(--muted);
 }
 
 .num-field input {
@@ -556,24 +509,26 @@
   background: none;
   border: none;
   outline: none;
-  color: #fff;
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: clamp(22px, 4vw, 34px);
   padding: 12px 0;
 }
 
 .num-field input::placeholder {
-  color: #4b5068;
+  color: var(--muted);
 }
 
 .num-unit {
   flex: none;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #a7abba;
-  border: 1px solid #2c3249;
+  color: var(--muted);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 12px;
   max-width: 45%;
@@ -586,8 +541,8 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  background: #0e1121;
-  border: 1px solid #1f2338;
+  background: var(--bg2);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px;
 }
@@ -595,16 +550,17 @@
 .num-chips button {
   background: none;
   border: none;
-  color: #8e93a6;
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   padding: 6px 10px;
   border-radius: 8px;
 }
 
 .num-chips button:hover:not(:disabled) {
-  background: #1b1f35;
-  color: #fff;
+  background: var(--hover);
+  color: var(--fg);
 }
 
 .dq-lock {
@@ -618,14 +574,14 @@
 
 .dq-score {
   font-size: 24px;
-  font-weight: 700;
-  color: #d9dcea;
+  font-weight: 500;
+  color: var(--fg);
 }
 
 .dq-score span {
   font-size: 84px;
-  font-weight: 800;
-  color: #ffd43b;
+  font-weight: 500;
+  color: var(--fg);
   margin-right: 10px;
 }
 
@@ -637,8 +593,8 @@
 }
 
 .dq-pair > div {
-  background: #111426;
-  border: 1px solid #1f2338;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
   display: flex;
@@ -647,10 +603,11 @@
 }
 
 .dq-pair small {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.15em;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .dq-pair b {
@@ -662,16 +619,17 @@
 }
 
 .oom-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.2em;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .oom-track {
   position: relative;
   height: 6px;
-  background: #1c2036;
+  background: var(--line);
   border-radius: 3px;
   margin: 18px 0 10px;
 }
@@ -683,11 +641,11 @@
   height: 18px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  border: 3px solid #0a0c16;
+  border: 3px solid var(--bg);
 }
 
 .oom-mark.guess {
-  background: #f45a54;
+  background: var(--target);
 }
 
 .oom-mark.answer {
@@ -697,9 +655,10 @@
 .oom-ticks {
   position: relative;
   height: 20px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .oom-ticks span {
@@ -708,7 +667,7 @@
 }
 
 .dq-fact {
-  color: #b3b7c6;
+  color: var(--muted);
   font-style: italic;
 }
 
@@ -722,16 +681,17 @@
 }
 
 .sv-q {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   letter-spacing: 0.15em;
-  color: #a7abba;
+  color: var(--muted);
 }
 
 .sv-timer {
   flex: 1;
   height: 6px;
-  background: #1c2036;
+  background: var(--line);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -744,9 +704,10 @@
 
 .sv-life {
   margin-left: auto;
-  font-family: 'JetBrains Mono', monospace;
-  color: #f45a54;
-  background: #2a1219;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--target);
+  background: var(--hover);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 13px;
@@ -755,7 +716,7 @@
 .sv-start {
   text-align: center;
   padding: 40px 0;
-  color: #b3b7c6;
+  color: var(--muted);
 }
 
 .sv-feedback {
@@ -768,18 +729,19 @@
 }
 
 .pill {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   letter-spacing: 0.1em;
-  background: #2a1219;
-  color: #f7b2ac;
+  background: var(--hover);
+  color: var(--muted);
   border-radius: 999px;
   padding: 6px 12px;
   text-transform: uppercase;
 }
 
 .loss {
-  color: #f45a54;
+  color: var(--target);
   font-size: 22px;
 }
 
@@ -829,8 +791,8 @@
 .mg-sum-rounds button {
   flex: 1;
   min-width: 90px;
-  background: #111426;
-  border: 1px solid #262a3d;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
   display: flex;
@@ -843,10 +805,11 @@
 }
 
 .mg-sum-rounds small {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.15em;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .mg-sum-rounds b {
@@ -855,16 +818,16 @@
 
 .mg-sum-hint,
 .mg-sum-detail {
-  color: #8e93a6;
+  color: var(--muted);
   margin: 12px 0 0;
 }
 
 .mg-sum-detail {
-  background: #111426;
-  border: 1px solid #262a3d;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
-  color: #e3e6ef;
+  color: var(--fg);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -878,19 +841,20 @@
 .mg-sum-total b {
   display: block;
   font-size: 96px;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
 }
 
 .mg-sum-total small {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.2em;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .mg-sum-msg {
   text-align: center;
-  color: #b3b7c6;
+  color: var(--muted);
   font-size: 18px;
 }
 
@@ -919,7 +883,7 @@
 .mg-hist i {
   width: 100%;
   min-height: 4px;
-  background: #262b47;
+  background: var(--hover);
   border-radius: 8px 8px 0 0;
 }
 
@@ -929,9 +893,10 @@
 
 .mg-hist small,
 .mg-hist-n {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .mg-sum-figs {
@@ -942,8 +907,8 @@
 }
 
 .mg-sum-figs div {
-  background: #111426;
-  border: 1px solid #262a3d;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
   display: flex;
@@ -952,10 +917,11 @@
 }
 
 .mg-sum-figs small {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.15em;
-  color: #8e93a6;
+  color: var(--muted);
 }
 
 .mg-sum-figs b {
@@ -971,18 +937,11 @@
   text-decoration: none;
 }
 
-.mg-top .home-btn {
-  height: 52px;
-  padding: 0 16px;
-  background: #0d0f1b;
-  border-color: #262a3d;
-}
-
 .mgh {
   max-width: 1240px;
+  width: 100%;
   margin: 0 auto;
-  padding: 40px 24px 60px;
-  display: block;
+  padding: 34px 24px 60px;
 }
 
 .mgh-head {
@@ -1007,23 +966,24 @@
   background: var(--red);
   display: grid;
   place-items: center;
-  box-shadow: 0 10px 40px -6px rgba(242, 85, 75, 0.55);
+  box-shadow: 0 10px 40px -6px transparent;
 }
 
 .mgh h1 {
   margin: 0;
-  font-weight: 800;
-  font-size: clamp(38px, 7vw, 64px);
+  font-weight: 400;
+  font-size: clamp(34px, 6vw, 52px);
   letter-spacing: -0.02em;
   line-height: 1;
 }
 
 .mgh-brand p {
   margin: 10px 0 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   letter-spacing: 0.1em;
-  color: #c4c7d4;
+  color: var(--muted);
 }
 
 .mgh-stats {
@@ -1039,26 +999,29 @@
 }
 
 .mgh-stats small {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.2em;
-  color: #9a9eb0;
+  color: var(--muted);
 }
 
 .mgh-stats b {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 28px;
 }
 
 .mgh-home {
-  color: #e3e6ef;
+  color: var(--fg);
 }
 
 .mgh-section {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   letter-spacing: 0.3em;
-  color: #b8bccb;
+  color: var(--muted);
   margin: 40px 0 16px;
 }
 
@@ -1086,28 +1049,28 @@
   min-height: 300px;
   padding: 26px;
   text-decoration: none;
-  color: #f2f3f7;
-  background: #10121e;
-  border: 1px solid #2b1d26;
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 20px;
   transition: border-color 0.2s, transform 0.2s;
 }
 
 .mgh-card:hover {
-  border-color: rgba(242, 85, 75, 0.55);
+  border-color: transparent;
   transform: translateY(-2px);
 }
 
 .mgh-card h3 {
   margin: 0;
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .mgh-card p {
   margin: 8px 0 0;
-  color: #a4a8b8;
-  font-weight: 300;
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .mgh-card.small {
@@ -1116,12 +1079,13 @@
 }
 
 .mgh-badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.15em;
-  border: 1px solid #4b2a30;
-  color: #f7b2ac;
+  border: 1px solid var(--line);
+  color: var(--muted);
   border-radius: 999px;
   padding: 5px 11px;
 }
@@ -1133,8 +1097,8 @@
 }
 
 .mgh-badge.done {
-  border-color: #2f5a44;
-  color: #8fdbb0;
+  border-color: var(--line);
+  color: var(--good);
 }
 
 .mgh-art {
@@ -1149,23 +1113,24 @@
   font-size: 72px;
   line-height: 1;
   color: transparent;
-  text-shadow: 0 0 0 #8a8fa3;
+  text-shadow: 0 0 0 var(--muted);
 }
 
 .mgh-sil.red {
-  text-shadow: 0 0 0 #f2554b;
+  text-shadow: 0 0 0 var(--target);
 }
 
 .mgh-arrow {
-  color: #8a8fa3;
+  color: var(--muted);
   font-size: 14px;
 }
 
 .mgh-num,
 .mgh-glyph {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  color: #6f7385;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .mgh-num {
@@ -1185,11 +1150,12 @@
 
 .mgh-play {
   flex: none;
+  color: var(--bg);
   background: var(--red);
   border-radius: 999px;
   padding: 8px 16px;
-  font-weight: 700;
-  box-shadow: 0 6px 20px -6px rgba(242, 85, 75, 0.7);
+  font-weight: 500;
+  box-shadow: 0 6px 20px -6px transparent;
 }
 
 .mgh-art-s {
@@ -1215,14 +1181,15 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  color: var(--bg);
   background: var(--red);
   display: grid;
   place-items: center;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .mga-table {
-  border: 1px solid #1f2338;
+  border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
 }
@@ -1230,7 +1197,7 @@
 .mga-row {
   display: grid;
   grid-template-columns: 1.2fr repeat(4, 1fr);
-  border-top: 1px solid #1f2338;
+  border-top: 1px solid var(--line);
 }
 
 .mga-row > * {
@@ -1239,29 +1206,30 @@
 
 .mga-headrow {
   border-top: none;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   letter-spacing: 0.12em;
-  color: #8e93a6;
-  background: #10121e;
+  color: var(--muted);
+  background: var(--card);
 }
 
 .mga-date {
-  color: #b8bccb;
+  color: var(--muted);
   text-transform: capitalize;
 }
 
 .mga-cell {
   text-decoration: none;
-  color: #f7b2ac;
+  color: var(--muted);
 }
 
 .mga-cell:hover {
-  background: #14182b;
+  background: var(--hover);
 }
 
 .mga-cell.done {
-  color: #8fdbb0;
+  color: var(--good);
 }
 
 @media (max-width: 640px) {
@@ -1279,6 +1247,6 @@
   }
   .mga-date {
     grid-column: 1 / -1;
-    background: #10121e;
+    background: var(--card);
   }
 }
