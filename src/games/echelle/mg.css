@@ -1200,7 +1200,7 @@
 
 .mga-row {
   display: grid;
-  grid-template-columns: 1.2fr repeat(4, 1fr);
+  grid-template-columns: 1.2fr repeat(5, 1fr);
   border-top: 1px solid var(--line);
 }
 
