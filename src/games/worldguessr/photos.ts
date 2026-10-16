@@ -1,31 +1,7 @@
-import { COUNTRY_BY_CODE, type Continent } from '../../geo/countries'
 import { countryAt, randomPointIn } from '../../geo/measure'
 import type { World } from '../../geo/world'
 import { normalize } from '../../lib/util'
-
-export interface Mode {
-  id: string
-  label: string
-  continents: Continent[] | null
-  codes?: string[]
-  // distance qui fait passer de 5 000 à ~1 800 points, comme le barème de GeoGuessr pour cette carte
-  scaleKm: number
-  view: { center: [number, number]; zoom: number }
-}
-
-export const MODES: Mode[] = [
-  { id: 'monde', label: 'Monde', continents: null, scaleKm: 14916, view: { center: [20, 10], zoom: 1 } },
-  { id: 'europe', label: 'Europe', continents: ['EU'], scaleKm: 4500, view: { center: [52, 15], zoom: 3 } },
-  { id: 'afrique', label: 'Afrique', continents: ['AF'], scaleKm: 8000, view: { center: [2, 18], zoom: 3 } },
-  { id: 'asie', label: 'Asie', continents: ['AS'], scaleKm: 9000, view: { center: [32, 90], zoom: 2 } },
-  { id: 'ameriques', label: 'Amériques', continents: ['NA', 'SA'], scaleKm: 13000, view: { center: [12, -80], zoom: 2 } },
-  { id: 'oceanie', label: 'Océanie', continents: ['OC'], scaleKm: 6000, view: { center: [-22, 150], zoom: 3 } },
-  { id: 'france', label: 'France', continents: null, codes: ['FR'], scaleKm: 1300, view: { center: [46.6, 2.4], zoom: 5 } },
-]
-
-export function score(km: number, scaleKm: number): number {
-  return Math.round(5000 * Math.exp((-10 * km) / scaleKm))
-}
+import { pickCountry, type Mode } from './guess'
 
 export interface CommonsPage {
   pageid: number
@@ -61,8 +37,8 @@ function playable(p: CommonsPage): boolean {
 const preferred = (p: CommonsPage) => /panoramio/i.test(meta(p, 'Categories'))
 
 // En mode strict, seules les vues Panoramio passent ; sinon toute photo jouable.
-export function pickPhoto(pages: CommonsPage[], seen: Set<number>, rng: () => number, strict = false): CommonsPage | null {
-  const ok = pages.filter((p) => !seen.has(p.pageid) && playable(p))
+export function pickPhoto(pages: CommonsPage[], seen: Set<string>, rng: () => number, strict = false): CommonsPage | null {
+  const ok = pages.filter((p) => !seen.has(String(p.pageid)) && playable(p))
   const best = ok.filter(preferred)
   const pool = best.length || strict ? best : ok
   return pool.length ? pool[Math.floor(rng() * pool.length)] : null
@@ -82,7 +58,7 @@ export function stripHtml(html: string): string {
 }
 
 export interface Place {
-  pageid: number
+  id: string
   lat: number
   lng: number
   image: string
@@ -98,7 +74,7 @@ function toPlace(world: World, p: CommonsPage): Place {
   const ii = p.imageinfo![0]
   const { lat, lon } = p.coordinates![0]
   return {
-    pageid: p.pageid,
+    id: String(p.pageid),
     lat,
     lng: lon,
     image: ii.thumburl!,
@@ -150,25 +126,12 @@ async function photosAround(lat: number, lng: number, signal: AbortSignal): Prom
   return Object.values(data.query?.pages ?? {})
 }
 
-function weightedCountry(world: World, mode: Mode, rng: () => number): string {
-  const codes =
-    mode.codes ??
-    world.codes.filter((c) => {
-      const m = COUNTRY_BY_CODE.get(c)
-      return m && !m.territory && m.continent !== 'AN' && (!mode.continents || mode.continents.includes(m.continent))
-    })
-  // racine de la surface : la Russie sort plus souvent que Malte, sans écraser le reste du monde
-  const weights = codes.map((c) => Math.sqrt(world.parts.filter((p) => p.code === c).reduce((s, p) => s + p.area, 0)))
-  let r = rng() * weights.reduce((a, b) => a + b, 0)
-  return codes[weights.findIndex((w) => (r -= w) <= 0)] ?? codes[0]
-}
-
 // Par vagues de cinq points tirés dans des pays au sort, interrogées en parallèle : la première photo
 // qui convient l'emporte. Les deux premières vagues n'acceptent que des vues Panoramio.
-export async function findPlace(world: World, mode: Mode, rng: () => number, seen: Set<number>, signal: AbortSignal): Promise<Place> {
+export async function findPlace(world: World, mode: Mode, rng: () => number, seen: Set<string>, signal: AbortSignal): Promise<Place> {
   let lastError: unknown = null
   for (let wave = 0; wave < 5; wave++) {
-    const points = Array.from({ length: 5 }, () => randomPointIn(world, weightedCountry(world, mode, rng), rng))
+    const points = Array.from({ length: 5 }, () => randomPointIn(world, pickCountry(world, mode, rng)!, rng))
     const answers = await Promise.all(
       points.map(([lng, lat]) =>
         photosAround(lat, lng, signal).catch((e: unknown) => {
