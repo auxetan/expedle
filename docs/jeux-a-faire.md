@@ -1,6 +1,6 @@
 # Jeux à ajouter plus tard
 
-Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, GeoGuessr (Street View, avec une clé Google) et WorldGuessr (photos, sans clé).
+Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
 
 Effort : **petit** = quelques heures avec les données du projet, **moyen** = une nouvelle source de données, **gros** = un serveur ou un service payant.
 
@@ -22,7 +22,7 @@ Effort : **petit** = quelques heures avec les données du projet, **moyen** = un
 | **Wikitrivia** | Placer des événements dans l'ordre sur une frise | Table `EVENTS` de `facts.ts` (événements datés) | petit |
 | **Factle** | Ranger cinq réponses dans le bon ordre (« les 5 pays les plus peuplés ») | Tous les classements de GeoHunter et de JetPunk | petit |
 | **Britannica Tightrope** | Neuf questions par jour, trois erreurs et on tombe | Banque de questions du Quiz culture G | petit |
-| **TimeGuessr / Chronophoto** | Dater une photo (et la situer pour TimeGuessr) | Le moteur de WorldGuessr : Wikimedia Commons fournit souvent la date de prise de vue | moyen (filtrer les photos bien datées) |
+| **TimeGuessr / Chronophoto** | Dater une photo (et la situer pour TimeGuessr) | Le moteur de PhotoGuessr : Wikimedia Commons fournit souvent la date de prise de vue | moyen (filtrer les photos bien datées) |
 | **HistoryGuesser** | GeoGuessr appliqué à des photos historiques | Même base que TimeGuessr | moyen |
 | **Artle** | Reconnaître un peintre d'après ses tableaux | Table `PAINTINGS` (œuvre → artiste) | moyen (images des œuvres via Wikimedia Commons ou Wikidata) |
 | **Wikipedia Speedrun** | Aller d'une page Wikipédia à une autre par les liens | Rien | moyen (API Wikipédia, accessible sans clé et avec CORS) |
@@ -35,7 +35,6 @@ Effort : **petit** = quelques heures avec les données du projet, **moyen** = un
 
 ## Petites suites possibles pour les jeux déjà faits
 
-- GeoGuessr et WorldGuessr : défi du jour identique pour tous, chrono par manche, modes « sans bouger » et « sans zoom » (NMPZ).
-- GeoGuessr en mode France 360° sans clé, avec Panoramax (photos 360° ouvertes) et une visionneuse 360°.
+- GeoGuessr et PhotoGuessr : défi du jour identique pour tous, chrono par manche, modes « sans bouger » et « sans zoom » (NMPZ).
 - Worldle : manches bonus supplémentaires (monnaie, langue, pays voisins), comme le jeu d'origine.
 - Globle : afficher les noms des pays au survol du globe.
