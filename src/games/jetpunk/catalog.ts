@@ -1,5 +1,5 @@
 import { CONTINENT_NAMES, COUNTRIES, COUNTRY_BY_CODE, flagEmoji, type Continent } from '../../geo/countries'
-import { getWorld } from '../../geo/world'
+import { CROSSINGS, getWorld } from '../../geo/world'
 import { hashString, todayKey } from '../../lib/util'
 import { CITY_STATS, COUNTRY_STATS, RANK_LISTS } from '../classement/data'
 import {
@@ -56,9 +56,6 @@ const personRow = (hint: string, name: string): Row => {
   const last = name.split(' ').at(-1)!
   return last !== name ? { hint, answer: name, alts: [last] } : { hint, answer: name }
 }
-
-// Liaisons ajoutées pour Travle (tunnel, ponts) : ce ne sont pas des frontières terrestres.
-const NOT_BORDERS = new Set(['FR-GB', 'GB-FR', 'DK-SE', 'SE-DK', 'SG-MY', 'MY-SG', 'BH-SA', 'SA-BH', 'GL-CA', 'CA-GL'])
 
 const CONTINENTS: Continent[] = ['EU', 'AF', 'AS', 'NA', 'SA', 'OC']
 const OF: Record<Continent, string> = {
@@ -125,7 +122,7 @@ function geography(): TableQuiz[] {
     ['CN', 'de la Chine'],
     ['BR', 'du Brésil'],
   ]) {
-    const list = [...(neighbors.get(code) ?? [])].filter((n) => !NOT_BORDERS.has(`${code}-${n}`) && COUNTRY_BY_CODE.has(n))
+    const list = [...(neighbors.get(code) ?? [])].filter((n) => !CROSSINGS.has(`${code}-${n}`) && COUNTRY_BY_CODE.has(n))
     out.push(
       quiz(
         `voisins-${code.toLowerCase()}`,
