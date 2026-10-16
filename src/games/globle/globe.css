@@ -1,0 +1,15 @@
+.globe {
+  display: flex;
+  justify-content: center;
+}
+
+.globe canvas {
+  touch-action: none;
+  cursor: grab;
+  border-radius: 50%;
+  animation: pop-in 0.5s cubic-bezier(0.3, 1.3, 0.6, 1);
+}
+
+.globe canvas:active {
+  cursor: grabbing;
+}
