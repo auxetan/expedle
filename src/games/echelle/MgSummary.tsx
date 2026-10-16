@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { copyText, load, save } from '../../lib/util'
+import CountUp from '../../ui/CountUp'
 
 export interface RoundRecap {
   title: ReactNode
@@ -49,7 +50,7 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
   return (
     <section className="mg-summary">
       <h3 className="mg-sum-h">Tes manches</h3>
-      <div className="mg-sum-rounds">
+      <div className="mg-sum-rounds stagger">
         {rounds.map((r, i) => (
           <button key={i} className={selected === i ? 'on' : ''} onClick={() => setSelected(selected === i ? null : i)}>
             <small>MANCHE {i + 1}</small>
@@ -66,7 +67,9 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
         </div>
       )}
       <div className="mg-sum-total">
-        <b>{total}</b>
+        <b>
+          <CountUp value={total} />
+        </b>
         <small>(SUR {max})</small>
       </div>
       <p className="mg-sum-msg">{message(total / max)}</p>
