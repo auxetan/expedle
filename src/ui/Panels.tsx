@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { bestScore, dailyResult, playStats } from '../lib/stats'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, save, weekKey } from '../lib/util'
 import { ALL_GAMES, GAME_SECTIONS } from './games'
 import { setTheme, useTheme, type Theme } from './theme'
@@ -31,6 +31,7 @@ export const ICONS = {
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   close: 'M18 6 6 18M6 6l12 12',
   home: 'M3 10.5 12 3l9 7.5M5.5 9v11h13V9',
+  chart: 'M4 20h16M7 16v-4M12 16V7M17 16v-7',
 }
 
 export function isDoneToday(g: { dailyId?: string; weekly?: boolean }): boolean {
@@ -38,10 +39,22 @@ export function isDoneToday(g: { dailyId?: string; weekly?: boolean }): boolean 
 }
 
 export function Drawer({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const [closing, setClosing] = useState(false)
+  const close = useCallback(() => {
+    setClosing(true)
+    setTimeout(onClose, 180)
+  }, [onClose])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [close])
+
   return (
-    <div className="ui-drawer-bg" onClick={onClose}>
+    <div className={closing ? 'ui-drawer-bg out' : 'ui-drawer-bg'} onClick={close}>
       <aside className="ui-drawer" onClick={(e) => e.stopPropagation()}>
-        <button className="ui-tool ui-drawer-close" onClick={onClose} aria-label="Fermer">
+        <button className="ui-tool ui-drawer-close" onClick={close} aria-label="Fermer">
           <Icon d={ICONS.close} />
         </button>
         {children}
@@ -50,18 +63,9 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   )
 }
 
-function bestOf(key: string): number | null {
-  const list = load<number[]>(key, [])
-  return list.length ? Math.max(...list) : null
-}
-
-function fmt(v: number | null, unit = ''): string {
-  return v === null ? '—' : `${v.toLocaleString('fr-FR')}${unit}`
-}
-
 export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) {
   const [profile, setProfile] = useState(loadProfile)
-  const { total, streak } = playStats()
+  const { total, streak, points } = summarize(plays())
   const dailies = ALL_GAMES.filter((g) => g.rhythm === 'quotidien')
   const doneToday = dailies.filter(isDoneToday).length
 
@@ -71,15 +75,6 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
     save('profile', next)
     onChange?.(next)
   }
-
-  const records: [string, string][] = [
-    ['Size It Up', fmt(bestOf('mg-hist:echelle-objets'))],
-    ['Size It Up : Géographie', fmt(bestOf('mg-hist:echelle-geo'))],
-    ['GeoHunter (classique)', fmt(bestScore('classement-classique'))],
-    ['Survival Mode', fmt(bestScore('survie'), ' questions')],
-    ['Seterra Europe', fmt(bestScore('carto-europe'), ' %')],
-    ['Quiz culture G', fmt(bestScore('quiz-culture'), ' pts')],
-  ]
 
   return (
     <>
@@ -106,21 +101,17 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
           <b>{streak}</b>jours de série
         </div>
         <div>
-          <b>
-            {doneToday}/{dailies.length}
-          </b>
-          jeux du jour
+          <b>{points.toLocaleString('fr-FR')}</b>
+          points
         </div>
       </div>
-      <h4>Records</h4>
-      <ul className="ui-records">
-        {records.map(([label, value]) => (
-          <li key={label}>
-            <span>{label}</span>
-            <b>{value}</b>
-          </li>
-        ))}
-      </ul>
+      <p className="ui-note">
+        {doneToday}/{dailies.length} jeux du jour terminés aujourd’hui.
+      </p>
+      <a href="#/stats" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.chart} />
+        Toutes mes statistiques
+      </a>
     </>
   )
 }
@@ -182,6 +173,12 @@ export function GamesPanel({ onPick }: { onPick: () => void }) {
           <Icon d={ICONS.home} />
         </span>
         <b>Accueil</b>
+      </a>
+      <a href="#/stats" className={current === '#/stats' ? 'ui-game-row home on' : 'ui-game-row home'} onClick={onPick}>
+        <span className="ui-game-glyph">
+          <Icon d={ICONS.chart} />
+        </span>
+        <b>Statistiques</b>
       </a>
       {GAME_SECTIONS.map((s) => (
         <div key={s.label} className="ui-game-section">
