@@ -7,7 +7,7 @@ import AppBar from '../../ui/AppBar'
 import CountUp from '../../ui/CountUp'
 import GuessMap, { type LatLng, type Pair } from './GuessMap'
 import { MODES, score, type Mode } from './guess'
-import './worldguessr.css'
+import './guessr.css'
 
 export interface Spot {
   id: string
@@ -16,9 +16,12 @@ export interface Spot {
   country: string | null
 }
 
-// Ce qui distingue WorldGuessr (photos) de GeoGuessr (Street View) ; tout le reste de la partie est commun.
+// Ce qui distingue PhotoGuessr (photos) de GeoGuessr (vues de rue 360°) ; tout le reste de la partie est commun.
 export interface GuessSource<S extends Spot> {
-  game: 'worldguessr' | 'geoguessr'
+  game: 'photoguessr' | 'geoguessr'
+  // préfixe des records et des lieux déjà vus, quand une même partie existe avec plusieurs imageries
+  store?: string
+  modes?: Mode[]
   title: string
   question: string
   intro: string
@@ -37,9 +40,10 @@ type Phase = 'menu' | 'play' | 'summary' | 'error'
 const fmtKm = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${Math.round(km).toLocaleString('fr-FR')} km`)
 const countryName = (s: Spot) => (s.country ? COUNTRY_BY_CODE.get(s.country)?.name ?? s.country : 'en mer ou hors carte')
 
-export default function GuessGame<S extends Spot>({ source, settings }: { source: GuessSource<S>; settings?: ReactNode }) {
-  const { game } = source
-  const [mode, setMode] = useState<Mode>(() => MODES.find((m) => m.id === load(`${game}:mode`, 'monde')) ?? MODES[0])
+export default function GuessGame<S extends Spot>({ source, settings, menuTop }: { source: GuessSource<S>; settings?: ReactNode; menuTop?: ReactNode }) {
+  const { game, modes = MODES } = source
+  const store = source.store ?? game
+  const [mode, setMode] = useState<Mode>(() => modes.find((m) => m.id === load(`${store}:mode`, 'monde')) ?? modes[0])
   const [phase, setPhase] = useState<Phase>('menu')
   const [spots, setSpots] = useState<S[]>([])
   const [guesses, setGuesses] = useState<(LatLng | null)[]>([])
@@ -53,7 +57,7 @@ export default function GuessGame<S extends Spot>({ source, settings }: { source
   const [record, setRecord] = useState(false)
   const next = useRef<Promise<S> | null>(null)
   const abort = useRef<AbortController | null>(null)
-  const seen = useRef(new Set(load<string[]>(`${game}:seen`, [])))
+  const seen = useRef(new Set(load<string[]>(`${store}:seen`, [])))
   const modeRef = useRef(mode)
   const elapsed = useStopwatch(spots[0]?.id)
 
@@ -87,7 +91,7 @@ export default function GuessGame<S extends Spot>({ source, settings }: { source
     try {
       const spot = await next.current!
       next.current = null
-      save(`${game}:seen`, [...seen.current].slice(-500))
+      save(`${store}:seen`, [...seen.current].slice(-500))
       setSpots((list) => [...list.slice(0, index), spot])
       setWaiting(false)
       if (index + 1 < ROUNDS) prefetch()
@@ -106,7 +110,7 @@ export default function GuessGame<S extends Spot>({ source, settings }: { source
       modeRef.current = m
       prefetch()
     }
-    save(`${game}:mode`, m.id)
+    save(`${store}:mode`, m.id)
     setMode(m)
     setSpots([])
     setGuesses([])
@@ -129,15 +133,15 @@ export default function GuessGame<S extends Spot>({ source, settings }: { source
     return { km, points: g ? score(km, mode.scaleKm) : 0 }
   })
   const total = results.slice(0, guesses.length).reduce((s, r) => s + r.points, 0)
-  const best = load<number | null>(`${game}:best:${mode.id}`, null)
+  const best = load<number | null>(`${store}:best:${mode.id}`, null)
 
   function advance() {
     if (round + 1 < ROUNDS) return void show(round + 1)
     setPhase('summary')
     prefetch()
-    const prev = load<number | null>(`${game}:best:${mode.id}`, null)
+    const prev = load<number | null>(`${store}:best:${mode.id}`, null)
     if (prev === null || total > prev) {
-      save(`${game}:best:${mode.id}`, total)
+      save(`${store}:best:${mode.id}`, total)
       setRecord(true)
     }
     recordPlay(game, { pts: total / (ROUNDS * 50), s: total, ms: elapsed(), sub: mode.id })
@@ -191,9 +195,10 @@ export default function GuessGame<S extends Spot>({ source, settings }: { source
         <main className="wg-menu">
           <h1>{source.question}</h1>
           <p className="muted">{source.intro}</p>
+          {menuTop}
           <div className="wg-modes">
-            {MODES.map((m) => {
-              const b = load<number | null>(`${game}:best:${m.id}`, null)
+            {modes.map((m) => {
+              const b = load<number | null>(`${store}:best:${m.id}`, null)
               return (
                 <button key={m.id} className={m.id === mode.id ? 'on' : ''} onClick={() => start(m)}>
                   <b>{m.label}</b>
