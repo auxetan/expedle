@@ -9,10 +9,19 @@ import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
 import { formatTime, normalize, shuffle } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import CountUp from '../../ui/CountUp'
+import { Icon } from '../../ui/Panels'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
 
 type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
+
+const MODES: [PlayMode, string, string][] = [
+  ['epingler', 'Épingler', 'M12 2v5M12 17v5M2 12h5M17 12h5M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'],
+  ['saisir', 'Saisir', 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'],
+  ['placer', 'Placer', 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3'],
+  ['apprendre', 'Apprendre', 'M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5zM4 19.5A1.5 1.5 0 0 0 5.5 21H20'],
+]
 
 export default function Cartographe({ quizId: id, params }: { quizId?: string; params: URLSearchParams }) {
   const parsed = id ? parseQuizId(id) : null
@@ -213,9 +222,9 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   useEffect(() => {
     if (!finished || !started) return
     const pct = Math.round((correct / Math.max(clicks, 1)) * 100)
-    recordPlay('cartographe')
+    recordPlay('cartographe', { pts: pct, s: pct, ms: now - startAt, sub: quizId(region.id, ask) })
     setRecord(submitBest('carto-' + quizId(region.id, ask), pct))
-  }, [finished, started, correct, clicks, region, ask])
+  }, [finished, started, correct, clicks, region, ask, now, startAt])
 
   const elapsed = started ? (finished ? now : performance.now()) - startAt : 0
 
@@ -454,30 +463,17 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
 
           {!started && (
             <div className="st-start">
-              <div className="st-start-top">
-                <button className="st-pill ui-btn line" onClick={() => go('/cartographe')}>
-                  Retour
-                </button>
-              </div>
               <h1>{title}</h1>
               <span className="st-kicker">MODE DE JEU</span>
               <div className="st-modes">
-                <a href={`#/cartographe/${quizId(region.id, ask)}`} className={mode === 'epingler' ? 'on' : ''}>
-                  <span>⌖</span>
-                  Épingler
-                </a>
-                <a href={`#/cartographe/${quizId(region.id, ask)}?mode=saisir`} className={mode === 'saisir' ? 'on' : ''}>
-                  <span>⌨</span>
-                  Saisir
-                </a>
-                <a href={`#/cartographe/${quizId(region.id, ask)}?mode=placer`} className={mode === 'placer' ? 'on' : ''}>
-                  <span>✋</span>
-                  Placer
-                </a>
-                <a href={`#/cartographe/${quizId(region.id, ask)}?mode=apprendre`} className={mode === 'apprendre' ? 'on' : ''}>
-                  <span>📖</span>
-                  Apprendre
-                </a>
+                {MODES.map(([m, label, icon]) => (
+                  <a key={m} href={`#/cartographe/${quizId(region.id, ask)}${m === 'epingler' ? '' : `?mode=${m}`}`} className={mode === m ? 'on' : ''}>
+                    <span>
+                      <Icon d={icon} size={22} />
+                    </span>
+                    {label}
+                  </a>
+                ))}
               </div>
               <button className="st-go ui-btn" onClick={start}>
                 {learning ? 'Explorer la carte' : 'Commencer le quiz'}
@@ -489,7 +485,11 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
             <div className="st-start st-end">
               <h1>{pct >= 90 ? 'Bravo !' : pct >= 60 ? 'Bien joué !' : 'Continue !'}</h1>
               <p>
-                Score : <b>{pct} %</b> en <b>{formatTime(elapsed)}</b>
+                Score :{' '}
+                <b>
+                  <CountUp value={pct} /> %
+                </b>{' '}
+                en <b>{formatTime(elapsed)}</b>
               </p>
               {record && <p className="st-record">Nouveau record !</p>}
               <div className="st-modes">
