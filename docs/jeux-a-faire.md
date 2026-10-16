@@ -1,6 +1,6 @@
 # Jeux à ajouter plus tard
 
-Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle et WorldGuessr.
+Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, GeoGuessr (Street View, avec une clé Google) et WorldGuessr (photos, sans clé).
 
 Effort : **petit** = quelques heures avec les données du projet, **moyen** = une nouvelle source de données, **gros** = un serveur ou un service payant.
 
@@ -32,10 +32,10 @@ Effort : **petit** = quelques heures avec les données du projet, **moyen** = un
 | Jeu | Pourquoi c'est gros |
 |---|---|
 | **Kahoot, Trivia Crack (Quiz Crack), QuizDuel** | Ce sont des jeux à plusieurs en direct ou en duel : il faut un serveur (salons, synchronisation, comptes). |
-| **Street View dans WorldGuessr** | WorldGuessr utilise aujourd'hui des photos Wikimedia Commons, libres et sans clé. Pour la vraie vue de rue façon GeoGuessr, trois pistes : **Google** (API Embed officielle et gratuite, mais il faut une clé Google Cloud et une liste de lieux avec couverture), **Panoramax** (photos 360° ouvertes et sans clé, surtout en France : idéal pour un mode France en vue immersive, mais il faut une visionneuse 360°), **Mapillary** (mondial, gratuit, mais il faut un jeton de compte). |
 
 ## Petites suites possibles pour les jeux déjà faits
 
-- WorldGuessr : défi du jour identique pour tous, chrono par manche, mode « sans zoom ».
+- GeoGuessr et WorldGuessr : défi du jour identique pour tous, chrono par manche, modes « sans bouger » et « sans zoom » (NMPZ).
+- GeoGuessr en mode France 360° sans clé, avec Panoramax (photos 360° ouvertes) et une visionneuse 360°.
 - Worldle : manches bonus supplémentaires (monnaie, langue, pays voisins), comme le jeu d'origine.
 - Globle : afficher les noms des pays au survol du globe.
