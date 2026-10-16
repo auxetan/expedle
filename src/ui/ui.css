@@ -485,3 +485,83 @@
   margin-top: 6px;
   text-decoration: none;
 }
+
+/* Saisie d'un pays avec autocomplétion (Worldle, Globle) */
+.ci {
+  position: relative;
+  font-family: var(--font);
+}
+
+.ci-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ci-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 17px;
+  outline: none;
+}
+
+.ci-input:focus {
+  border-color: var(--muted);
+}
+
+.ci-go {
+  flex: none;
+}
+
+.ci-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  animation: fade-in 0.12s;
+}
+
+.ci-list li {
+  padding: 8px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.ci-list li.on {
+  background: var(--hover);
+}
+
+.ci-list li.used {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.ci-list mark {
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ci-msg {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--bad);
+}
