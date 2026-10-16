@@ -24,7 +24,7 @@ export default function App() {
       content = <Itineraire key={key} mode={sub} params={route.params} />
       break
     case 'echelle':
-      content = <Echelle key={key} variant={sub === 'geo' ? 'geo' : sub === '1000' ? '1000' : 'objets'} date={date} />
+      content = <Echelle key={key} variant={sub === 'geo' || sub === '1000' || sub === 'pop' ? sub : 'objets'} date={date} />
       break
     case 'estimation':
       content = sub === 'archive' ? <MgArchive key={key} /> : <MgHome key={key} />
@@ -39,7 +39,7 @@ export default function App() {
       content = <Estimation key={key} mode="survival" />
       break
     case 'classement':
-      content = <Classement key={key} mode={sub} />
+      content = <Classement key={key} mode={sub} params={route.params} />
       break
     case 'cartographe':
       content = <Cartographe key={key} quizId={sub} params={route.params} />
