@@ -47,6 +47,9 @@ const GAMES: Record<string, GameInfo> = {
   'quiz-drapeaux': { title: 'Drapeaux', href: '#/quiz/drapeaux', unit: pts },
   'quiz-capitales': { title: 'Capitales', href: '#/quiz/capitales', unit: pts },
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
+  worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
+  globle: { title: 'Globle', href: '#/globle', unit: essais, lower: true },
+  worldguessr: { title: 'WorldGuessr', href: '#/worldguessr', unit: pts },
 }
 
 const info = (g: string): GameInfo => GAMES[g] ?? { title: g, href: '#/', unit: pts }
