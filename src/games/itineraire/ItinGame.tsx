@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Atlas } from '../../geo/atlas'
 import { isSolved, MARK_EMOJI, nextCountries, scoreGuess, shortestPath, startConnected, type Mark } from '../../geo/graph'
-import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
+import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, todayKey } from '../../lib/util'
 import { addRecord, computeStats, type GameRecord, type ItinSettings } from './history'
 import { exactMatch, matchSuggestions, routeGraph, type Puzzle } from './puzzle'
@@ -79,6 +79,20 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   }, [slot.storageKey, guesses, hints])
 
   const recorded = useRef(false)
+  const backRef = useRef<HTMLDivElement>(null)
+  const [backHeight, setBackHeight] = useState(0)
+  useLayoutEffect(() => {
+    const body = backRef.current
+    if (!body) return
+    const face = body.parentElement!
+    const ro = new ResizeObserver(() => {
+      const cs = getComputedStyle(face)
+      setBackHeight(body.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom))
+    })
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [over])
+  const elapsed = useStopwatch()
   useEffect(() => {
     if (!over || recorded.current) return
     recorded.current = true
@@ -93,9 +107,14 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
       shortest,
       hints,
     })
-    recordPlay('itineraire')
+    recordPlay(slot.kind === 'jour' ? 'itineraire' : `itineraire-${slot.kind}`, {
+      pts: won ? Math.max(10, 100 - 15 * (guesses.length - shortest) - 10 * hints) : 0,
+      s: guesses.length,
+      ms: elapsed(),
+      win: won,
+    })
     setTimeout(() => setResults(true), 900)
-  }, [over, won, slot, guesses.length, shortest, hints])
+  }, [over, won, slot, guesses.length, shortest, hints, elapsed])
 
   const suggestions = useMemo(() => matchSuggestions(atlas, query), [atlas, query])
   const listRef = useRef<HTMLUListElement>(null)
@@ -181,20 +200,70 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
         </button>
       </div>
 
-      {settings.hideMap && !over ? (
-        <div className="rm-hidden">Carte masquée — désactivez « Masquer la carte » dans les réglages.</div>
-      ) : (
-        <RouteMap
-          atlas={atlas}
-          layers={layers}
-          focus={focus}
-          outlines={next}
-          showAll={hints >= 2 || over}
-          initials={(hints >= 3 && !hard) || false}
-          projection={settings.projection}
-          named={named}
-        />
-      )}
+      {/* En fin de partie, la carte se retourne : les résultats sont au dos. */}
+      <div className={results ? 'itin-flip flipped' : 'itin-flip'}>
+        <div className="itin-flip-inner">
+          <div className="itin-face front" aria-hidden={results}>
+            {settings.hideMap && !over ? (
+              <div className="rm-hidden">Carte masquée — désactivez « Masquer la carte » dans les réglages.</div>
+            ) : (
+              <RouteMap
+                atlas={atlas}
+                layers={layers}
+                focus={focus}
+                outlines={next}
+                showAll={hints >= 2 || over}
+                initials={(hints >= 3 && !hard) || false}
+                projection={settings.projection}
+                named={named}
+                minHeight={backHeight}
+              />
+            )}
+          </div>
+          {over && (
+            <article className="itin-face back" aria-hidden={!results}>
+              <div ref={backRef}>
+                <h2>{won ? 'Bravo !' : 'Dommage !'}</h2>
+                <p>
+                  {name(start)} → {name(end)}
+                </p>
+                <p>
+                  {won ? `Trajet trouvé en ${guesses.length} essai${guesses.length > 1 ? 's' : ''}` : 'Trajet non trouvé'} (minimum : {shortest}
+                  {hints ? `, ${hints} indice${hints > 1 ? 's' : ''}` : ''})
+                </p>
+                <p className="emoji-line">{emojis}</p>
+                <p>Un plus court chemin : {[start, ...solution, end].map(name).join(' → ')}</p>
+                <div className="stat-row">
+                  <div>
+                    <b>{stats.played}</b>Parties
+                  </div>
+                  <div>
+                    <b>{stats.winRate}%</b>Victoires
+                  </div>
+                  <div>
+                    <b>{stats.streak}</b>Série
+                  </div>
+                  <div>
+                    <b>{stats.perfectRate}%</b>Parfaites
+                  </div>
+                </div>
+                <div className="itin-back-actions">
+                  <button className="pink" onClick={() => copy(shareText, 'Résultat copié !')}>
+                    Partager 📋
+                  </button>
+                  <button className="itin-turn" onClick={() => setResults(false)}>
+                    Revoir la carte <span className="ico">⇄</span>
+                  </button>
+                </div>
+                <a className="itin-link-stats" href="#/itineraire/stats">
+                  Toutes les statistiques →
+                </a>
+              
+              </div>
+            </article>
+          )}
+        </div>
+      </div>
 
       {over ? (
         <>
@@ -203,8 +272,8 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
               Jouer une autre <span className="ico">⟳</span>
             </button>
             <div className="itin-over-side">
-              <button className="pink" onClick={() => setResults(true)}>
-                Voir les résultats <span className="ico">⇄</span>
+              <button className="pink" onClick={() => setResults(!results)}>
+                {results ? 'Revoir la carte' : 'Voir les résultats'} <span className="ico">⇄</span>
               </button>
               <button className="pink" onClick={() => copy(shareText, 'Résultat copié !')}>
                 Partager avec des amis <span className="ico">📋</span>
@@ -291,47 +360,6 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
       )}
       {!over && hard && <p className="itin-hard">Mode difficile : pas d’indices ni de noms sur la carte.</p>}
 
-      {results && (
-        <div className="itin-modal-bg" onClick={() => setResults(false)}>
-          <article className="itin-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close" onClick={() => setResults(false)} aria-label="Fermer">
-              ✕
-            </button>
-            <h2>{won ? 'Bravo !' : over ? 'Dommage !' : 'Résultats'}</h2>
-            <p>
-              {name(start)} → {name(end)}
-            </p>
-            {over && (
-              <p>
-                {won ? `Trajet trouvé en ${guesses.length} essai${guesses.length > 1 ? 's' : ''}` : 'Trajet non trouvé'} (minimum : {shortest}
-                {hints ? `, ${hints} indice${hints > 1 ? 's' : ''}` : ''})
-              </p>
-            )}
-            <p className="emoji-line">{emojis}</p>
-            <p>Un plus court chemin : {[start, ...solution, end].map(name).join(' → ')}</p>
-            <div className="stat-row">
-              <div>
-                <b>{stats.played}</b>Parties
-              </div>
-              <div>
-                <b>{stats.winRate}%</b>Victoires
-              </div>
-              <div>
-                <b>{stats.streak}</b>Série
-              </div>
-              <div>
-                <b>{stats.perfectRate}%</b>Parfaites
-              </div>
-            </div>
-            <button className="pink wide" onClick={() => copy(shareText, 'Résultat copié !')}>
-              Partager avec des amis 📋
-            </button>
-            <a className="itin-link-stats" href="#/itineraire/stats">
-              Toutes les statistiques →
-            </a>
-          </article>
-        </div>
-      )}
       {toast && <div className="toast-copy">{toast}</div>}
     </>
   )
