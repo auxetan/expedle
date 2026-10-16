@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 
 // Génère le service worker avec la liste exacte des fichiers du build à précharger.
@@ -8,7 +8,9 @@ function serviceWorker(): Plugin {
     name: 'meridien-sw',
     apply: 'build',
     generateBundle(_, bundle) {
-      const files = Object.keys(bundle).map((f) => `./${f}`)
+      // les icônes de public/ ne passent pas par le bundle : on les ajoute pour le hors-ligne
+      const icons = readdirSync(new URL('./public/icons', import.meta.url)).map((f) => `./icons/${f}`)
+      const files = [...Object.keys(bundle).map((f) => `./${f}`), ...icons]
       const source = readFileSync(new URL('./pwa/sw.js', import.meta.url), 'utf8')
         .replace('__PRECACHE__', JSON.stringify(files))
         .replace('__VERSION__', String(Date.now()))
