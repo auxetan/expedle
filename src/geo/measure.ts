@@ -1,4 +1,4 @@
-import { geoBounds, geoContains, geoDistance } from 'd3-geo'
+import { geoArea, geoBounds, geoContains, geoDistance } from 'd3-geo'
 import type { Feature, MultiPolygon } from 'geojson'
 import type { PolygonPart, World } from './world'
 import { CROSSINGS } from './world'
@@ -146,7 +146,12 @@ export function simplifiedFeatures(world: World, tolerance = 0.3): Map<string, F
     const polys = f.geometry.coordinates as LonLat[][][]
     const kept = polys.filter((poly) => extent(poly[0]) >= tolerance)
     const biggest = polys.reduce((a, b) => (extent(b[0]) > extent(a[0]) ? b : a))
-    const coordinates = (kept.length ? kept : [biggest]).map((poly) => poly.map(thin))
+    // un anneau allégé peut changer de sens et englober tout le reste du globe : on garde alors l'original
+    const coordinates = (kept.length ? kept : [biggest]).map((poly) => {
+      const light = poly.map(thin)
+      const area = (rings: LonLat[][]) => geoArea({ type: 'Polygon', coordinates: rings })
+      return area(light) > Math.max(2 * area(poly), 1e-4) ? poly : light
+    })
     map.set(code, { ...f, geometry: { type: 'MultiPolygon', coordinates } })
   }
   lite.set(world, map)
