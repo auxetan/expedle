@@ -22,6 +22,8 @@ interface Props {
   projection: ProjectionKind
   // noms visibles au survol (mode difficile : aucun)
   named: Set<string>
+  // la carte s'allonge pour loger les résultats affichés à son dos
+  minHeight?: number
 }
 
 interface View {
@@ -113,12 +115,12 @@ function lerpView(a: View, b: View, t: number): View {
 
 const graticule = geoGraticule().step([15, 15])()
 
-export default function RouteMap({ atlas, layers, focus, outlines, showAll, initials, projection: kind, named }: Props) {
+export default function RouteMap({ atlas, layers, focus, outlines, showAll, initials, projection: kind, named, minHeight = 0 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const [width, setWidth] = useState(640)
-  const height = Math.round(width * RATIO)
+  const height = Math.max(Math.round(width * RATIO), Math.round(minHeight))
   const [zt, setZt] = useState<ZoomTransform>(zoomIdentity)
   const [settled, setSettled] = useState<ZoomTransform>(zoomIdentity)
   const [tip, setTip] = useState<{ code: string; x: number; y: number } | null>(null)
