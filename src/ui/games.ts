@@ -36,6 +36,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
     label: 'Culture générale',
     games: [
       { href: '#/quiz/jour', title: 'Quiz du jour', tagline: 'Dix questions, les mêmes pour tous', rhythm: 'quotidien', dailyId: 'quiz-jour', icon: 'quiz-jour' },
+      { href: '#/jetpunk', title: 'JetPunk', tagline: 'Des dizaines de quiz à remplir contre la montre', rhythm: 'libre', icon: 'jetpunk' },
       { href: '#/quiz', title: 'Quiz culture G', tagline: 'Des milliers de questions', rhythm: 'libre', icon: 'quiz-culture-g' },
       { href: '#/quiz/drapeaux', title: 'Drapeaux', tagline: 'Un pays, un drapeau', rhythm: 'libre', icon: 'drapeaux' },
       { href: '#/quiz/capitales', title: 'Capitales', tagline: 'Chaque pays et sa capitale', rhythm: 'libre', icon: 'capitales' },
