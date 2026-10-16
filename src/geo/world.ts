@@ -55,15 +55,18 @@ function exclaveTag(code: string, lon: number, lat: number): string {
   return ''
 }
 
-// Ponts, tunnels et frontières que les données ne voient pas.
-const EXTRA_LINKS: [string, string][] = [
+// Ponts, tunnels et détroits : Travle les traverse, mais ce ne sont pas des frontières terrestres.
+const CROSSING_PAIRS: [string, string][] = [
   ['FR', 'GB'],
   ['DK', 'SE'],
   ['GL', 'CA'],
   ['SG', 'MY'],
   ['BH', 'SA'],
-  ['ZM', 'BW'],
 ]
+export const CROSSINGS = new Set(CROSSING_PAIRS.flatMap(([a, b]) => [`${a}-${b}`, `${b}-${a}`]))
+
+// Liaisons que les données ne voient pas : les traversées et la minuscule frontière Zambie–Botswana.
+const EXTRA_LINKS: [string, string][] = [...CROSSING_PAIRS, ['ZM', 'BW']]
 
 export type PolygonArcs = number[][]
 
