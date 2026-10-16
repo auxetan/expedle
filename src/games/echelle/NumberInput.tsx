@@ -15,6 +15,8 @@ export function parseNumber(s: string): number {
 
 export function formatNumber(n: number): string {
   if (!Number.isFinite(n)) return ''
+  // une abeille pèse 0,0001 kg : sous 1, on garde les chiffres significatifs
+  if (n > 0 && n < 1) return n.toLocaleString('fr-FR', { maximumSignificantDigits: 3 })
   return n.toLocaleString('fr-FR', { maximumFractionDigits: n < 10 ? 3 : n < 1000 ? 1 : 0 })
 }
 
