@@ -16,11 +16,13 @@ interface AnyResult {
   good?: number
 }
 
-// Parties Travle commencées mais pas terminées (les autres jeux ne gardent pas de partie en cours).
+// Parties commencées mais pas terminées (Travle, Worldle et Globle gardent la partie en cours).
 const IN_PROGRESS: Record<string, () => string> = {
   itineraire: () => `itin:jour:${todayKey()}`,
   'itineraire-usa': () => `itin:usa:${todayKey()}`,
   'itineraire-hebdo': () => `itin:hebdo:${weekKey()}`,
+  worldle: () => `worldle:${todayKey()}`,
+  globle: () => `globle:${todayKey()}`,
 }
 
 function resultLabel(id: string, r: AnyResult): string {
@@ -29,6 +31,8 @@ function resultLabel(id: string, r: AnyResult): string {
   if (id === 'classement-jour') return `${r.total} pts`
   if (id === 'question') return `${r.score} / 100`
   if (id === 'quiz-jour') return `${r.good} / 10`
+  if (id === 'worldle') return r.won ? `${r.guesses}/6` : 'perdu'
+  if (id === 'globle') return r.won ? `${r.guesses} essais` : 'abandon'
   return 'joué'
 }
 
