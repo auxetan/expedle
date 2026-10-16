@@ -25,16 +25,20 @@ export function score(km: number, scaleKm: number): number {
   return Math.round(5000 * Math.exp((-10 * km) / scaleKm))
 }
 
-// Un pays du mode (et de `allowed` s'il est donné), au prorata de la racine de sa surface :
-// la Russie sort plus souvent que Malte, sans écraser le reste du monde.
-export function pickCountry(world: World, mode: Mode, rng: () => number, allowed?: Set<string>): string | null {
-  const codes = (
+export function modeCodes(world: World, mode: Mode): string[] {
+  return (
     mode.codes ??
     world.codes.filter((c) => {
       const m = COUNTRY_BY_CODE.get(c)
       return m && !m.territory && m.continent !== 'AN' && (!mode.continents || mode.continents.includes(m.continent))
     })
-  ).filter((c) => !allowed || allowed.has(c))
+  )
+}
+
+// Un pays du mode (et de `allowed` s'il est donné), au prorata de la racine de sa surface :
+// la Russie sort plus souvent que Malte, sans écraser le reste du monde.
+export function pickCountry(world: World, mode: Mode, rng: () => number, allowed?: Set<string>): string | null {
+  const codes = modeCodes(world, mode).filter((c) => !allowed || allowed.has(c))
   if (!codes.length) return null
   const weights = codes.map((c) => Math.sqrt(world.parts.filter((p) => p.code === c).reduce((s, p) => s + p.area, 0)))
   let r = rng() * weights.reduce((a, b) => a + b, 0)
