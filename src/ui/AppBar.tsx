@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react'
-import { back } from '../lib/router'
 import Logo from './Logo'
 import { Drawer, GamesPanel, Icon, ICONS, loadProfile, ProfilePanel, SettingsPanel } from './Panels'
 import './ui.css'
@@ -8,15 +7,13 @@ type Panel = 'jeux' | 'reglages' | 'profil' | null
 
 interface Props {
   title?: string
-  // repli de « Retour » quand on arrive directement sur la page
-  backTo?: string
   home?: boolean
   settings?: ReactNode
   tools?: ReactNode
   children?: ReactNode
 }
 
-export default function AppBar({ title, backTo = '/', home = false, settings, tools, children }: Props) {
+export default function AppBar({ title, home = false, settings, tools, children }: Props) {
   const [panel, setPanel] = useState<Panel>(null)
   const [avatar, setAvatar] = useState(() => loadProfile().avatar)
   const toggle = (p: Panel) => setPanel(panel === p ? null : p)
@@ -31,10 +28,10 @@ export default function AppBar({ title, backTo = '/', home = false, settings, to
               <span>méridien</span>
             </a>
           ) : (
-            <button className="ui-back" onClick={() => back(backTo)} aria-label="Retour">
+            <a href="#/" className="ui-back" aria-label="Accueil">
               <Icon d={ICONS.back} />
-              <span>Retour</span>
-            </button>
+              <span>Accueil</span>
+            </a>
           )}
         </div>
         {title && <div className="ui-bar-title">{title}</div>}
