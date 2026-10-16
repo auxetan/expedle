@@ -3,7 +3,10 @@ import { dailyResult, playStats } from '../../lib/stats'
 import { load, todayKey, weekKey } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import { weeklyTheme } from './Echelle'
+import { DRAWINGS } from './drawings'
+import DrawingPaths from './DrawingPaths'
 import { MgNav } from './MgShell'
+import { drawingBox } from './silhouette'
 import './mg.css'
 
 interface Card {
@@ -21,6 +24,17 @@ const Sil = ({ e, red, size }: { e: string; red?: boolean; size?: number }) => (
     {e}
   </span>
 )
+function Drawn({ name, red, h }: { name: string; red?: boolean; h: number }) {
+  const parts = DRAWINGS[name]
+  const b = drawingBox(parts)
+  return (
+    <svg className={red ? 'mgh-draw red' : 'mgh-draw'} viewBox={`${b.x} ${b.y} ${b.w} ${b.h}`} height={h} width={(h * b.w) / b.h} aria-hidden>
+      <g fill="currentColor" stroke="currentColor">
+        <DrawingPaths parts={parts} />
+      </g>
+    </svg>
+  )
+}
 const Arrow = () => <span className="mgh-arrow">→</span>
 
 export default function MgHome() {
@@ -49,9 +63,9 @@ export default function MgHome() {
       dailyId: 'echelle-pop',
       art: (
         <>
-          <Sil e="🤖" />
+          <Drawn name="Kong (2021)" h={72} />
           <Arrow />
-          <Sil e="🦖" red size={44} />
+          <Drawn name="Godzilla (2019)" red h={50} />
         </>
       ),
     },
