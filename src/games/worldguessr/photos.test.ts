@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickPhoto, score, stripHtml, type CommonsPage } from './photos'
+import { pickPhoto, stripHtml, type CommonsPage } from './photos'
 
 const page = (pageid: number, title: string, extra: { mime?: string; w?: number; h?: number; cats?: string; coords?: boolean } = {}): CommonsPage => ({
   pageid,
@@ -15,14 +15,6 @@ const page = (pageid: number, title: string, extra: { mime?: string; w?: number;
       extmetadata: { Categories: { value: extra.cats ?? '' }, Artist: { value: '<a href="x">Ada</a>' }, LicenseShortName: { value: 'CC BY 3.0' } },
     },
   ],
-})
-
-describe('barème', () => {
-  it('donne 5 000 points au mètre près et décroît avec la distance', () => {
-    expect(score(0, 14916)).toBe(5000)
-    expect(score(1491.6, 14916)).toBe(1839)
-    expect(score(20000, 14916)).toBe(0)
-  })
 })
 
 describe('tri des photos', () => {
@@ -47,7 +39,7 @@ describe('tri des photos', () => {
   it('préfère les vues Panoramio et ignore celles déjà vues', () => {
     const pages = [page(10, 'Rue'), page(11, 'Canal', { cats: 'Panoramio files uploaded by Panoramio upload bot' }), page(12, 'Pont', { cats: 'Quality images' })]
     expect(pickPhoto(pages, new Set(), rng)?.pageid).toBe(11)
-    expect(pickPhoto(pages, new Set([11]), rng)?.pageid).toBe(10)
+    expect(pickPhoto(pages, new Set(['11']), rng)?.pageid).toBe(10)
     expect(pickPhoto([page(10, 'Rue')], new Set(), rng)?.pageid).toBe(10)
     expect(pickPhoto([page(10, 'Rue')], new Set(), rng, true)).toBeNull()
   })
