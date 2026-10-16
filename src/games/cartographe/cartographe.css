@@ -289,11 +289,6 @@
   padding: 20px;
 }
 
-.st-start-top {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-}
 
 .st-start h1 {
   margin: 0 0 8px;
@@ -309,15 +304,14 @@
 }
 
 .st-modes {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 76px));
+  gap: 10px;
   margin-bottom: 14px;
-  flex-wrap: wrap;
   justify-content: center;
 }
 
 .st-modes a {
-  width: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -335,8 +329,12 @@
   background: var(--card);
   display: grid;
   place-items: center;
-  font-size: 22px;
   color: var(--fg);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.st-modes a:hover span {
+  transform: translateY(-2px);
 }
 
 .st-modes a.on {
