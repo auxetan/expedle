@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, save, weekKey } from '../lib/util'
+import GameIcon from './GameIcon'
 import { ALL_GAMES, GAME_SECTIONS } from './games'
 import { setTheme, useTheme, type Theme } from './theme'
 
@@ -168,13 +169,13 @@ export function GamesPanel({ onPick }: { onPick: () => void }) {
   return (
     <>
       <h3>Jeux</h3>
-      <a href="#/" className="ui-game-row home" onClick={onPick}>
+      <a href="#/" className="ui-game-row" onClick={onPick}>
         <span className="ui-game-glyph">
           <Icon d={ICONS.home} />
         </span>
         <b>Accueil</b>
       </a>
-      <a href="#/stats" className={current === '#/stats' ? 'ui-game-row home on' : 'ui-game-row home'} onClick={onPick}>
+      <a href="#/stats" className={current === '#/stats' ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
         <span className="ui-game-glyph">
           <Icon d={ICONS.chart} />
         </span>
@@ -185,7 +186,9 @@ export function GamesPanel({ onPick }: { onPick: () => void }) {
           <h4>{s.label}</h4>
           {s.games.map((g) => (
             <a key={g.href} href={g.href} className={current === g.href ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
-              <span className="ui-game-glyph">{g.glyph}</span>
+              <span className="ui-game-glyph">
+                <GameIcon icon={g.icon} size={30} />
+              </span>
               <span className="ui-game-text">
                 <b>{g.title}</b>
                 <small>{g.tagline}</small>
