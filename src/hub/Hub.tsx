@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { playStats } from '../lib/stats'
 import { normalize } from '../lib/util'
 import AppBar from '../ui/AppBar'
+import GameIcon from '../ui/GameIcon'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
 import { dailyStatus } from '../ui/daily'
 import { Icon, ICONS, isDoneToday, loadProfile } from '../ui/Panels'
@@ -78,7 +79,9 @@ export default function Hub() {
                 const st = dailyStatus(g)
                 return (
                   <a key={g.href} href={g.href} className={`home-today-card ${st.state}`}>
-                    <span className="home-today-glyph">{g.glyph}</span>
+                    <span className="home-today-glyph">
+                      <GameIcon icon={g.icon} size={30} />
+                    </span>
                     <b>{g.title}</b>
                     <span>{st.state === 'done' ? `✓ ${st.label}` : st.label}</span>
                   </a>
@@ -99,7 +102,7 @@ export default function Hub() {
                   <a key={g.href} href={g.href} className="home-card" style={{ animationDelay: `${i * 35}ms` }}>
                     <span className={done ? 'home-card-state done' : 'home-card-state'}>{done ? '✓ joué' : g.rhythm}</span>
                     <div className="home-card-art">
-                      <span className="card-glyph">{g.glyph}</span>
+                      <GameIcon icon={g.icon} size={76} />
                     </div>
                     <div className="home-card-text">
                       <b>{g.title}</b>
