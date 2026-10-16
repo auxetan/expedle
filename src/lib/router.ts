@@ -26,16 +26,3 @@ export function useRoute(): Route {
 export function go(path: string): void {
   window.location.hash = path
 }
-
-// Pile des écrans visités dans l'application : « Retour » ne quitte jamais le site.
-const trail: string[] = [window.location.hash]
-window.addEventListener('hashchange', () => {
-  const h = window.location.hash
-  if (trail.length > 1 && trail[trail.length - 2] === h) trail.pop()
-  else trail.push(h)
-})
-
-export function back(fallback = '/'): void {
-  if (trail.length > 1) window.history.back()
-  else go(fallback)
-}
