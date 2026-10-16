@@ -77,6 +77,12 @@ a {
   color: inherit;
 }
 
+.game-icon {
+  display: block;
+  object-fit: contain;
+  user-select: none;
+}
+
 .page-loading {
   min-height: 100vh;
   display: grid;
