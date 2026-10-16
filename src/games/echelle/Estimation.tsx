@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
+import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, formatInt, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import type { EstimateQuestion } from './estimates'
 import { estimationBank } from './estimationBank'
@@ -84,6 +84,7 @@ function Daily({ date: day }: { date: string }) {
   const [guess, setGuess] = useState<number | null>(!practice && done ? done.guess : null)
   const [copied, setCopied] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const elapsed = useStopwatch(practice)
 
   const parsed = parseNumber(value)
   const valid = Number.isFinite(parsed) && parsed > 0
@@ -91,7 +92,8 @@ function Daily({ date: day }: { date: string }) {
   function lock() {
     if (!valid) return
     setGuess(parsed)
-    recordPlay('question')
+    const score = dailyScore(parsed, question.a)
+    recordPlay('question', { pts: score, s: score, ms: elapsed(), sub: practice ? 'entrainement' : undefined })
     if (!practice) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
   }
 
@@ -216,6 +218,8 @@ function Survival() {
   const inputRef = useRef<HTMLInputElement>(null)
   const valueRef = useRef(value)
   valueRef.current = value
+  const [run, setRun] = useState(0)
+  const elapsed = useStopwatch(run)
 
   const q = deck[i]
 
@@ -228,6 +232,7 @@ function Survival() {
     setValue('')
     setLast(null)
     setPhase('play')
+    setRun((r) => r + 1)
   }
 
   function submit(fromTimer = false) {
@@ -244,7 +249,7 @@ function Survival() {
       if (newLife <= 0) {
         setPhase('over')
         save('survie-seen', [...load<string[]>('survie-seen', []), ...deck.slice(0, i + 1).map((d) => d.id)].slice(-1200))
-        recordPlay('survie')
+        recordPlay('survie', { pts: 5 * (i + 1), s: i + 1, ms: elapsed() })
         setRecord(submitBest('survie', i + 1))
         return
       }
