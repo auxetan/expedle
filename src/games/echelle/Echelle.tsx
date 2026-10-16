@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
+import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
 import { hashString, load, save, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
 import { loadGeoShapes, type GeoShape } from './geoItems'
 import { OBJECTS, POP_ITEMS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
 import { DRAWINGS, type Part } from './drawings'
+import DrawingPaths from './DrawingPaths'
 import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
@@ -94,13 +95,7 @@ function Figure({ t, x, y, h, color, opacity = 1 }: { t: Thing; x: number; y: nu
     const b = drawingBox(t.drawing)
     return (
       <g transform={`translate(${x},${y - h}) scale(${w / b.w},${h / b.h}) translate(${-b.x},${-b.y})`} fill={color} stroke={color} opacity={opacity}>
-        {t.drawing.map((p, i) =>
-          typeof p === 'string' ? (
-            <path key={i} d={p} stroke="none" />
-          ) : (
-            <path key={i} d={p.d} fill="none" strokeWidth={p.w} strokeLinecap="round" strokeLinejoin="round" />
-          ),
-        )}
+        <DrawingPaths parts={t.drawing} />
       </g>
     )
   }
@@ -181,14 +176,15 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
       rounds={rounds}
       daily={daily}
       dayKey={dayKey}
-      onFinish={(scores) => {
+      onFinish={(scores, ms) => {
         if (things) {
           const names = rounds.flatMap(([a, b]) => [a.name, b.name])
           const seen = [...load<string[]>(`mg-seen:${variant}`, []).filter((n) => !names.includes(n)), ...names]
           save(`mg-seen:${variant}`, seen.slice(-Math.floor(things.length * 0.7)))
         }
-        recordPlay(dailyId)
-        recordTotal(dailyId, scores.reduce((a, b) => a + b, 0))
+        const total = scores.reduce((a, b) => a + b, 0)
+        recordPlay(dailyId, { pts: total / scores.length, s: total, ms })
+        recordTotal(dailyId, total)
         if (daily) saveDailyResult(dailyId, { scores }, dayKey)
       }}
       onReplay={() => {
@@ -226,7 +222,7 @@ interface GameProps {
   rounds: [Thing, Thing][]
   daily: boolean
   dayKey: string
-  onFinish: (scores: number[]) => void
+  onFinish: (scores: number[], ms: number) => void
   onReplay: () => void
 }
 
@@ -240,6 +236,7 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
   const [revealed, setRevealed] = useState(false)
   const [summary, setSummary] = useState(false)
   const [ref, tgt] = rounds[index]
+  const elapsed = useStopwatch(rounds)
 
   const boxRef = useRef<HTMLDivElement>(null)
   const [W, setW] = useState(900)
@@ -385,7 +382,7 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
   function nextRound() {
     if (index + 1 >= rounds.length) {
       setSummary(true)
-      onFinish(scores)
+      onFinish(scores, elapsed())
       return
     }
     setRevealed(false)
