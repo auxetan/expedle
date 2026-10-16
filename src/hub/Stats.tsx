@@ -49,7 +49,7 @@ const GAMES: Record<string, GameInfo> = {
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
   worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
   globle: { title: 'Globle', href: '#/globle', unit: essais, lower: true },
-  worldguessr: { title: 'WorldGuessr', href: '#/worldguessr', unit: pts },
+  photoguessr: { title: 'PhotoGuessr', href: '#/photoguessr', unit: pts },
   geoguessr: { title: 'GeoGuessr', href: '#/geoguessr', unit: pts },
 }
 
