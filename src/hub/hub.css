@@ -141,16 +141,12 @@
   place-items: center;
 }
 
-.card-glyph {
-  font-size: 40px;
-  font-weight: 500;
-  color: var(--muted);
-  transition: color 0.18s, transform 0.18s;
+.home-card-art .game-icon {
+  transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.6, 1);
 }
 
-.home-card:hover .card-glyph {
-  color: var(--fg);
-  transform: scale(1.06);
+.home-card:hover .home-card-art .game-icon {
+  transform: scale(1.08) rotate(-2deg);
 }
 
 .home-card-text {
@@ -179,8 +175,9 @@
     padding: 13px;
     border-radius: 18px;
   }
-  .card-glyph {
-    font-size: 32px;
+  .home-card-art .game-icon {
+    width: 64px;
+    height: 64px;
   }
   .home-card-text b {
     font-size: 15px;
@@ -255,10 +252,7 @@
 
 .home-today-glyph {
   display: block;
-  height: 22px;
-  line-height: 22px;
-  color: var(--muted);
-  font-size: 18px;
+  height: 30px;
   margin-bottom: 4px;
 }
 
