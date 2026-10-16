@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { dailyResult, playStats } from '../../lib/stats'
 import { load, todayKey, weekKey } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
+import GameIcon from '../../ui/GameIcon'
 import { weeklyTheme } from './Echelle'
 import { DRAWINGS } from './drawings'
 import DrawingPaths from './DrawingPaths'
@@ -94,11 +95,11 @@ export default function MgHome() {
       badge: 'HEBDO',
       dailyId: 'echelle-1000',
       day: weekKey(),
-      art: <span className="mgh-glyph">1K</span>,
+      art: <GameIcon icon="weekly-1k" size={56} />,
     },
-    { href: '#/balance', title: 'Weigh It Up', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <span className="mgh-glyph">⚖</span> },
-    { href: '#/question', title: 'Daily Question', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <span className="mgh-glyph">Σ</span> },
-    { href: '#/survie', title: 'Survival Mode', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <span className="mgh-glyph">♡</span> },
+    { href: '#/balance', title: 'Weigh It Up', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <GameIcon icon="weigh-it-up" size={56} /> },
+    { href: '#/question', title: 'Daily Question', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <GameIcon icon="daily-question" size={56} /> },
+    { href: '#/survie', title: 'Survival Mode', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <GameIcon icon="survival" size={56} /> },
     { href: '#/estimation/archive', title: 'Archive', text: 'Rejoue tous les puzzles passés.', badge: 'TOUS LES PUZZLES', art: <span className="mgh-glyph">≋</span> },
   ]
   const isDone = (c: Card) => (c.dailyId ? dailyResult(c.dailyId, c.day ?? todayKey()) !== null : false)
