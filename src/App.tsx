@@ -11,6 +11,7 @@ const MgArchive = lazy(() => import('./games/echelle/MgHome').then((m) => ({ def
 const Classement = lazy(() => import('./games/classement/Classement'))
 const Cartographe = lazy(() => import('./games/cartographe/Cartographe'))
 const Quiz = lazy(() => import('./games/quiz/Quiz'))
+const Stats = lazy(() => import('./hub/Stats'))
 
 export default function App() {
   const route = useRoute()
@@ -47,9 +48,18 @@ export default function App() {
     case 'quiz':
       content = <Quiz key={key} kind={sub} />
       break
+    case 'stats':
+      content = <Stats />
+      break
     default:
       content = <Hub />
   }
 
-  return <Suspense fallback={<div className="page-loading">Chargement…</div>}>{content}</Suspense>
+  return (
+    <Suspense fallback={<div className="page-loading">Chargement…</div>}>
+      <div className="page" key={`${page ?? ''}/${sub ?? ''}`}>
+        {content}
+      </div>
+    </Suspense>
+  )
 }
