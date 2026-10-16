@@ -149,3 +149,9 @@ Icône de WorldGuessr, où l'on devine où une photo a été prise. Un cadre pho
 ```
 
 (Des versions provisoires dessinées dans le même style sont déjà en place dans `public/icons/`.)
+
+### `geoguessr.png` : GeoGuessr
+
+```
+Icône de GeoGuessr, où l'on est lâché dans une vue de rue et où l'on doit deviner l'endroit. Un médaillon rond : en haut un ciel crème, en bas des collines taupe, et une route crème bordée de pointillés qui file droit vers l'horizon. Une grosse punaise de carte noire flotte au-dessus de l'horizon.
+```
