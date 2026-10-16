@@ -58,6 +58,15 @@ export function countryCategories(): Category[] {
     { id: 'unesco', icon: '🏛️', label: 'Patrimoine UNESCO', ranks: rankFromList(RANK_LISTS.unesco) },
     { id: 'coast', icon: '🏖️', label: 'Littoral', ranks: rankFromList(RANK_LISTS.coast) },
     { id: 'nobel', icon: '🎓', label: 'Prix Nobel', ranks: rankFromList(RANK_LISTS.nobel) },
+    { id: 'corruption', icon: '🕵️', label: 'Corruption', ranks: rankFromList(RANK_LISTS.corruption) },
+    { id: 'basketball', icon: '🏀', label: 'Basketball', ranks: rankFromList(RANK_LISTS.basketball) },
+    { id: 'pollution', icon: '🏭', label: 'Pollution', ranks: rankFromList(RANK_LISTS.pollution) },
+    { id: 'gastronomie', icon: '🍲', label: 'Gastronomie', ranks: rankFromList(RANK_LISTS.gastronomie) },
+    { id: 'militaire', icon: '🪖', label: 'Militaire', ranks: rankFromList(RANK_LISTS.militaire) },
+    { id: 'passeport', icon: '🚫', label: 'Pire passeport', ranks: rankFromList(RANK_LISTS.passeport) },
+    { id: 'idh', icon: '📊', label: 'Développement humain', ranks: rankFromList(RANK_LISTS.idh) },
+    { id: 'biodiversite', icon: '🦜', label: 'Biodiversité', ranks: rankFromList(RANK_LISTS.biodiversite) },
+    { id: 'rugby', icon: '🏉', label: 'Rugby', ranks: rankFromList(RANK_LISTS.rugby) },
   ]
   return countryCats
 }
