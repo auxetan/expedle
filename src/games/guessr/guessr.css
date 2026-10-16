@@ -490,9 +490,11 @@
   color: var(--fg);
 }
 
-/* GeoGuessr : panorama Street View */
+/* GeoGuessr : panorama 360° ; isolé pour que les calques internes de la visionneuse (flèches, chargement)
+   restent sous la carte et la révélation */
 .gg-pano-wrap {
   position: relative;
+  isolation: isolate;
   width: 100%;
   height: 100%;
   border-radius: 20px;
@@ -505,11 +507,10 @@
   height: 100%;
 }
 
-/* au-dessus de la bande du bas, où Google affiche son logo et son copyright */
 .gg-return {
   position: absolute;
   left: 12px;
-  bottom: 38px;
+  bottom: 12px;
   z-index: 2;
   padding: 8px 14px;
   border-radius: 999px;
@@ -518,6 +519,11 @@
   color: #eee;
   font: 14px var(--font);
   backdrop-filter: blur(6px);
+}
+
+/* au-dessus de la bande du bas, où Google affiche son logo et son copyright */
+.gg-return.google {
+  bottom: 38px;
 }
 
 .gg-thumb {
@@ -580,4 +586,72 @@
   border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
   font-size: 14px;
   line-height: 1.45;
+}
+
+/* GeoGuessr : choix de l'imagerie, au-dessus des modes */
+.gg-imagery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 22px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--bg2);
+}
+
+.gg-imagery button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.gg-imagery button:hover {
+  color: var(--fg);
+}
+
+.gg-imagery button.on {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--fg);
+}
+
+.gg-imagery b {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.gg-imagery span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gg-setup h2 {
+  margin: 28px 0 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.gg-setup > p {
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.gg-waiting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.gg-waiting .wg-spinner {
+  width: 22px;
+  height: 22px;
 }
