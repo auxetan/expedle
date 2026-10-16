@@ -6,8 +6,8 @@ import { findPlace, type Place } from './photos'
 const world = getWorld()
 
 const photos: GuessSource<Place> = {
-  game: 'worldguessr',
-  title: 'WorldGuessr',
+  game: 'photoguessr',
+  title: 'PhotoGuessr',
   question: 'Où a été prise cette photo ?',
   intro:
     'Cinq vraies photos géolocalisées, venues de Wikimedia Commons. Scrute les panneaux, la végétation, l’architecture, puis place ton repère sur la carte : plus tu es près, plus tu marques, jusqu’à 5 000 points par manche.',
@@ -42,6 +42,6 @@ const photos: GuessSource<Place> = {
     e instanceof Error && /Commons|Failed to fetch|NetworkError/.test(e.message) ? 'Impossible de joindre Wikimedia Commons. Vérifie ta connexion.' : 'Aucune photo trouvée cette fois.',
 }
 
-export default function WorldGuessr() {
+export default function PhotoGuessr() {
   return <GuessGame source={photos} />
 }
