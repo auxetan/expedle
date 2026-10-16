@@ -121,3 +121,11 @@ Icône du quiz Drapeaux : reconnaître le drapeau de chaque pays. Un drapeau ima
 ```
 Icône du quiz Capitales : retrouver la capitale de chaque pays. Une grande épingle de carte terracotta dont la tête ronde contient une étoile crème, symbole des capitales, plantée au-dessus d'une petite silhouette de ville bleu poudré : quelques tours et un dôme.
 ```
+
+### `jetpunk.png` : JetPunk
+
+```
+Icône de JetPunk, des quiz où l'on remplit un tableau de réponses contre la montre. Une feuille de quiz aux angles arrondis avec quatre lignes : trois réponses déjà remplies (barres pleines) et une dernière case vide où clignote un curseur de saisie. Un petit chronomètre rond posé sur le coin supérieur droit de la feuille, l'aiguille près de la fin.
+```
+
+(Une version provisoire dessinée dans le même style est déjà en place ; remplace `public/icons/jetpunk-*.webp` si tu en génères une.)
