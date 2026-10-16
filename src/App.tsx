@@ -16,6 +16,7 @@ const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
 const WorldGuessr = lazy(() => import('./games/worldguessr/WorldGuessr'))
+const GeoGuessr = lazy(() => import('./games/worldguessr/GeoGuessr'))
 
 export default function App() {
   const route = useRoute()
@@ -66,6 +67,9 @@ export default function App() {
       break
     case 'worldguessr':
       content = <WorldGuessr key={key} />
+      break
+    case 'geoguessr':
+      content = <GeoGuessr key={key} />
       break
     default:
       content = <Hub />
