@@ -15,9 +15,18 @@ function untilMidnight(): string {
 
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
+type Tile = 'classique' | 'monde' | 'special' | 'villes'
+
+const TILES: { id: Tile; icon: string; name: string; text: string }[] = [
+  { id: 'classique', icon: '◎', name: 'Classique', text: 'Joue pour gagner ton premier rang et te classer' },
+  { id: 'monde', icon: '🌐', name: 'Monde', text: 'Corruption, pollution, gastronomie, basket…' },
+  { id: 'special', icon: '⚡', name: 'Spécial', text: 'Militaire, passeport, biodiversité, rugby…' },
+  { id: 'villes', icon: '🏙', name: 'Villes', text: '8 villes du monde, 8 catégories' },
+]
+
 export default function ClassementHome() {
   const [easy, setEasy] = useState(false)
-  const [tile, setTile] = useState<'classique' | 'villes'>('classique')
+  const [tile, setTile] = useState<Tile>('classique')
   const [left, setLeft] = useState(untilMidnight)
   useEffect(() => {
     const id = setInterval(() => setLeft(untilMidnight()), 30000)
@@ -41,8 +50,11 @@ export default function ClassementHome() {
   }, [])
   const streak = week.filter((d) => d.done).length
 
-  const mode = tile === 'villes' ? 'villes' : easy ? 'facile' : 'classique'
-  const best = bestScore('classement-' + mode)
+  const current = TILES.find((t) => t.id === tile)!
+  const easyOn = easy && tile !== 'villes'
+  const href = tile === 'classique' ? `#/classement/${easyOn ? 'facile' : 'classique'}` : `#/classement/${tile}${easyOn ? '?facile=1' : ''}`
+  const bestKey = (t: Tile) => (t === 'classique' ? (easy ? 'classement-facile' : 'classement-classique') : `classement-${t}${easy && t !== 'villes' ? '-facile' : ''}`)
+  const best = bestScore(bestKey(tile))
 
   return (
     <div className="ghh">
@@ -103,29 +115,24 @@ export default function ClassementHome() {
           </div>
         </div>
         <div className="ghh-tiles">
-          <button className={tile === 'classique' ? 'on classique' : 'classique'} onClick={() => setTile('classique')}>
-            <span>◎</span>
-            <small>{bestScore('classement-' + (easy ? 'facile' : 'classique')) ?? '—'}</small>
-          </button>
-          <button className={tile === 'villes' ? 'on villes' : 'villes'} onClick={() => setTile('villes')}>
-            <span>🏙</span>
-            <small>{bestScore('classement-villes') ?? '—'}</small>
-          </button>
+          {TILES.map((t) => (
+            <button key={t.id} className={tile === t.id ? 'on' : ''} onClick={() => setTile(t.id)}>
+              <span>{t.icon}</span>
+              <small>{bestScore(bestKey(t.id)) ?? '—'}</small>
+            </button>
+          ))}
         </div>
         <div className="ghh-launch">
-          <span className="ghh-launch-icon">{tile === 'villes' ? '🏙' : '◎'}</span>
+          <span className="ghh-launch-icon">{current.icon}</span>
           <div>
-            <b>{tile === 'villes' ? 'Villes' : 'Classique'}</b>
-            <small>
-              {tile === 'villes'
-                ? '8 villes du monde, 8 catégories'
-                : easy
-                  ? '80 pays connus · idéal pour débuter'
-                  : 'Joue pour gagner ton premier rang et te classer'}
-            </small>
+            <b>
+              {current.name}
+              {easyOn ? ' · facile' : ''}
+            </b>
+            <small>{easyOn ? '80 pays connus · idéal pour débuter' : current.text}</small>
           </div>
           <span className="ghh-best">{best !== null ? `◷ ${best}` : ''}</span>
-          <a href={`#/classement/${mode}`} className="ghh-go">
+          <a href={href} className="ghh-go">
             JOUER ▶
           </a>
         </div>
