@@ -12,6 +12,7 @@ const Classement = lazy(() => import('./games/classement/Classement'))
 const Cartographe = lazy(() => import('./games/cartographe/Cartographe'))
 const Quiz = lazy(() => import('./games/quiz/Quiz'))
 const Stats = lazy(() => import('./hub/Stats'))
+const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 
 export default function App() {
   const route = useRoute()
@@ -50,6 +51,9 @@ export default function App() {
       break
     case 'stats':
       content = <Stats />
+      break
+    case 'jetpunk':
+      content = <JetPunk key={key} segments={route.segments} params={route.params} />
       break
     default:
       content = <Hub />
