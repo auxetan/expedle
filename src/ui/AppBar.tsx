@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Logo from './Logo'
 import { Drawer, GamesPanel, Icon, ICONS, loadProfile, ProfilePanel, SettingsPanel } from './Panels'
 import './ui.css'
@@ -17,6 +17,16 @@ export default function AppBar({ title, home = false, settings, tools, children 
   const [panel, setPanel] = useState<Panel>(null)
   const [avatar, setAvatar] = useState(() => loadProfile().avatar)
   const toggle = (p: Panel) => setPanel(panel === p ? null : p)
+  const nav = useRef<HTMLElement>(null)
+
+  const hash = window.location.hash
+
+  // l'onglet actif reste visible quand la sous-navigation défile sur mobile
+  useEffect(() => {
+    const el = nav.current
+    const on = el?.querySelector<HTMLElement>('.on')
+    if (el && on) el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2
+  }, [hash])
 
   return (
     <>
@@ -48,7 +58,11 @@ export default function AppBar({ title, home = false, settings, tools, children 
           </button>
         </div>
       </header>
-      {children && <nav className="ui-subnav">{children}</nav>}
+      {children && (
+        <nav className="ui-subnav" ref={nav}>
+          {children}
+        </nav>
+      )}
       {panel && (
         <Drawer onClose={() => setPanel(null)}>
           {panel === 'jeux' && <GamesPanel onPick={() => setPanel(null)} />}
