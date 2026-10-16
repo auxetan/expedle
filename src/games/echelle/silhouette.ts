@@ -1,3 +1,5 @@
+import type { Part } from './drawings'
+
 export interface Silhouette {
   href: string
   aspect: number
@@ -61,4 +63,42 @@ export function emojiSilhouette(emoji: string, color: string): Silhouette {
   const s = { href: out.toDataURL(), aspect: w / h }
   cache.set(key, s)
   return s
+}
+
+export interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+const boxes = new WeakMap<Part[], Box>()
+let probe: SVGSVGElement | null = null
+
+// Boîte englobante exacte d'un dessin (traits compris), mesurée par le navigateur.
+export function drawingBox(parts: Part[]): Box {
+  const cached = boxes.get(parts)
+  if (cached) return cached
+  const NS = 'http://www.w3.org/2000/svg'
+  if (!probe) {
+    probe = document.createElementNS(NS, 'svg')
+    probe.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden')
+    document.body.appendChild(probe)
+  }
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const p of parts) {
+    const el = document.createElementNS(NS, 'path')
+    el.setAttribute('d', typeof p === 'string' ? p : p.d)
+    probe.appendChild(el)
+    const b = el.getBBox()
+    el.remove()
+    const m = typeof p === 'string' ? 0 : p.w / 2
+    x0 = Math.min(x0, b.x - m)
+    y0 = Math.min(y0, b.y - m)
+    x1 = Math.max(x1, b.x + b.width + m)
+    y1 = Math.max(y1, b.y + b.height + m)
+  }
+  const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+  boxes.set(parts, box)
+  return box
 }
