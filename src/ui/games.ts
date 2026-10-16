@@ -23,6 +23,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
     label: 'Magnitudle',
     games: [
       { href: '#/echelle', title: 'Size It Up', tagline: 'La silhouette à sa vraie taille', rhythm: 'quotidien', dailyId: 'echelle-objets', glyph: '↗' },
+      { href: '#/echelle/pop', title: 'Size It Up : Pop Culture', tagline: 'La taille officielle des héros de fiction', rhythm: 'quotidien', dailyId: 'echelle-pop', glyph: '✦' },
       { href: '#/echelle/geo', title: 'Size It Up : Géographie', tagline: 'La vraie taille des territoires', rhythm: 'quotidien', dailyId: 'echelle-geo', glyph: '▱' },
       { href: '#/echelle/1000', title: 'The Weekly 1K', tagline: 'Dix manches sur un thème', rhythm: 'hebdo', dailyId: 'echelle-1000', weekly: true, glyph: '1K' },
       { href: '#/balance', title: 'Weigh It Up', tagline: 'Équilibrer la balance', rhythm: 'quotidien', dailyId: 'balance', glyph: '⚖' },
