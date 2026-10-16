@@ -58,7 +58,10 @@ export default function Hub() {
         <section className="home-intro">
           <h1>{name ? `Bonjour ${name}.` : 'Bonjour.'}</h1>
           <p>
-            {doneToday}/{dailies.length} jeux du jour · série de {streak} jour{streak > 1 ? 's' : ''} · {total} partie{total > 1 ? 's' : ''}
+            {doneToday}/{dailies.length} jeux du jour · série de {streak} jour{streak > 1 ? 's' : ''} · {total} partie{total > 1 ? 's' : ''} ·{' '}
+            <a href="#/stats" className="home-stats-link">
+              Mes statistiques →
+            </a>
           </p>
         </section>
 
@@ -70,7 +73,7 @@ export default function Hub() {
                 <i style={{ width: `${(doneToday / dailies.length) * 100}%` }} />
               </div>
             </div>
-            <div className="home-today-row">
+            <div className="home-today-row stagger">
               {dailies.map((g) => {
                 const st = dailyStatus(g)
                 return (
@@ -90,10 +93,10 @@ export default function Hub() {
           <section key={section.label} className="home-section">
             <h2>{section.label}</h2>
             <div className="home-grid">
-              {section.games.map((g) => {
+              {section.games.map((g, i) => {
                 const done = isDoneToday(g)
                 return (
-                  <a key={g.href} href={g.href} className="home-card">
+                  <a key={g.href} href={g.href} className="home-card" style={{ animationDelay: `${i * 35}ms` }}>
                     <span className={done ? 'home-card-state done' : 'home-card-state'}>{done ? '✓ joué' : g.rhythm}</span>
                     <div className="home-card-art">
                       <span className="card-glyph">{g.glyph}</span>
