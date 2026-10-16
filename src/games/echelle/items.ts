@@ -8,7 +8,7 @@ export interface ObjectItem {
   cm: number
   // rapport réel largeur / hauteur de la silhouette vue de profil
   aspect: number
-  theme: 'animaux' | 'quotidien' | 'monuments'
+  theme: 'animaux' | 'quotidien' | 'monuments' | 'pop'
 }
 
 type Row = [string, string, string, Dim, number, number]
@@ -194,6 +194,36 @@ const LANDMARKS: Row[] = [
   ['🛳️', 'Titanic', 'longueur', 'l', 26900, 5],
 ]
 
+// Tailles « officielles » de fiction (studios, livres, encyclopédies des franchises)
+const POP: Row[] = [
+  ['🦖', 'Godzilla (2019)', 'MonsterVerse', 'h', 11990, 1.1],
+  ['🦖', 'Godzilla (1954)', 'film original de la Toho', 'h', 5000, 1.1],
+  ['🦍', 'Kong (2021)', 'Godzilla vs Kong', 'h', 10200, 0.85],
+  ['🦍', 'Kong (2017)', 'Kong: Skull Island', 'h', 3160, 0.85],
+  ['🦍', 'King Kong (1933)', 'sur Skull Island', 'h', 550, 0.85],
+  ['🤖', 'Optimus Prime', 'Transformers (2007)', 'h', 850, 0.5],
+  ['🤖', 'Gundam RX-78-2', 'Mobile Suit Gundam', 'h', 1800, 0.45],
+  ['🤖', 'R2-D2', 'Star Wars', 'h', 109, 0.75],
+  ['🤖', 'C-3PO', 'Star Wars', 'h', 167, 0.4],
+  ['🦸', 'Hulk', 'Marvel, films', 'h', 244, 0.55],
+  ['🦸‍♂️', 'Superman', 'DC Comics', 'h', 191, 0.35],
+  ['🧙', 'Gandalf', 'Le Seigneur des anneaux, films', 'h', 180, 0.4],
+  ['🧌', 'Troll des montagnes', 'Harry Potter, livres', 'h', 365, 0.6],
+  ['🧍', 'Hagrid', 'Harry Potter, films', 'h', 259, 0.4],
+  ['🐉', 'Dracaufeu', 'Pokémon', 'h', 170, 1],
+  ['🐉', 'Rayquaza', 'Pokémon', 'l', 700, 3],
+  ['🐋', 'Wailord', 'Pokémon', 'l', 1450, 2.2],
+  ['🐍', 'Onix', 'Pokémon', 'l', 880, 1.2],
+  ['🐭', 'Pikachu', 'Pokémon', 'h', 40, 0.9],
+  ['🐢', 'Carapuce', 'Pokémon', 'h', 50, 0.9],
+  ['🦈', 'Bruce, le requin', 'Les Dents de la mer', 'l', 760, 3.5],
+  ['🛸', 'Faucon Millenium', 'Star Wars', 'l', 3475, 4.4],
+  ['🛸', 'USS Enterprise NCC-1701', 'Star Trek', 'l', 28900, 4],
+  ['🗼', 'Orthanc', 'Le Seigneur des anneaux, livres', 'h', 15200, 0.2],
+  ['🚙', 'DeLorean DMC-12', 'Retour vers le futur', 'l', 421, 3.7],
+  ['🚂', 'Poudlard Express', 'Harry Potter, locomotive et tender', 'l', 1970, 4.5],
+]
+
 const toItems = (rows: Row[], theme: ObjectItem['theme']): ObjectItem[] =>
   rows.map(([emoji, name, detail, dim, cm, aspect]) => ({ emoji, name, detail, dim, cm, aspect, theme }))
 
@@ -202,6 +232,8 @@ export const OBJECTS: ObjectItem[] = [
   ...toItems(EVERYDAY, 'quotidien'),
   ...toItems(LANDMARKS, 'monuments'),
 ]
+
+export const POP_ITEMS = toItems(POP, 'pop')
 
 // Thèmes du « Weekly 1K »
 export const WEEKLY_THEMES: { name: string; items: ObjectItem[] }[] = [
