@@ -5,7 +5,8 @@ import { loadGeoShapes, type GeoShape } from './geoItems'
 import { OBJECTS, POP_ITEMS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
-import { emojiSilhouette } from './silhouette'
+import { DRAWINGS, type Part } from './drawings'
+import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 
@@ -19,6 +20,7 @@ interface Thing {
   heightUnits: number
   aspect: number
   emoji?: string
+  drawing?: Part[]
   shape?: GeoShape
 }
 
@@ -47,6 +49,7 @@ function objectThing(i: ObjectItem): Thing {
     heightUnits: i.dim === 'h' ? i.cm : i.cm / i.aspect,
     aspect: i.aspect,
     emoji: i.emoji,
+    drawing: DRAWINGS[i.name],
   }
 }
 
@@ -86,6 +89,20 @@ function Figure({ t, x, y, h, color, opacity = 1 }: { t: Thing; x: number; y: nu
   if (t.shape) {
     const k = h / t.shape.h
     return <path d={t.shape.d} transform={`translate(${x},${y - h}) scale(${k})`} fill={color} opacity={opacity} />
+  }
+  if (t.drawing) {
+    const b = drawingBox(t.drawing)
+    return (
+      <g transform={`translate(${x},${y - h}) scale(${w / b.w},${h / b.h}) translate(${-b.x},${-b.y})`} fill={color} stroke={color} opacity={opacity}>
+        {t.drawing.map((p, i) =>
+          typeof p === 'string' ? (
+            <path key={i} d={p} stroke="none" />
+          ) : (
+            <path key={i} d={p.d} fill="none" strokeWidth={p.w} strokeLinecap="round" strokeLinejoin="round" />
+          ),
+        )}
+      </g>
+    )
   }
   return (
     <image
