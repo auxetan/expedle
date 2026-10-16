@@ -490,7 +490,7 @@
   place-items: center;
   padding: 16px;
   z-index: 20;
-  animation: toast-in 0.2s;
+  animation: fade-in 0.2s;
 }
 
 .itin-modal {
@@ -871,4 +871,99 @@
   .arch-date {
     grid-column: 1 / -1;
   }
+}
+
+/* Carte retournée en fin de partie */
+.itin-flip {
+  perspective: 1800px;
+}
+
+.itin-flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.85s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.itin-flip.flipped .itin-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.itin-face {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.itin-flip.flipped .itin-face.front,
+.itin-flip:not(.flipped) .itin-face.back {
+  pointer-events: none;
+}
+
+.itin-face.back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(18px, 4vw, 36px);
+  border: 1px solid var(--map-line);
+  border-radius: 6px;
+  background: var(--col);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.itin-face.back h2 {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 5vw, 34px);
+}
+
+.itin-face.back p {
+  margin: 4px 0;
+}
+
+.itin-flip.flipped .itin-face.back > div > * {
+  animation: rise-in 0.4s ease-out backwards;
+  animation-delay: 0.45s;
+}
+
+.itin-back-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.itin-back-actions .pink {
+  padding: 12px 18px;
+}
+
+.itin-back-actions > * {
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .itin-back-actions > * {
+    font-size: 15px;
+    padding: 12px;
+  }
+}
+
+.itin-turn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+  padding: 12px 18px;
+}
+
+.itin-turn:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
