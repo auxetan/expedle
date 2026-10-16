@@ -4,6 +4,8 @@ const SUBNAV: [string, string][] = [
   ['#/classement', 'Accueil'],
   ['#/classement/classique', 'Classique'],
   ['#/classement/facile', 'Facile'],
+  ['#/classement/monde', 'Monde'],
+  ['#/classement/special', 'Spécial'],
   ['#/classement/villes', 'Villes'],
   ['#/classement/jour', 'Défi du jour'],
   ['#/classement/hebdo', 'Hebdo'],
