@@ -4,6 +4,7 @@ import AppBar, { SubLink } from '../../ui/AppBar'
 const SUBNAV: [string, string][] = [
   ['#/estimation', 'Tous les jeux'],
   ['#/echelle', 'Size It Up'],
+  ['#/echelle/pop', 'Pop Culture'],
   ['#/echelle/geo', 'Géographie'],
   ['#/echelle/1000', 'Weekly 1K'],
   ['#/balance', 'Weigh It Up'],
