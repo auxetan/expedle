@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
+import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
 import { seededRng, shuffle, todayKey } from '../../lib/util'
 import { WEIGHTS, type WeightItem } from './estimates'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -54,6 +54,7 @@ export default function Balance({ date }: { date?: string | null }) {
   const [revealed, setRevealed] = useState(false)
   const [summary, setSummary] = useState(false)
   const [answers, setAnswers] = useState<number[]>([])
+  const elapsed = useStopwatch(rounds)
 
   const theme = useTheme()
   const colors = useMemo(() => [cssColor('--ref'), cssColor('--target')], [theme])
@@ -93,8 +94,9 @@ export default function Balance({ date }: { date?: string | null }) {
   function next() {
     if (index + 1 >= ROUNDS) {
       setSummary(true)
-      recordPlay('balance')
-      recordTotal('balance', scores.reduce((a, b) => a + b, 0))
+      const total = scores.reduce((a, b) => a + b, 0)
+      recordPlay('balance', { pts: total / ROUNDS, s: total, ms: elapsed() })
+      recordTotal('balance', total)
       if (daily) saveDailyResult('balance', { scores }, day)
       return
     }
