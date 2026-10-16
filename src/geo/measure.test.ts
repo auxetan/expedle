@@ -1,4 +1,4 @@
-import { geoContains } from 'd3-geo'
+import { geoArea, geoContains } from 'd3-geo'
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../lib/util'
 import { borderDistanceKm, compassArrow, countryAt, countryCenter, distanceKm, randomPointIn, rhumbBearing, simplifiedFeatures } from './measure'
@@ -65,5 +65,11 @@ describe('géométrie allégée pour le globe', () => {
     expect(geoContains(lite.get('FR')!, [2.35, 48.86])).toBe(true)
     expect(geoContains(lite.get('JP')!, [139.7, 35.7])).toBe(true)
     expect(lite.size).toBe(world.features.size)
+  })
+
+  it('ne retourne aucun pays comme une chaussette (il remplirait tout le globe)', () => {
+    const lite = simplifiedFeatures(world)
+    const inverted = [...world.features].filter(([code, f]) => geoArea(lite.get(code)!) > Math.max(2 * geoArea(f), 1e-4)).map(([code]) => code)
+    expect(inverted).toEqual([])
   })
 })
