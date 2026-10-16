@@ -18,6 +18,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
       { href: '#/itineraire/usa', title: 'Travle USA', tagline: 'D’un État américain à l’autre', rhythm: 'quotidien', dailyId: 'itineraire-usa', icon: 'travle-usa' },
       { href: '#/worldle', title: 'Worldle', tagline: 'Le pays à sa silhouette, en six essais', rhythm: 'quotidien', dailyId: 'worldle', icon: 'worldle' },
       { href: '#/globle', title: 'Globle', tagline: 'Le pays mystère, de plus en plus chaud', rhythm: 'quotidien', dailyId: 'globle', icon: 'globle' },
+      { href: '#/geoguessr', title: 'GeoGuessr', tagline: 'Lâché dans Street View : où es-tu ?', rhythm: 'libre', icon: 'geoguessr' },
       { href: '#/worldguessr', title: 'WorldGuessr', tagline: 'Où a été prise cette photo ?', rhythm: 'libre', icon: 'worldguessr' },
       { href: '#/classement', title: 'GeoHunter', tagline: 'Chaque pays dans sa meilleure catégorie', rhythm: 'quotidien', dailyId: 'classement-jour', icon: 'geohunter' },
       { href: '#/cartographe', title: 'Seterra', tagline: 'Situer pays, capitales et drapeaux', rhythm: 'libre', icon: 'seterra' },
