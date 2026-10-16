@@ -122,7 +122,7 @@ export default function ClassementHome() {
             </button>
           ))}
         </div>
-        <div className="ghh-launch">
+        <div className="ghh-launch" key={href}>
           <span className="ghh-launch-icon">{current.icon}</span>
           <div>
             <b>
