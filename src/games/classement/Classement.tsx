@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { go } from '../../lib/router'
-import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
+import { dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, todayKey, weekKey } from '../../lib/util'
+import CountUp from '../../ui/CountUp'
 import GhBar from './GhBar'
 import ClassementHome from './ClassementHome'
 import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
@@ -52,6 +53,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   const [showPerfect, setShowPerfect] = useState(false)
   const [copied, setCopied] = useState(false)
   const toastTimer = useRef(0)
+  const elapsed = useStopwatch()
 
   const current = picks.length
   const finished = current >= entities.length
@@ -60,10 +62,10 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
 
   useEffect(() => {
     if (!finished || done) return
-    recordPlay('classement-' + mode)
+    recordPlay('classement-' + mode, { pts: (100 * perfect.total) / Math.max(total, 1), s: total, ms: elapsed(), sub: easy ? 'facile' : undefined })
     submitBest(`classement-${mode}${easy ? '-facile' : ''}`, total, true)
     if (dailyId) saveDailyResult(dailyId, { picks, total }, dayKey)
-  }, [finished, done, mode, easy, picks, total, dailyId, dayKey])
+  }, [finished, done, mode, easy, picks, total, dailyId, dayKey, perfect.total, elapsed])
 
   function choose(ci: number) {
     if (finished || between || usedCats.has(ci)) return
@@ -194,7 +196,9 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
               <div className="gh-end-title">
                 <span className="gh-end-icon">◎</span> {MODE_LABEL[mode].toUpperCase()}
               </div>
-              <div className="gh-end-score">{total}</div>
+              <div className="gh-end-score">
+                <CountUp value={total} />
+              </div>
               <div className="gh-bar">
                 <div className="gh-bar-fill" style={{ width: `${(total / scale) * 100}%` }} />
                 <span className="gh-bar-mark you" style={{ left: `${(total / scale) * 100}%` }}>
@@ -210,7 +214,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
                 </span>
               </div>
             </div>
-            <ul className="gh-end-list">
+            <ul className="gh-end-list stagger">
               {entities.map((e, i) => {
                 const c = showPerfect ? perfect.perm[i] : picks[i]
                 const r = matrix[i][c]
