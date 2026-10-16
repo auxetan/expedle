@@ -1,6 +1,7 @@
+import { geoContains } from 'd3-geo'
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../lib/util'
-import { borderDistanceKm, compassArrow, countryAt, countryCenter, distanceKm, randomPointIn, rhumbBearing } from './measure'
+import { borderDistanceKm, compassArrow, countryAt, countryCenter, distanceKm, randomPointIn, rhumbBearing, simplifiedFeatures } from './measure'
 import { getWorld } from './world'
 
 const world = getWorld()
@@ -51,5 +52,18 @@ describe('pays', () => {
     for (const code of ['FR', 'RU', 'CL', 'FJ', 'IT']) {
       for (let i = 0; i < 5; i++) expect(countryAt(world, randomPointIn(world, code, rng)), code).toBe(code)
     }
+  })
+})
+
+describe('géométrie allégée pour le globe', () => {
+  it('garde la forme avec beaucoup moins de points', () => {
+    const lite = simplifiedFeatures(world)
+    const count = (f: { geometry: { coordinates: number[][][][] } }) => f.geometry.coordinates.flat(2).length
+    const full = [...world.features.values()].reduce((s, f) => s + count(f), 0)
+    const light = [...lite.values()].reduce((s, f) => s + count(f), 0)
+    expect(light).toBeLessThan(full * 0.4)
+    expect(geoContains(lite.get('FR')!, [2.35, 48.86])).toBe(true)
+    expect(geoContains(lite.get('JP')!, [139.7, 35.7])).toBe(true)
+    expect(lite.size).toBe(world.features.size)
   })
 })
