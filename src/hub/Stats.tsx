@@ -4,6 +4,7 @@ import { calendarWeeks, gameRecords, plays, summarize, type Play } from '../lib/
 import { todayKey } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import CountUp from '../ui/CountUp'
+import GameIcon from '../ui/GameIcon'
 import { ALL_GAMES } from '../ui/games'
 import { loadProfile } from '../ui/Panels'
 import './stats.css'
@@ -48,11 +49,11 @@ const GAMES: Record<string, GameInfo> = {
 }
 
 const info = (g: string): GameInfo => GAMES[g] ?? { title: g, href: '#/', unit: pts }
-function glyph(g: string): string {
+function icon(g: string): string | null {
   const href = info(g).href
   const exact = ALL_GAMES.find((x) => x.dailyId === g || x.href === href)
   const parent = ALL_GAMES.filter((x) => href.startsWith(x.href)).sort((a, b) => b.href.length - a.href.length)[0]
-  return (exact ?? parent)?.glyph ?? '•'
+  return (exact ?? parent)?.icon ?? null
 }
 
 const WEEKDAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
@@ -328,7 +329,7 @@ export default function Stats() {
                   const g = info(r.g)
                   return (
                     <a key={r.g} href={g.href} className="record" style={{ animationDelay: `${i * 40}ms` }}>
-                      <span className="record-glyph">{glyph(r.g)}</span>
+                      <span className="record-glyph">{icon(r.g) && <GameIcon icon={icon(r.g)!} size={32} />}</span>
                       <div className="record-head">
                         <b>{g.title}</b>
                         <span className="muted">
