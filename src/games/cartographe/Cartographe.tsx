@@ -12,13 +12,13 @@ import AppBar, { SubLink } from '../../ui/AppBar'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
 
-type PlayMode = 'epingler' | 'saisir' | 'apprendre'
+type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
 
 export default function Cartographe({ quizId: id, params }: { quizId?: string; params: URLSearchParams }) {
   const parsed = id ? parseQuizId(id) : null
   if (!parsed) return <QuizList />
   const m = params.get('mode')
-  const mode: PlayMode = m === 'saisir' || m === 'apprendre' ? m : 'epingler'
+  const mode: PlayMode = m === 'saisir' || m === 'placer' || m === 'apprendre' ? m : 'epingler'
   return <Quiz region={parsed.region} ask={parsed.ask} mode={mode} />
 }
 
@@ -123,6 +123,24 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const [hover, setHover] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Set<string>>(new Set())
   const learning = mode === 'apprendre'
+  const placing = mode === 'placer'
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
+
+  function startDrag(e: React.PointerEvent) {
+    e.preventDefault()
+    setDrag({ x: e.clientX, y: e.clientY })
+    const move = (ev: PointerEvent) => setDrag({ x: ev.clientX, y: ev.clientY })
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      setDrag(null)
+      const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.st-map [data-code]')
+      const code = hit?.getAttribute('data-code')
+      if (code) attemptRef.current(code)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
   const [started, setStarted] = useState(false)
   const [startAt, setStartAt] = useState(0)
   const [now, setNow] = useState(0)
@@ -240,7 +258,13 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
       setPinned(next)
       return
     }
-    if (!started || finished || mode !== 'epingler' || !memberSet.has(code)) return
+    if (mode !== 'epingler') return
+    attempt(code)
+  }
+
+  // Un essai sur un pays, par clic (Épingler) ou par dépôt d'étiquette (Placer).
+  function attempt(code: string) {
+    if (!started || finished || !memberSet.has(code)) return
     const t = targets.get(code)!
     if (t.status !== 'pending') return
     if (code === current) {
@@ -250,6 +274,11 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
       resolve(tries === 0 ? 'ok1' : tries === 1 ? 'ok2' : tries === 2 ? 'ok3' : 'fail')
     } else miss(code)
   }
+
+  const attemptRef = useRef(attempt)
+  useEffect(() => {
+    attemptRef.current = attempt
+  })
 
   function onType() {
     if (!started || finished) return
@@ -376,6 +405,19 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 )
               })}
             </g>
+            {placing &&
+              members
+                .filter((code) => targets.get(code)!.status !== 'pending' && centers.get(code))
+                .map((code) => {
+                  const c = centers.get(code)!
+                  return (
+                    <g key={'p' + code} transform={`translate(${c.x * k + zt.x},${c.y * k + zt.y})`} className="st-label st-placed">
+                      <text y={4} textAnchor="middle">
+                        {countryName(code)}
+                      </text>
+                    </g>
+                  )
+                })}
             {learning &&
               [...new Set([...pinned, ...(hover && memberSet.has(hover) ? [hover] : [])])].map((code) => {
                 const c = centers.get(code)
@@ -428,6 +470,10 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   <span>⌨</span>
                   Saisir
                 </a>
+                <a href={`#/cartographe/${quizId(region.id, ask)}?mode=placer`} className={mode === 'placer' ? 'on' : ''}>
+                  <span>✋</span>
+                  Placer
+                </a>
                 <a href={`#/cartographe/${quizId(region.id, ask)}?mode=apprendre`} className={mode === 'apprendre' ? 'on' : ''}>
                   <span>📖</span>
                   Apprendre
@@ -458,6 +504,19 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           )}
         </div>
 
+        {placing && started && !finished && (
+          <div className="st-place">
+            <span className="ui-label">Glisse l’étiquette sur la carte</span>
+            <button className={drag ? 'st-chip dragging' : 'st-chip'} onPointerDown={startDrag}>
+              {prompt(current, ask)}
+            </button>
+          </div>
+        )}
+        {drag && (
+          <div className="st-chip st-chip-ghost" style={{ left: drag.x, top: drag.y }}>
+            {prompt(current, ask)}
+          </div>
+        )}
         {mode === 'saisir' && started && !finished && (
           <div className="st-type">
             {ask !== 'pays' && <span className={ask === 'drapeaux' ? 'st-target flag' : 'st-target'}>{prompt(current, ask)}</span>}
