@@ -5,7 +5,7 @@ import { load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import GuessGame, { type GuessSource, type Spot } from './GuessGame'
 import { MODES } from './guess'
-import { checkToken, findMapillary, mapillaryNode, saveToken, storedToken, TokenError, tokenFromEnv } from './mapillary'
+import { checkToken, findMapillary, mapillaryLoader, saveToken, storedToken, TokenError, tokenFromEnv } from './mapillary'
 import { findPanoramax, panoramaxNode } from './panoramax'
 import type { SphereSpot } from './sphere'
 import { checkKey, findPano, KeyError, keyFromEnv, loadStreetView, mapsRequested, onAuthFailure, saveKey, storedKey, type Pano } from './streetview'
@@ -167,6 +167,7 @@ const panoramax: GuessSource<SphereSpot> = {
 /* Mapillary : photos de rue partagées dans le monde entier, avec un jeton client gratuit */
 
 function mapillary(token: string): GuessSource<SphereSpot> {
+  const load = mapillaryLoader(token)
   return {
     game: 'geoguessr',
     store: 'geoguessr-mapillary',
@@ -177,7 +178,7 @@ function mapillary(token: string): GuessSource<SphereSpot> {
     find: (mode, seen, signal) => findMapillary(world, token, mode, Math.random, seen, signal),
     View: ({ spot }) => (
       <Suspense fallback={null}>
-        <SphereView spot={spot} load={mapillaryNode} />
+        <SphereView spot={spot} load={load} />
       </Suspense>
     ),
     Details: sphereDetails('Mapillary'),
