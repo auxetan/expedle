@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COUNTRIES, flagEmoji } from '../../geo/countries'
-import { dailyResult, recordPlay, saveDailyResult, submitBest } from '../../lib/stats'
+import { dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import CountUp from '../../ui/CountUp'
 import { CATEGORIES, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 
@@ -112,6 +113,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   const [copied, setCopied] = useState(false)
   const [record, setRecord] = useState(false)
   const t0 = useRef(performance.now())
+  const elapsed = useStopwatch(run)
   const item = items[i]
   const alreadyPlayed = !!done && run === 0
 
@@ -144,11 +146,29 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
 
   const answerRef = useRef(answer)
   answerRef.current = answer
+  const nextRef = useRef(next)
+  nextRef.current = next
+
+  // A–D ou 1–4 pour répondre, Entrée pour passer à la suite
+  useEffect(() => {
+    if (over || alreadyPlayed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+      const k = 'abcd'.indexOf(e.key.toLowerCase()) >= 0 ? 'abcd'.indexOf(e.key.toLowerCase()) : '1234'.indexOf(e.key)
+      if (picked === null && k >= 0 && item.options[k]) answerRef.current(item.options[k])
+      else if (picked !== null && e.key === 'Enter') {
+        e.preventDefault()
+        nextRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [over, alreadyPlayed, picked, item])
 
   function next() {
     if (i + 1 >= items.length) {
       setOver(true)
-      recordPlay('quiz-' + kind)
+      recordPlay('quiz-' + kind, { pts: (100 * good) / items.length, s: score, ms: elapsed(), sub: category ?? undefined })
       if (kind === 'jour' && run === 0 && !done) saveDailyResult('quiz-jour', { score, good }, day)
       setRecord(submitBest('quiz-' + kind, score))
       const ids = items.map((it) => it.id).filter((x): x is string => !!x)
@@ -214,16 +234,18 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
       ) : over ? (
         <main className="qz-card qz-end">
           <span className="qz-kicker">PARTIE TERMINÉE</span>
-          <div className="qz-final">{score}</div>
+          <div className="qz-final">
+            <CountUp value={score} />
+          </div>
           <p>
             {good} / {COUNT} bonnes réponses {record && <b className="qz-record">· Nouveau record !</b>}
           </p>
-          <div className="qz-strip">
+          <div className="qz-strip stagger">
             {results.map((r, k) => (
               <span key={k} className={r ? 'ok' : 'ko'} />
             ))}
           </div>
-          <ul className="qz-recap">
+          <ul className="qz-recap stagger">
             {items.map((it, k) => (
               <li key={k} className={results[k] ? 'ok' : 'ko'}>
                 <span>{it.big ? `${it.big} — ` : ''}{it.q}</span>
@@ -263,7 +285,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
           </div>
           <h2 className="qz-q">{item.q}</h2>
           {item.big && <div className={kind === 'drapeaux' ? 'qz-big flag' : 'qz-big'}>{item.big}</div>}
-          <div className="qz-options">
+          <div className="qz-options stagger">
             {item.options.map((opt, k) => {
               const state =
                 picked === null ? '' : opt === item.answer ? 'right' : opt === picked ? 'wrong' : 'dim'
