@@ -2,14 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { dailyResult, recordPlay, saveDailyResult } from '../../lib/stats'
 import { hashString, load, save, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
 import { loadGeoShapes, type GeoShape } from './geoItems'
-import { OBJECTS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
+import { OBJECTS, POP_ITEMS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
 import { emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 
-export type Variant = 'objets' | 'geo' | '1000'
+export type Variant = 'objets' | 'geo' | '1000' | 'pop'
 
 interface Thing {
   name: string
@@ -104,6 +104,7 @@ export const TITLES: Record<Variant, string> = {
   objets: 'Size It Up',
   geo: 'Size It Up : Géographie',
   '1000': 'The Weekly 1K',
+  pop: 'Size It Up : Pop Culture',
 }
 
 export function weeklyTheme(week = weekKey()) {
@@ -119,7 +120,7 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
 
   useEffect(() => {
     if (variant === 'geo') loadGeoShapes().then((s) => setThings(s.filter((x) => x.h > 0).map(geoThing)))
-    else setThings((variant === '1000' ? weeklyTheme().items : OBJECTS).map(objectThing))
+    else setThings((variant === '1000' ? weeklyTheme().items : variant === 'pop' ? POP_ITEMS : OBJECTS).map(objectThing))
   }, [variant])
 
   const [seed, setSeed] = useState(0)
@@ -140,7 +141,9 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
       ? `Thème de la semaine : ${weeklyTheme().name}`
       : date && date !== todayKey()
         ? `Archive du ${new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
-        : null
+        : variant === 'pop'
+          ? 'Fais correspondre le personnage à sa taille officielle.'
+          : null
   if (!rounds.length)
     return (
       <MgShell title={title} help={<EchelleHelp />}>
