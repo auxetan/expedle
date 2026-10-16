@@ -25,17 +25,17 @@ interface Toast {
   good: boolean
 }
 
-const MODES: Mode[] = ['classique', 'facile', 'villes', 'jour', 'hebdo']
+const MODES: Mode[] = ['classique', 'facile', 'monde', 'special', 'villes', 'jour', 'hebdo']
 
-export default function Classement({ mode: raw }: { mode?: string }) {
+export default function Classement({ mode: raw, params }: { mode?: string; params: URLSearchParams }) {
   if (!MODES.includes(raw as Mode)) return <ClassementHome />
-  return <ClassementGame mode={raw as Mode} />
+  return <ClassementGame mode={raw as Mode} easy={params.get('facile') === '1'} />
 }
 
-function ClassementGame({ mode }: { mode: Mode }) {
+function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   const [seed, setSeed] = useState(0)
   // seed : chaque « Recommencer » relance un tirage
-  const setup = useMemo(() => setupFor(mode), [mode, seed])
+  const setup = useMemo(() => setupFor(mode, easy), [mode, easy, seed])
   const { entities, categories } = setup
   const matrix = useMemo(() => rankMatrix(setup), [setup])
   const perfect = useMemo(() => optimalAssignment(matrix), [matrix])
@@ -61,9 +61,9 @@ function ClassementGame({ mode }: { mode: Mode }) {
   useEffect(() => {
     if (!finished || done) return
     recordPlay('classement-' + mode)
-    submitBest('classement-' + mode, total, true)
+    submitBest(`classement-${mode}${easy ? '-facile' : ''}`, total, true)
     if (dailyId) saveDailyResult(dailyId, { picks, total }, dayKey)
-  }, [finished, done, mode, picks, total, dailyId, dayKey])
+  }, [finished, done, mode, easy, picks, total, dailyId, dayKey])
 
   function choose(ci: number) {
     if (finished || between || usedCats.has(ci)) return
@@ -121,7 +121,10 @@ function ClassementGame({ mode }: { mode: Mode }) {
         <div className="gh-wrap">
           <header className="gh-head">
             <div className="gh-total">
-              <span className="gh-total-label">{MODE_LABEL[mode]} · total</span>
+              <span className="gh-total-label">
+                {MODE_LABEL[mode]}
+                {easy ? ' facile' : ''} · total
+              </span>
               <span className="gh-total-value">
                 {current ? total : '–'}
                 {float !== null && <span className="gh-float">+{rankText(float)}</span>}
