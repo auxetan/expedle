@@ -42,13 +42,18 @@ export default function MgHome() {
       ),
     },
     {
-      href: '#/echelle/1000',
-      title: 'The Weekly 1K',
-      text: `Dix manches · ${weeklyTheme().name.toLowerCase()}.`,
-      badge: 'HEBDO',
-      dailyId: 'echelle-1000',
-      day: weekKey(),
-      art: <span className="mgh-num">1000</span>,
+      href: '#/echelle/pop',
+      title: 'Pop Culture',
+      text: 'L’échelle des héros de fiction.',
+      badge: 'QUOTIDIEN',
+      dailyId: 'echelle-pop',
+      art: (
+        <>
+          <Sil e="🤖" />
+          <Arrow />
+          <Sil e="🦖" red size={44} />
+        </>
+      ),
     },
     {
       href: '#/echelle/geo',
@@ -68,6 +73,15 @@ export default function MgHome() {
     },
   ]
   const more: Card[] = [
+    {
+      href: '#/echelle/1000',
+      title: 'The Weekly 1K',
+      text: `Dix manches · ${weeklyTheme().name.toLowerCase()}.`,
+      badge: 'HEBDO',
+      dailyId: 'echelle-1000',
+      day: weekKey(),
+      art: <span className="mgh-glyph">1K</span>,
+    },
     { href: '#/balance', title: 'Weigh It Up', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <span className="mgh-glyph">⚖</span> },
     { href: '#/question', title: 'Daily Question', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <span className="mgh-glyph">Σ</span> },
     { href: '#/survie', title: 'Survival Mode', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <span className="mgh-glyph">♡</span> },
@@ -136,6 +150,7 @@ export default function MgHome() {
 
 const ARCHIVE_GAMES = [
   { id: 'echelle-objets', label: 'Size It Up', href: '#/echelle' },
+  { id: 'echelle-pop', label: 'Pop Culture', href: '#/echelle/pop' },
   { id: 'echelle-geo', label: 'Géographie', href: '#/echelle/geo' },
   { id: 'balance', label: 'Weigh It Up', href: '#/balance' },
   { id: 'question', label: 'Daily Question', href: '#/question' },
