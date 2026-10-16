@@ -1,6 +1,6 @@
-import { geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
+import { geoCentroid, geoDistance, geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { countryCenter } from '../../geo/measure'
+import { countryCenter, simplifiedFeatures } from '../../geo/measure'
 import { getWorld } from '../../geo/world'
 import { cssColor, useTheme } from '../../ui/theme'
 import './globe.css'
@@ -24,7 +24,19 @@ const PALETTE = {
   clair: { ocean: '#e6dfd2', land: '#fbf8f2', grid: '#d8d0c2' },
 }
 
-// Globe orthographique sur canvas : bien plus fluide en rotation qu'un SVG de 250 pays détaillés.
+// Pour chaque pays, son centre et son rayon angulaire : de quoi sauter d'un coup ceux de la face cachée.
+const cullCache = new Map<string, { center: [number, number]; radius: number }>()
+function cullInfo(code: string, feature: GeoJSON.Feature<GeoJSON.MultiPolygon>) {
+  let c = cullCache.get(code)
+  if (!c) {
+    const center = geoCentroid(feature) as [number, number]
+    const radius = Math.max(...(feature.geometry.coordinates.flat(2) as [number, number][]).map((p) => geoDistance(center, p)))
+    cullCache.set(code, (c = { center, radius }))
+  }
+  return c
+}
+
+// Globe orthographique sur canvas. En mouvement, contours allégés et face cachée ignorée ; au repos, le détail complet.
 export default function GlobeView({ fills, focus, highlight, maxSize = 560, initialZoom = 1 }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -42,11 +54,13 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     return () => ro.disconnect()
   }, [maxSize])
 
-  const drawRef = useRef(() => {})
+  const drawRef = useRef((detail: boolean) => void detail)
+  const idle = useRef(0)
   useEffect(() => {
     const { ocean, land, grid } = PALETTE[theme]
     const strong = cssColor('--fg')
-    drawRef.current = () => {
+    const lite = simplifiedFeatures(world)
+    drawRef.current = (detail: boolean) => {
       const c = canvas.current
       if (!c) return
       const dpr = window.devicePixelRatio || 1
@@ -72,18 +86,34 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
       ctx.lineWidth = 0.5
       ctx.stroke()
       const { fills: f, highlight: h } = props.current
-      for (const [code, feature] of world.features) {
+      const view: [number, number] = [-rot.current[0], -rot.current[1]]
+      // zoomé, seule une calotte est à l'écran : peu de pays à dessiner, on garde donc le détail complet
+      const reach = Math.asin(Math.min(1, size / 2 / projection.scale()))
+      const shapes = detail || zoom.current >= 2.5 ? world.features : lite
+      const colored: [string, GeoJSON.Feature<GeoJSON.MultiPolygon>][] = []
+      // toutes les terres neutres en un seul tracé, puis les pays colorés par-dessus
+      ctx.beginPath()
+      for (const [code, feature] of shapes) {
+        const { center, radius } = cullInfo(code, lite.get(code)!)
+        if (geoDistance(view, center) - radius > reach + 0.02) continue
+        if (f.has(code)) colored.push([code, feature])
+        else path(feature)
+      }
+      ctx.fillStyle = land
+      ctx.fill()
+      ctx.strokeStyle = ocean
+      ctx.lineWidth = 0.6
+      ctx.stroke()
+      for (const [code, feature] of colored) {
         ctx.beginPath()
         path(feature)
-        ctx.fillStyle = f.get(code) ?? land
+        ctx.fillStyle = f.get(code)!
         ctx.fill()
-        ctx.strokeStyle = ocean
-        ctx.lineWidth = 0.6
         ctx.stroke()
       }
-      if (h && world.features.has(h)) {
+      if (h && shapes.has(h)) {
         ctx.beginPath()
-        path(world.features.get(h)!)
+        path(shapes.get(h)!)
         ctx.strokeStyle = strong
         ctx.lineWidth = 1.6
         ctx.stroke()
@@ -94,13 +124,24 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
       ctx.lineWidth = 1
       ctx.stroke()
     }
-    drawRef.current()
+    drawRef.current(true)
   }, [size, theme, world])
 
   useEffect(() => {
     props.current = { fills, highlight }
-    drawRef.current()
+    drawRef.current(true)
   }, [fills, highlight])
+
+  // pendant un mouvement : version allégée à chaque image, puis le détail complet 150 ms après l'arrêt
+  const movingRef = useRef(() => {})
+  useEffect(() => {
+    movingRef.current = () => {
+      cancelAnimationFrame(frame.current)
+      frame.current = requestAnimationFrame(() => drawRef.current(false))
+      clearTimeout(idle.current)
+      idle.current = window.setTimeout(() => drawRef.current(true), 150)
+    }
+  })
 
   // pivot animé vers le pays demandé, par le plus court chemin en longitude
   useEffect(() => {
@@ -117,7 +158,7 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
       const k = Math.min(1, (now - t0) / 900)
       const e = 1 - (1 - k) ** 3
       rot.current = [l0 + (target[0] - l0) * e, p0 + (target[1] - p0) * e]
-      drawRef.current()
+      drawRef.current(k >= 1)
       if (k < 1) frame.current = requestAnimationFrame(step)
     }
     frame.current = requestAnimationFrame(step)
@@ -128,10 +169,7 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     const c = canvas.current!
     const pointers = new Map<number, { x: number; y: number }>()
     let pinch = 0
-    const redraw = () => {
-      cancelAnimationFrame(frame.current)
-      frame.current = requestAnimationFrame(() => drawRef.current())
-    }
+    const redraw = () => movingRef.current()
     const down = (e: PointerEvent) => {
       c.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -171,6 +209,7 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     c.addEventListener('pointercancel', up)
     c.addEventListener('wheel', wheel, { passive: false })
     return () => {
+      clearTimeout(idle.current)
       c.removeEventListener('pointerdown', down)
       c.removeEventListener('pointermove', move)
       c.removeEventListener('pointerup', up)
