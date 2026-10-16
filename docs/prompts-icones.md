@@ -142,10 +142,10 @@ Icône de Worldle, où l'on reconnaît un pays à sa silhouette. La silhouette p
 Icône de Globle, où l'on cherche un pays mystère sur un globe qui « chauffe ». Un globe terrestre vu de l'espace, océans taupe et continents crème ; un pays au centre est noir (le plus chaud) et ses voisins sont d'un beige plus soutenu, comme une tache de chaleur.
 ```
 
-### `worldguessr.png` : WorldGuessr
+### `photoguessr.png` : PhotoGuessr
 
 ```
-Icône de WorldGuessr, où l'on devine où une photo a été prise. Un cadre photo taupe aux angles arrondis contenant un paysage simple : montagnes et soleil taupe sur fond crème, une petite route. Une grosse punaise de carte noire est plantée au milieu de la photo.
+Icône de PhotoGuessr, où l'on devine où une photo a été prise. Un cadre photo taupe aux angles arrondis contenant un paysage simple : montagnes et soleil taupe sur fond crème, une petite route. Une grosse punaise de carte noire est plantée au milieu de la photo.
 ```
 
 (Des versions provisoires dessinées dans le même style sont déjà en place dans `public/icons/`.)
