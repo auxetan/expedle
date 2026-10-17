@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Atlas } from '../geo/atlas'
+import { t } from '../lib/i18n'
 import { exactMatch, matchSuggestions } from '../games/itineraire/puzzle'
 
 interface Props {
@@ -25,7 +26,7 @@ function Highlight({ label, at, len }: { label: string; at: number; len: number 
 }
 
 // Saisie d'un pays avec la liste complète des correspondances, au clavier comme à la souris.
-export default function CountryInput({ atlas, onPick, used, placeholder = 'Entre un pays…', button = 'Deviner', autoFocus = false }: Props) {
+export default function CountryInput({ atlas, onPick, used, placeholder = t('Entre un pays…'), button = t('Deviner'), autoFocus = false }: Props) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -46,8 +47,8 @@ export default function CountryInput({ atlas, onPick, used, placeholder = 'Entre
 
   function submit(code?: string) {
     const pick = code ?? suggestions[active]?.s.code ?? exactMatch(atlas, query)?.code
-    if (!pick) return refuse('Pays inconnu')
-    if (used.has(pick)) return refuse(`${atlas.name(pick)} : déjà proposé`)
+    if (!pick) return refuse(t('Pays inconnu'))
+    if (used.has(pick)) return refuse(t('{name} : déjà proposé', { name: atlas.name(pick) }))
     onPick(pick)
     setQuery('')
     setActive(0)
