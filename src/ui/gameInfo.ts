@@ -41,6 +41,9 @@ const GAMES: Record<string, GameInfo> = {
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
   worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
   globle: { title: 'Globle', href: '#/globle', unit: essais, lower: true },
+  countryle: { title: 'Countryle', href: '#/countryle', unit: (s) => `${s}/8`, lower: true },
+  flagle: { title: 'Flagle', href: '#/flagle', unit: (s) => `${s}/6`, lower: true },
+  geogrid: { title: 'GeoGrid', href: '#/geogrid', unit: (s) => `${s}/9` },
   photoguessr: { title: 'PhotoGuessr', href: '#/photoguessr', unit: pts },
   geoguessr: { title: 'GeoGuessr', href: '#/geoguessr', unit: pts },
 }
