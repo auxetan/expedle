@@ -1,6 +1,7 @@
 import { countryAt, randomPointIn, type LonLat } from '../../geo/measure'
 import type { World } from '../../geo/world'
 import { isPowerOfTwo, wholeImage, type SphereNode, type SphereSpot } from './sphere'
+import { t } from '../../lib/i18n'
 
 // Catalogue fédéré de Panoramax : sans clé, CORS ouvert, toutes les instances (IGN, OSM France…).
 const API = 'https://api.panoramax.xyz/api'
@@ -120,5 +121,5 @@ export async function findPanoramax(world: World, rng: () => number, seen: Set<s
       page: `https://api.panoramax.xyz/#focus=pic&pic=${item.id}`,
     }
   }
-  throw new Error('Aucune vue 360° trouvée cette fois.')
+  throw new Error(t('Aucune vue 360° trouvée cette fois.'))
 }
