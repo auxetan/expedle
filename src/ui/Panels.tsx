@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
+import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
+import AccountBox from './Account'
 import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
@@ -75,11 +77,19 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
   const dailies = ALL_GAMES.filter((g) => g.rhythm === 'quotidien')
   const doneToday = dailies.filter(isDoneToday).length
 
+  // le profil peut arriver du compte (connexion sur un nouvel appareil)
+  useEffect(() => {
+    const refresh = () => setProfile(loadProfile())
+    window.addEventListener(PROFILE_CHANGED, refresh)
+    return () => window.removeEventListener(PROFILE_CHANGED, refresh)
+  }, [])
+
   function update(patch: Partial<Profile>) {
     const next = { ...profile, ...patch }
     setProfile(next)
     save('profile', next)
     onChange?.(next)
+    pushProfile(next)
   }
 
   return (
@@ -114,6 +124,11 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
       <p className="ui-note">
         {doneToday}/{dailies.length} jeux du jour terminés aujourd’hui.
       </p>
+      <AccountBox />
+      <a href="#/classements" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.podium} />
+        Classements
+      </a>
       <a href="#/succes" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.trophy} />
         Mes succès
