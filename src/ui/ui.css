@@ -565,3 +565,50 @@
   font-size: 14px;
   color: var(--bad);
 }
+
+/* Compte : connexion par code reçu par email */
+.ui-account {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+.ui-account .ui-note b {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.ui-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ui-account-form input.ui-code {
+  font-size: 22px;
+  letter-spacing: 0.35em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-account-form .ui-btn {
+  padding: 10px 18px;
+  font-size: 15px;
+}
+
+.ui-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ui-error {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--bad);
+}
