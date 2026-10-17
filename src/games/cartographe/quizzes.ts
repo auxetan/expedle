@@ -1,5 +1,6 @@
 import { COUNTRIES, type Continent } from '../../geo/countries'
 import { getWorld } from '../../geo/world'
+import { msg } from '../../lib/i18n'
 
 export type Ask = 'pays' | 'capitales' | 'drapeaux'
 
@@ -22,7 +23,7 @@ export const REGIONS: Region[] = [
   { id: 'monde', name: 'Monde', continents: ['EU', 'AF', 'AS', 'NA', 'SA', 'OC'], rotate: [-10, 0], box: [[-180, -58], [180, 80]], world: true },
 ]
 
-export const ASK_LABEL: Record<Ask, string> = { pays: 'les pays', capitales: 'les capitales', drapeaux: 'les drapeaux' }
+export const ASK_LABEL: Record<Ask, string> = { pays: msg('les pays'), capitales: msg('les capitales'), drapeaux: msg('les drapeaux') }
 
 export function quizId(region: string, ask: Ask): string {
   return ask === 'pays' ? region : `${region}-${ask}`
