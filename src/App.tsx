@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
 import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
+import { t, useLang } from './lib/i18n'
 import { useRoute } from './lib/router'
 
 const Itineraire = lazy(() => import('./games/itineraire/Itineraire'))
@@ -27,6 +28,8 @@ const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
 
 export default function App() {
   const route = useRoute()
+  // changer de langue redessine toute la page
+  const lang = useLang()
   const [page, sub] = route.segments
   const key = route.segments.join('/') + '?' + route.params.toString()
   const date = route.params.get('date')
@@ -99,8 +102,8 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={<div className="page-loading">Chargement…</div>}>
-        <div className="page" key={`${page ?? ''}/${sub ?? ''}`}>
+      <Suspense fallback={<div className="page-loading">{t('Chargement…')}</div>}>
+        <div className="page" key={`${lang}/${page ?? ''}/${sub ?? ''}`}>
           {content}
         </div>
       </Suspense>
