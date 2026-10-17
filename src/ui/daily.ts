@@ -23,6 +23,9 @@ const IN_PROGRESS: Record<string, () => string> = {
   'itineraire-hebdo': () => `itin:hebdo:${weekKey()}`,
   worldle: () => `worldle:${todayKey()}`,
   globle: () => `globle:${todayKey()}`,
+  countryle: () => `countryle:${todayKey()}`,
+  flagle: () => `flagle:${todayKey()}`,
+  geogrid: () => `geogrid:${todayKey()}`,
 }
 
 function resultLabel(id: string, r: AnyResult): string {
@@ -33,6 +36,9 @@ function resultLabel(id: string, r: AnyResult): string {
   if (id === 'quiz-jour') return `${r.good} / 10`
   if (id === 'worldle') return r.won ? `${r.guesses}/6` : 'perdu'
   if (id === 'globle') return r.won ? `${r.guesses} essais` : 'abandon'
+  if (id === 'countryle') return r.won ? `${r.guesses}/8` : 'perdu'
+  if (id === 'flagle') return r.won ? `${r.guesses}/6` : 'perdu'
+  if (id === 'geogrid') return `${r.score}/9`
   return 'joué'
 }
 
@@ -41,6 +47,8 @@ export function dailyStatus(g: GameEntry): DailyStatus {
   const res = dailyResult<AnyResult>(g.dailyId, g.weekly ? weekKey() : undefined)
   if (res) return { state: 'done', label: resultLabel(g.dailyId, res) }
   const key = IN_PROGRESS[g.dailyId]?.()
-  if (key && load<{ guesses: string[] }>(key, { guesses: [] }).guesses.length) return { state: 'progress', label: 'en cours' }
+  // GeoGrid compte ses essais, les autres jeux gardent la liste des pays proposés
+  const guesses = key ? load<{ guesses: string[] | number }>(key, { guesses: 0 }).guesses : 0
+  if (Array.isArray(guesses) ? guesses.length : guesses) return { state: 'progress', label: 'en cours' }
   return { state: 'todo', label: 'à jouer' }
 }
