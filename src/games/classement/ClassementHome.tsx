@@ -4,6 +4,7 @@ import { todayKey, weekKey } from '../../lib/util'
 import GhBar from './GhBar'
 import { dailyObjective, weeklyTheme } from './setup'
 import './classement.css'
+import { locale, msg, t, tx } from '../../lib/i18n'
 
 function untilMidnight(): string {
   const now = new Date()
@@ -13,15 +14,16 @@ function untilMidnight(): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
-const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+// initiales des jours, lundi d'abord, dans la langue du site ; le 5 janvier 2026 est un lundi
+const days = () => Array.from({ length: 7 }, (_, i) => new Date(2026, 0, 5 + i).toLocaleDateString(locale(), { weekday: 'narrow' }))
 
 type Tile = 'classique' | 'monde' | 'special' | 'villes'
 
 const TILES: { id: Tile; icon: string; name: string; text: string }[] = [
-  { id: 'classique', icon: '◎', name: 'Classique', text: 'Joue pour gagner ton premier rang et te classer' },
-  { id: 'monde', icon: '🌐', name: 'Monde', text: 'Corruption, pollution, gastronomie, basket…' },
-  { id: 'special', icon: '⚡', name: 'Spécial', text: 'Militaire, passeport, biodiversité, rugby…' },
-  { id: 'villes', icon: '🏙', name: 'Villes', text: '8 villes du monde, 8 catégories' },
+  { id: 'classique', icon: '◎', name: msg('Classique'), text: msg('Joue pour gagner ton premier rang et te classer') },
+  { id: 'monde', icon: '🌐', name: msg('Monde'), text: msg('Corruption, pollution, gastronomie, basket…') },
+  { id: 'special', icon: '⚡', name: msg('Spécial'), text: msg('Militaire, passeport, biodiversité, rugby…') },
+  { id: 'villes', icon: '🏙', name: msg('Villes'), text: msg('8 villes du monde, 8 catégories') },
 ]
 
 export default function ClassementHome() {
@@ -41,7 +43,7 @@ export default function ClassementHome() {
     const d = new Date()
     const monday = new Date(d)
     monday.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-    return DAYS.map((label, i) => {
+    return days().map((label, i) => {
       const day = new Date(monday)
       day.setDate(monday.getDate() + i)
       const key = todayKey(day)
@@ -61,11 +63,11 @@ export default function ClassementHome() {
       <GhBar />
       <header className="ghh-head">
         <h1>GeoHunter</h1>
-        <p>Place chaque pays là où il est le mieux classé.</p>
+        <p>{t('Place chaque pays là où il est le mieux classé.')}</p>
       </header>
 
       <section className="ghh-panel">
-        <h2>DÉFIS</h2>
+        <h2>{t('DÉFIS')}</h2>
         <div className="ghh-week">
           <span className="ghh-streak">🔥 {streak}</span>
           {week.map((d) => (
@@ -78,25 +80,25 @@ export default function ClassementHome() {
           <a href="#/classement/jour" className="ghh-ch daily">
             <div className="ghh-ch-top">
               <span className="ghh-ch-icon">🕐</span>
-              <b>Défi du Jour</b>
+              <b>{t('Défi du jour')}</b>
               <span className="ghh-ch-play">▶</span>
             </div>
             <div className="ghh-ch-bottom">
-              <span>{dailyDone ? `Fait : ${dailyDone.total}` : `Encore ${left}`}</span>
-              <span>OBJECTIF : {objective}</span>
+              <span>{dailyDone ? t('Fait : {n}', { n: dailyDone.total }) : t('Encore {time}', { time: left })}</span>
+              <span>{t('OBJECTIF : {n}', { n: objective })}</span>
             </div>
           </a>
           <a href="#/classement/hebdo" className="ghh-ch weekly">
             <div className="ghh-ch-top">
               <span className="ghh-ch-icon">{theme.icon}</span>
               <div>
-                <b>Hebdo</b>
-                <small>{theme.name}</small>
+                <b>{t('Hebdo')}</b>
+                <small>{t(theme.name)}</small>
               </div>
               <span className="ghh-ch-play">▶</span>
             </div>
             <div className="ghh-ch-bottom">
-              <span>{weekDone ? `Fait : ${weekDone.total}` : `Semaine ${weekKey().split('-S')[1]}`}</span>
+              <span>{weekDone ? t('Fait : {n}', { n: weekDone.total }) : t('Semaine {n}', { n: weekKey().split('-S')[1] })}</span>
             </div>
           </a>
         </div>
@@ -104,13 +106,13 @@ export default function ClassementHome() {
 
       <section className="ghh-panel">
         <div className="ghh-row">
-          <h2>JEUX ORIGINAUX</h2>
+          <h2>{t('JEUX ORIGINAUX')}</h2>
           <div className="ghh-toggle">
             <button className={!easy ? 'on' : ''} onClick={() => setEasy(false)}>
-              🌐 Normal
+              🌐 {t('Normal')}
             </button>
             <button className={easy ? 'on' : ''} onClick={() => setEasy(true)}>
-              🌱 Facile
+              🌱 {t('Facile')}
             </button>
           </div>
         </div>
@@ -126,23 +128,24 @@ export default function ClassementHome() {
           <span className="ghh-launch-icon">{current.icon}</span>
           <div>
             <b>
-              {current.name}
-              {easyOn ? ' · facile' : ''}
+              {t(current.name)}
+              {easyOn ? ` · ${t('facile')}` : ''}
             </b>
-            <small>{easyOn ? '80 pays connus · idéal pour débuter' : current.text}</small>
+            <small>{easyOn ? t('80 pays connus · idéal pour débuter') : t(current.text)}</small>
           </div>
           <span className="ghh-best">{best !== null ? `◷ ${best}` : ''}</span>
           <a href={href} className="ghh-go">
-            JOUER ▶
+            {t('JOUER')} ▶
           </a>
         </div>
       </section>
 
       <section className="ghh-panel ghh-how">
-        <h2>COMMENT JOUER</h2>
+        <h2>{t('COMMENT JOUER')}</h2>
         <p>
-          <b>Obtiens le score total le plus bas.</b> Associe 8 pays aux catégories où ils sont le mieux classés. Un n°1 ajoute
-          seulement 1 point ; sans donnée, le rang compte pour 100. Chaque catégorie ne sert qu’une fois.
+          {tx('{goal} Associe 8 pays aux catégories où ils sont le mieux classés. Un n°1 ajoute seulement 1 point ; sans donnée, le rang compte pour 100. Chaque catégorie ne sert qu’une fois.', {
+            goal: <b>{t('Obtiens le score total le plus bas.')}</b>,
+          })}
         </p>
       </section>
     </div>
