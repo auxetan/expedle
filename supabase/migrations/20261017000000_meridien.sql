@@ -1,5 +1,6 @@
 -- Méridien : comptes, parties et classements.
--- À coller dans l'éditeur SQL du projet Supabase (SQL Editor → New query → Run). Peut être relancé sans risque.
+-- Appliquée par l'intégration GitHub de Supabase ou la CLI (supabase db push), ou collée telle quelle dans
+-- l'éditeur SQL du projet (SQL Editor → New query → Run). Peut être relancée sans risque.
 
 -- Profil public : le pseudo et l'avatar affichés dans les classements. L'email reste privé (auth.users).
 create table if not exists public.profiles (
