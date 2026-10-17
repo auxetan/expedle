@@ -1,3 +1,5 @@
+import { normalize } from '../lib/util'
+
 export type Continent = 'EU' | 'AF' | 'AS' | 'NA' | 'SA' | 'OC' | 'AN'
 
 export interface CountryMeta {
@@ -266,6 +268,72 @@ export const COUNTRIES: CountryMeta[] = RAW.split('\n').map((line) => {
 })
 
 export const COUNTRY_BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]))
+
+// Une réponse est acceptée dans n'importe quelle langue : le navigateur connaît le nom de chaque pays
+// dans des dizaines de langues (Intl.DisplayNames), sans rien à télécharger.
+const LOCALES = 'en es de it pt nl pl sv da nb fi cs sk hu ro tr el ru uk bg sr hr sl lt lv et ca eu ga cy is sq ar he fa ur hi bn ta zh ja ko id ms vi th tl sw am'.split(' ')
+
+// Noms anglais d'usage que la norme ne retient pas (« Türkiye », « Czechia »…).
+const COMMON: Record<string, string[]> = {
+  TR: ['Turkey'],
+  CZ: ['Czech Republic'],
+  SZ: ['Swaziland'],
+  TL: ['East Timor'],
+  CI: ['Ivory Coast'],
+  MK: ['Macedonia'],
+  CD: ['DRC', 'DR Congo', 'Democratic Republic of the Congo'],
+  CG: ['Republic of the Congo'],
+  US: ['United States of America', 'America'],
+  GB: ['Great Britain', 'Britain', 'England'],
+  NL: ['Holland'],
+  VA: ['Vatican'],
+  PS: ['Palestine'],
+  AE: ['UAE'],
+  KP: ['DPRK'],
+  CV: ['Cabo Verde'],
+}
+
+let foreign: Map<string, string[]> | null = null
+
+function buildForeign(): Map<string, string[]> {
+  // un nom qui désigne déjà un autre pays (en français ou dans une autre langue) est écarté : il serait ambigu
+  const owners = new Map<string, Set<string>>()
+  const own = (name: string, code: string) => {
+    const key = normalize(name)
+    if (key) owners.set(key, (owners.get(key) ?? new Set()).add(code))
+  }
+  for (const c of COUNTRIES) [c.name, ...c.aliases].forEach((n) => own(n, c.code))
+  const found = new Map<string, Set<string>>()
+  const add = (code: string, name: string) => {
+    // « Myanmar (Burma) » vaut aussi « Myanmar » et « Burma »
+    const variants = [name, ...name.split(/[()]/).map((x) => x.trim())].filter(Boolean)
+    for (const v of variants) {
+      found.set(code, (found.get(code) ?? new Set()).add(v))
+      own(v, code)
+    }
+  }
+  for (const locale of LOCALES) {
+    let names: Intl.DisplayNames
+    try {
+      names = new Intl.DisplayNames([locale], { type: 'region', fallback: 'none' })
+    } catch {
+      continue
+    }
+    for (const c of COUNTRIES) {
+      const name = names.of(c.code)
+      if (name) add(c.code, name)
+    }
+  }
+  for (const [code, list] of Object.entries(COMMON)) list.forEach((n) => add(code, n))
+  const result = new Map<string, string[]>()
+  for (const [code, names] of found) result.set(code, [...names].filter((n) => owners.get(normalize(n))?.size === 1))
+  return result
+}
+
+export function foreignNames(code: string): string[] {
+  foreign ??= buildForeign()
+  return foreign.get(code) ?? []
+}
 
 export function countryName(code: string): string {
   return COUNTRY_BY_CODE.get(code)?.name ?? code
