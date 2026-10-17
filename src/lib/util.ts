@@ -61,10 +61,6 @@ export function pick<T>(arr: T[], rng: () => number = Math.random): T {
   return arr[Math.floor(rng() * arr.length)]
 }
 
-const nf = new Intl.NumberFormat('fr-FR')
-export function formatInt(n: number): string {
-  return nf.format(Math.round(n))
-}
 
 export function formatTime(ms: number): string {
   const s = Math.floor(ms / 1000)
