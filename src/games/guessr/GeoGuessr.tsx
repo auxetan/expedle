@@ -9,6 +9,7 @@ import { checkToken, findMapillary, mapillaryLoader, saveToken, storedToken, Tok
 import { findPanoramax, panoramaxNode } from './panoramax'
 import type { SphereSpot } from './sphere'
 import { checkKey, findPano, KeyError, keyFromEnv, loadStreetView, mapsRequested, onAuthFailure, saveKey, storedKey, type Pano } from './streetview'
+import { locale, msg, t, tx } from '../../lib/i18n'
 
 // la visionneuse 360° (three.js) ne se charge qu'en jouant avec Panoramax ou Mapillary
 const SphereView = lazy(() => import('./SphereView'))
@@ -18,20 +19,21 @@ type Panorama = typeof google.maps.StreetViewPanorama
 type Imagery = 'panoramax' | 'mapillary' | 'google'
 
 const IMAGERY: { id: Imagery; label: string; detail: string }[] = [
-  { id: 'panoramax', label: 'Panoramax', detail: 'France · sans clé' },
-  { id: 'mapillary', label: 'Mapillary', detail: 'Monde · jeton gratuit' },
-  { id: 'google', label: 'Street View', detail: 'Monde · clé Google' },
+  { id: 'panoramax', label: 'Panoramax', detail: msg('France · sans clé') },
+  { id: 'mapillary', label: 'Mapillary', detail: msg('Monde · jeton gratuit') },
+  { id: 'google', label: 'Street View', detail: msg('Monde · clé Google') },
 ]
 
-const QUESTION = 'Où es-tu ?'
-const INTRO =
-  'Tu es lâché quelque part dans une rue, en 360°. Avance, tourne la tête, cherche les panneaux, les plaques et le sens de circulation, puis place ton repère sur la carte : jusqu’à 5 000 points par manche.'
+const QUESTION = msg('Où es-tu ?')
+const INTRO = msg(
+  'Tu es lâché quelque part dans une rue, en 360°. Avance, tourne la tête, cherche les panneaux, les plaques et le sens de circulation, puis place ton repère sur la carte : jusqu’à 5 000 points par manche.',
+)
 
 const offline = (e: unknown) => e instanceof Error && /Failed to fetch|NetworkError|Load failed/.test(e.message)
 
 function monthYear(date: string): string {
   const [y, m] = date.split('-').map(Number)
-  return m ? new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : String(y)
+  return m ? new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }) : String(y)
 }
 
 const FlagThumb = ({ spot }: { spot: Spot }) => <span className="gg-thumb">{spot.country ? flagEmoji(spot.country) : '🌊'}</span>
@@ -46,11 +48,11 @@ function link(href: string, text: string) {
 
 function ImageryPicker({ value, onChange }: { value: Imagery; onChange: (i: Imagery) => void }) {
   return (
-    <div className="gg-imagery" role="radiogroup" aria-label="Imagerie">
+    <div className="gg-imagery" role="radiogroup" aria-label={t('Imagerie')}>
       {IMAGERY.map((i) => (
         <button key={i.id} role="radio" aria-checked={i.id === value} className={i.id === value ? 'on' : ''} onClick={() => onChange(i.id)}>
           <b>{i.label}</b>
-          <span>{i.detail}</span>
+          <span>{t(i.detail)}</span>
         </button>
       ))}
     </div>
@@ -63,8 +65,8 @@ function Shell({ picker, children }: { picker: ReactNode; children: ReactNode })
     <div className="wg">
       <AppBar title="GeoGuessr" />
       <main className="wg-menu">
-        <h1>{QUESTION}</h1>
-        <p className="muted">{INTRO}</p>
+        <h1>{t(QUESTION)}</h1>
+        <p className="muted">{t(INTRO)}</p>
         {picker}
         <div className="gg-setup">{children}</div>
       </main>
@@ -108,7 +110,7 @@ function SetupForm({ placeholder, check, refusal, onSaved }: { placeholder: stri
       <form className="gg-key" onSubmit={submit}>
         <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} autoComplete="off" spellCheck={false} />
         <button className="ui-btn" disabled={!value.trim() || checking}>
-          {checking ? 'Vérification…' : 'Enregistrer'}
+          {checking ? t('Vérification…') : t('Enregistrer')}
         </button>
       </form>
       {error && <p className="gg-problem">{error}</p>}
@@ -120,10 +122,10 @@ function ResetSetting({ label, fromEnv, value, onReset }: { label: string; fromE
   return (
     <div className="ui-field">
       <span>{label}</span>
-      <p className="ui-note">{fromEnv ? 'Fourni par .env.local.' : `Enregistré dans ce navigateur (…${value.slice(-4)}).`}</p>
+      <p className="ui-note">{fromEnv ? t('Fourni par .env.local.') : t('Enregistré dans ce navigateur (…{end}).', { end: value.slice(-4) })}</p>
       {!fromEnv && (
         <button className="ui-btn-line" onClick={onReset}>
-          Changer
+          {t('Changer')}
         </button>
       )}
     </div>
@@ -137,7 +139,7 @@ function sphereDetails(name: string) {
         {name}
         {spot.credit && ` · ${spot.credit}`}
         {spot.date && ` · ${monthYear(spot.date)}`}
-        {spot.license && ` · ${spot.license}`} · {link(spot.page, `Voir sur ${name}`)}
+        {spot.license && ` · ${spot.license}`} · {link(spot.page, t('Voir sur {name}', { name }))}
       </p>
     )
   }
@@ -152,7 +154,7 @@ const panoramax: GuessSource<SphereSpot> = {
   title: 'GeoGuessr',
   question: QUESTION,
   intro: INTRO,
-  note: 'Vues 360° libres de Panoramax (IGN, OpenStreetMap France et leurs contributeurs) ; fond de carte OpenStreetMap.',
+  note: msg('Vues 360° libres de Panoramax (IGN, OpenStreetMap France et leurs contributeurs) ; fond de carte OpenStreetMap.'),
   find: (_mode, seen, signal) => findPanoramax(world, Math.random, seen, signal),
   View: ({ spot }) => (
     <Suspense fallback={null}>
@@ -161,7 +163,7 @@ const panoramax: GuessSource<SphereSpot> = {
   ),
   Details: sphereDetails('Panoramax'),
   Thumb: FlagThumb,
-  explain: (e) => (offline(e) || (e instanceof Error && e.message.startsWith('Panoramax')) ? 'Impossible de joindre Panoramax. Vérifie ta connexion.' : 'Aucune vue 360° trouvée cette fois.'),
+  explain: (e) => (offline(e) || (e instanceof Error && e.message.startsWith('Panoramax')) ? t('Impossible de joindre Panoramax. Vérifie ta connexion.') : t('Aucune vue 360° trouvée cette fois.')),
 }
 
 /* Mapillary : photos de rue partagées dans le monde entier, avec un jeton client gratuit */
@@ -174,7 +176,7 @@ function mapillary(token: string): GuessSource<SphereSpot> {
     title: 'GeoGuessr',
     question: QUESTION,
     intro: INTRO,
-    note: 'Vues 360° partagées par les contributeurs de Mapillary ; fond de carte OpenStreetMap.',
+    note: msg('Vues 360° partagées par les contributeurs de Mapillary ; fond de carte OpenStreetMap.'),
     find: (mode, seen, signal) => findMapillary(world, token, mode, Math.random, seen, signal),
     View: ({ spot }) => (
       <Suspense fallback={null}>
@@ -185,12 +187,12 @@ function mapillary(token: string): GuessSource<SphereSpot> {
     Thumb: FlagThumb,
     explain: (e) =>
       e instanceof TokenError
-        ? `Mapillary refuse le jeton : ${e.message} Change-le dans les réglages.`
+        ? t('Mapillary refuse le jeton : {error} Change-le dans les réglages.', { error: e.message })
         : offline(e)
-          ? 'Impossible de joindre Mapillary. Vérifie ta connexion.'
+          ? t('Impossible de joindre Mapillary. Vérifie ta connexion.')
           : e instanceof Error
             ? e.message
-            : 'Aucune vue 360° trouvée cette fois.',
+            : t('Aucune vue 360° trouvée cette fois.'),
   }
 }
 
@@ -204,7 +206,9 @@ function MapillaryGame({ picker }: { picker: ReactNode }) {
     let alive = true
     checkToken(token)
       .then(() => alive && setReady(true))
-      .catch((e: Error) => alive && setProblem(e instanceof TokenError ? `Mapillary refuse le jeton enregistré : ${e.message}` : 'Impossible de joindre Mapillary. Vérifie ta connexion.'))
+      .catch((e: Error) =>
+        alive && setProblem(e instanceof TokenError ? t('Mapillary refuse le jeton enregistré : {error}', { error: e.message }) : t('Impossible de joindre Mapillary. Vérifie ta connexion.')),
+      )
     return () => {
       alive = false
     }
@@ -215,44 +219,49 @@ function MapillaryGame({ picker }: { picker: ReactNode }) {
   if (!token || problem)
     return (
       <Shell picker={picker}>
-        <h2>Mapillary a besoin d’un jeton gratuit</h2>
+        <h2>{t('Mapillary a besoin d’un jeton gratuit')}</h2>
         <p className="muted">
-          Mapillary rassemble plus de deux milliards de photos de rue partagées par ses contributeurs, dont beaucoup en 360°, dans presque tous les pays. Son API est
-          gratuite : il suffit d’un jeton client, sans carte bancaire.
+          {t('Mapillary rassemble plus de deux milliards de photos de rue partagées par ses contributeurs, dont beaucoup en 360°, dans presque tous les pays. Son API est gratuite : il suffit d’un jeton client, sans carte bancaire.')}
         </p>
         {problem && <p className="gg-problem">{problem}</p>}
         <ol className="gg-steps">
-          <li>Crée un compte sur {link('https://www.mapillary.com/signup', 'mapillary.com')}.</li>
+          <li>{tx('Crée un compte sur {site}.', { site: link('https://www.mapillary.com/signup', 'mapillary.com') })}</li>
           <li>
-            Dans l’espace {link('https://www.mapillary.com/dashboard/developers', 'développeurs')}, enregistre une application (« Register application ») : un nom,
-            le site <code>http://localhost:5190</code> et l’accès en lecture (« Read »).
+            {tx('Dans l’espace {dev}, enregistre une application (« Register application ») : un nom, le site {site} et l’accès en lecture (« Read »).', {
+              dev: link('https://www.mapillary.com/dashboard/developers', t('développeurs')),
+              site: <code>http://localhost:5190</code>,
+            })}
           </li>
           <li>
-            Copie son <b>Client Token</b> (il commence par <code>MLY|</code>) et colle-le ci-dessous : il reste dans ce navigateur. Tu peux aussi l’écrire dans{' '}
-            <code>.env.local</code> : <code>VITE_MAPILLARY_TOKEN=…</code>
+            {tx('Copie son {token} (il commence par {prefix}) et colle-le ci-dessous : il reste dans ce navigateur. Tu peux aussi l’écrire dans {file} : {line}', {
+              token: <b>Client Token</b>,
+              prefix: <code>MLY|</code>,
+              file: <code>.env.local</code>,
+              line: <code>VITE_MAPILLARY_TOKEN=…</code>,
+            })}
           </li>
         </ol>
         <SetupForm
-          placeholder="Ton jeton client Mapillary (MLY|…)"
+          placeholder={t('Ton jeton client Mapillary (MLY|…)')}
           check={checkToken}
-          refusal={(e) => (e instanceof TokenError ? `Mapillary refuse ce jeton : ${e.message}` : 'Impossible de joindre Mapillary. Vérifie ta connexion.')}
-          onSaved={(t) => {
-            saveToken(t)
-            setToken(t)
+          refusal={(e) => (e instanceof TokenError ? t('Mapillary refuse ce jeton : {error}', { error: e.message }) : t('Impossible de joindre Mapillary. Vérifie ta connexion.'))}
+          onSaved={(value) => {
+            saveToken(value)
+            setToken(value)
             setReady(true)
             setProblem('')
           }}
         />
       </Shell>
     )
-  if (!ready) return <Waiting picker={picker} text="Connexion à Mapillary…" />
+  if (!ready) return <Waiting picker={picker} text={t('Connexion à Mapillary…')} />
   return (
     <GuessGame
       source={source}
       menuTop={picker}
       settings={
         <ResetSetting
-          label="Jeton Mapillary"
+          label={t('Jeton Mapillary')}
           fromEnv={tokenFromEnv}
           value={token}
           onReset={() => {
@@ -310,7 +319,7 @@ function StreetViewPane({ spot, Panorama }: { spot: Pano; Panorama: Panorama }) 
           pano.current?.setPov({ heading: spot.heading, pitch: 0 })
         }}
       >
-        ⟲ Retour au départ
+        ⟲ {t('Retour au départ')}
       </button>
     </div>
   )
@@ -322,24 +331,24 @@ function streetView(key: string, Panorama: Panorama): GuessSource<Pano> {
     title: 'GeoGuessr',
     question: QUESTION,
     intro: INTRO,
-    note: 'Imagerie Google Street View chargée avec ta clé ; fond de carte OpenStreetMap.',
+    note: msg('Imagerie Google Street View chargée avec ta clé ; fond de carte OpenStreetMap.'),
     find: (mode, seen, signal) => findPano(world, key, mode, Math.random, seen, signal),
     View: ({ spot }) => <StreetViewPane spot={spot} Panorama={Panorama} />,
     Details: ({ spot }) => (
       <p className="wg-credit muted">
         Google Street View{spot.date ? ` · ${monthYear(spot.date)}` : ''} ·{' '}
-        {link(`https://www.google.com/maps/@?api=1&map_action=pano&pano=${spot.id}`, 'Ouvrir dans Google Maps')}
+        {link(`https://www.google.com/maps/@?api=1&map_action=pano&pano=${spot.id}`, t('Ouvrir dans Google Maps'))}
       </p>
     ),
     Thumb: FlagThumb,
     explain: (e) =>
       e instanceof KeyError
-        ? `Google refuse la clé : ${e.message}`
+        ? t('Google refuse la clé : {error}', { error: e.message })
         : offline(e)
-          ? 'Impossible de joindre Google. Vérifie ta connexion.'
+          ? t('Impossible de joindre Google. Vérifie ta connexion.')
           : e instanceof Error
             ? e.message
-            : 'Aucun panorama trouvé cette fois.',
+            : t('Aucun panorama trouvé cette fois.'),
   }
 }
 
@@ -355,9 +364,9 @@ function GoogleGame({ picker }: { picker: ReactNode }) {
     checkKey(key)
       .then(() => loadStreetView(key))
       .then((C) => alive && setPanorama(() => C))
-      .catch((e: Error) => alive && setProblem(e instanceof KeyError ? `Google refuse la clé enregistrée : ${e.message}` : e.message))
+      .catch((e: Error) => alive && setProblem(e instanceof KeyError ? t('Google refuse la clé enregistrée : {error}', { error: e.message }) : e.message))
     const off = onAuthFailure(() =>
-      setProblem('Google refuse la clé pour l’API Maps JavaScript : vérifie qu’elle est activée et que http://localhost:5190 fait partie des sites autorisés.'),
+      setProblem(t('Google refuse la clé pour l’API Maps JavaScript : vérifie qu’elle est activée et que http://localhost:5190 fait partie des sites autorisés.')),
     )
     return () => {
       alive = false
@@ -370,35 +379,42 @@ function GoogleGame({ picker }: { picker: ReactNode }) {
   if (!key || problem)
     return (
       <Shell picker={picker}>
-        <h2>Street View a besoin de ta clé Google</h2>
+        <h2>{t('Street View a besoin de ta clé Google')}</h2>
         <p className="muted">
-          Les vues Street View ne sont accessibles qu’avec une clé Google Maps Platform à ton nom. Google offre 5 000 panoramas par mois, soit environ 1 000 parties ; il
-          demande un compte de facturation, mais rien n’est facturé sous ce seuil.
+          {t('Les vues Street View ne sont accessibles qu’avec une clé Google Maps Platform à ton nom. Google offre 5 000 panoramas par mois, soit environ 1 000 parties ; il demande un compte de facturation, mais rien n’est facturé sous ce seuil.')}
         </p>
         {problem && <p className="gg-problem">{problem}</p>}
         <ol className="gg-steps">
-          <li>Crée un projet dans la {link('https://console.cloud.google.com/projectcreate', 'console Google Cloud')}.</li>
+          <li>{tx('Crée un projet dans la {console}.', { console: link('https://console.cloud.google.com/projectcreate', t('console Google Cloud')) })}</li>
           <li>
-            Active {link('https://console.cloud.google.com/apis/library/maps-backend.googleapis.com', 'Maps JavaScript API')} (le panorama) et{' '}
-            {link('https://console.cloud.google.com/apis/library/street-view-image-backend.googleapis.com', 'Street View Static API')} (la recherche des lieux, gratuite).
+            {tx('Active {maps} (le panorama) et {static} (la recherche des lieux, gratuite).', {
+              maps: link('https://console.cloud.google.com/apis/library/maps-backend.googleapis.com', 'Maps JavaScript API'),
+              static: link('https://console.cloud.google.com/apis/library/street-view-image-backend.googleapis.com', 'Street View Static API'),
+            })}
           </li>
           <li>
-            Dans {link('https://console.cloud.google.com/apis/credentials', 'Identifiants')}, crée une clé API et restreins-la aux sites <code>http://localhost:5190/*</code>{' '}
-            (ajoute ton domaine plus tard) et à ces deux API.
+            {tx('Dans {credentials}, crée une clé API et restreins-la aux sites {site} (ajoute ton domaine plus tard) et à ces deux API.', {
+              credentials: link('https://console.cloud.google.com/apis/credentials', t('Identifiants')),
+              site: <code>http://localhost:5190/*</code>,
+            })}
           </li>
           <li>
-            Pour ne jamais payer, plafonne l’usage quotidien dans les {link('https://console.cloud.google.com/apis/api/maps-backend.googleapis.com/quotas', 'quotas')} et
-            pose une {link('https://console.cloud.google.com/billing/budgets', 'alerte de budget')}.
+            {tx('Pour ne jamais payer, plafonne l’usage quotidien dans les {quotas} et pose une {budget}.', {
+              quotas: link('https://console.cloud.google.com/apis/api/maps-backend.googleapis.com/quotas', t('quotas')),
+              budget: link('https://console.cloud.google.com/billing/budgets', t('alerte de budget')),
+            })}
           </li>
           <li>
-            Colle la clé ci-dessous : elle reste dans ce navigateur. Tu peux aussi l’écrire dans <code>.env.local</code> à la racine du projet :{' '}
-            <code>VITE_GOOGLE_MAPS_KEY=…</code>
+            {tx('Colle la clé ci-dessous : elle reste dans ce navigateur. Tu peux aussi l’écrire dans {file} à la racine du projet : {line}', {
+              file: <code>.env.local</code>,
+              line: <code>VITE_GOOGLE_MAPS_KEY=…</code>,
+            })}
           </li>
         </ol>
         <SetupForm
-          placeholder="Ta clé API Google (AIza…)"
+          placeholder={t('Ta clé API Google (AIza…)')}
           check={checkKey}
-          refusal={(e) => (e instanceof KeyError ? `Google refuse cette clé : ${e.message}` : 'Impossible de joindre Google. Vérifie ta connexion.')}
+          refusal={(e) => (e instanceof KeyError ? t('Google refuse cette clé : {error}', { error: e.message }) : t('Impossible de joindre Google. Vérifie ta connexion.'))}
           onSaved={(k) => {
             saveKey(k)
             // l'API Google ne se recharge pas avec une autre clé dans la même page
@@ -409,14 +425,14 @@ function GoogleGame({ picker }: { picker: ReactNode }) {
         />
       </Shell>
     )
-  if (!source) return <Waiting picker={picker} text="Chargement de Street View…" />
+  if (!source) return <Waiting picker={picker} text={t('Chargement de Street View…')} />
   return (
     <GuessGame
       source={source}
       menuTop={picker}
       settings={
         <ResetSetting
-          label="Clé Google Maps"
+          label={t('Clé Google Maps')}
           fromEnv={keyFromEnv}
           value={key}
           onReset={() => {
