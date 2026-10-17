@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { playStats } from '../lib/stats'
+import { evaluate, levelOf } from '../lib/achievements'
+import { plays, summarize } from '../lib/stats'
 import { normalize } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import GameIcon from '../ui/GameIcon'
@@ -12,7 +13,9 @@ export default function Hub() {
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  const { total, streak } = playStats()
+  const history = plays()
+  const { total, streak } = summarize(history)
+  const level = levelOf(history, evaluate(history))
   const name = loadProfile().name
 
   useEffect(() => {
@@ -58,6 +61,11 @@ export default function Hub() {
       <main className="home-main">
         <section className="home-intro">
           <h1>{name ? `Bonjour ${name}.` : 'Bonjour.'}</h1>
+          <a href="#/succes" className="home-level" aria-label={`Niveau ${level.level}, ${level.title} : voir mes succès`}>
+            <b>{level.level}</b>
+            <span>{level.title}</span>
+            <i style={{ width: `${(level.into / level.need) * 100}%` }} />
+          </a>
           <p>
             {doneToday}/{dailies.length} jeux du jour · série de {streak} jour{streak > 1 ? 's' : ''} · {total} partie{total > 1 ? 's' : ''} ·{' '}
             <a href="#/stats" className="home-stats-link">
