@@ -35,13 +35,14 @@ const best = (pred: (p: Play) => boolean, of: (p: Play) => number) => (c: Contex
 const travle = (p: Play) => p.g.startsWith('itineraire')
 const hourOf = (p: Play) => new Date(p.t).getHours()
 
-// Les jeux du jour, tels qu'ils s'inscrivent dans l'historique.
+// Les jeux du jour, tels qu'ils s'inscrivent dans l'historique ; entraînements, rejeux et archives n'en sont pas.
 const DAILY_IDS = ALL_GAMES.filter((g) => g.rhythm === 'quotidien' && g.dailyId).map((g) => g.dailyId!)
+const NOT_TODAY = new Set(['entrainement', 'libre', 'archive'])
 
 function bestDailyDay(c: Context): number {
   const days = new Map<string, Set<string>>()
   for (const p of c.plays) {
-    if (!DAILY_IDS.includes(p.g) || p.sub === 'entrainement') continue
+    if (!DAILY_IDS.includes(p.g) || NOT_TODAY.has(p.sub ?? '')) continue
     const day = todayKey(new Date(p.t))
     days.set(day, (days.get(day) ?? new Set()).add(p.g))
   }
