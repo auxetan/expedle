@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { evaluate, levelOf, loadSeen, saveSeen, TIER_XP, type Tier } from '../lib/achievements'
+import { HISTORY_CHANGED } from '../lib/cloud'
 import { plays, PLAYED } from '../lib/stats'
 
 interface Toast {
@@ -49,9 +50,11 @@ export default function Celebrations() {
     }
     check()
     window.addEventListener(PLAYED, onPlay)
+    window.addEventListener(HISTORY_CHANGED, onPlay)
     return () => {
       clearTimeout(timer)
       window.removeEventListener(PLAYED, onPlay)
+      window.removeEventListener(HISTORY_CHANGED, onPlay)
     }
   }, [])
 
