@@ -1,16 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import { msg, t } from '../../lib/i18n'
 
 const SUBNAV: [string, string][] = [
-  ['#/estimation', 'Tous les jeux'],
+  ['#/estimation', msg('Tous les jeux')],
   ['#/echelle', 'Size It Up'],
   ['#/echelle/pop', 'Pop Culture'],
-  ['#/echelle/geo', 'Géographie'],
+  ['#/echelle/geo', msg('Géographie')],
   ['#/echelle/1000', 'Weekly 1K'],
   ['#/balance', 'Weigh It Up'],
   ['#/question', 'Daily Question'],
   ['#/survie', 'Survival Mode'],
-  ['#/estimation/archive', 'Archive'],
+  ['#/estimation/archive', msg('Archive')],
 ]
 
 export function MgNav() {
@@ -19,7 +20,7 @@ export function MgNav() {
     <>
       {SUBNAV.map(([href, label]) => (
         <SubLink key={href} href={href} active={current === href}>
-          {label}
+          {t(label)}
         </SubLink>
       ))}
     </>
@@ -37,7 +38,7 @@ export default function MgShell({ title, help, children }: { title: string; help
       <header className="mg-head">
         <h1>
           {title}
-          <button className="mg-help-btn" onClick={() => setHelpOpen(true)} aria-label="Aide">
+          <button className="mg-help-btn" onClick={() => setHelpOpen(true)} aria-label={t('Aide')}>
             ?
           </button>
         </h1>
@@ -45,13 +46,13 @@ export default function MgShell({ title, help, children }: { title: string; help
       <main className="mg-main">{children}</main>
       <footer className="mg-foot">
         <span className="mg-kicker">MAGNITUDLE · MÉRIDIEN</span>
-        <a href="#/estimation">Tous les jeux Magnitudle →</a>
+        <a href="#/estimation">{t('Tous les jeux Magnitudle →')}</a>
       </footer>
       </div>
       {helpOpen && (
         <div className="mg-modal-bg" onClick={() => setHelpOpen(false)}>
           <div className="mg-modal mg-help" onClick={(e) => e.stopPropagation()}>
-            <button className="mg-close" onClick={() => setHelpOpen(false)} aria-label="Fermer">
+            <button className="mg-close" onClick={() => setHelpOpen(false)} aria-label={t('Fermer')}>
               ✕
             </button>
             {help}
