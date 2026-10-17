@@ -1,6 +1,7 @@
 import type { Atlas, AtlasId } from '../../geo/atlas'
 import { distancesFrom, filterGraph, guessLimit, type Graph } from '../../geo/graph'
 import { normalize, pick } from '../../lib/util'
+import { getLang, locale } from '../../lib/i18n'
 
 export type Extra = 'defaut' | 'aucun' | 'illimite'
 
@@ -72,14 +73,16 @@ export interface Suggestion {
   keys: string[]
 }
 
-const suggestionCache = new Map<AtlasId, Suggestion[]>()
+// une liste par atlas et par langue : les noms affichés suivent la langue du site
+const suggestionCache = new Map<string, Suggestion[]>()
 export function allSuggestions(atlas: Atlas): Suggestion[] {
-  const cached = suggestionCache.get(atlas.id)
+  const cacheKey = `${atlas.id}:${getLang()}`
+  const cached = suggestionCache.get(cacheKey)
   if (cached) return cached
   const list = atlas.codes
     .map((code) => ({ code, label: atlas.name(code), keys: [atlas.name(code), ...atlas.aliases(code)].map(normalize) }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
-  suggestionCache.set(atlas.id, list)
+    .sort((a, b) => a.label.localeCompare(b.label, locale()))
+  suggestionCache.set(cacheKey, list)
   return list
 }
 
@@ -95,7 +98,7 @@ export function matchSuggestions(atlas: Atlas, query: string): { s: Suggestion; 
     else if (at > 0) out.push({ s, at, group: 2 })
     else if (s.keys.slice(1).some((k) => k.includes(q))) out.push({ s, at: -1, group: 3 })
   }
-  out.sort((a, b) => a.group - b.group || a.s.label.localeCompare(b.s.label, 'fr'))
+  out.sort((a, b) => a.group - b.group || a.s.label.localeCompare(b.s.label, locale()))
   return out.map(({ s, at }) => ({ s, at }))
 }
 
