@@ -2,14 +2,13 @@ import { geoBounds } from 'd3-geo'
 import { COUNTRY_BY_CODE, type Continent } from '../../geo/countries'
 import { countryCenter } from '../../geo/measure'
 import { CROSSINGS, type World } from '../../geo/world'
-import { normalize, seededRng, shuffle } from '../../lib/util'
+import { seededRng, shuffle } from '../../lib/util'
 import { COUNTRY_STATS, type CountryStats } from '../classement/data'
 
 export const MAX_GUESSES = 9
 
 export interface Facts {
   code: string
-  name: string
   continent: Continent
   stats: CountryStats | null
   neighbors: Set<string>
@@ -32,7 +31,6 @@ const EU = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL 
 
 const stat = (key: keyof Omit<CountryStats, 'code'>, ok: (v: number) => boolean) => (f: Facts) => !!f.stats && f.stats[key] > 0 && ok(f.stats[key])
 const borders = (code: string) => (f: Facts) => f.neighbors.has(code)
-const initial = (f: Facts) => normalize(f.name)[0]?.toUpperCase()
 
 // Lignes : où se trouve le pays. Colonnes : ce qu'il est.
 export const ROWS: Criterion[] = [
@@ -63,8 +61,12 @@ export const COLUMNS: Criterion[] = [
   { id: 'tourists', label: 'Plus de 20 M de touristes par an', test: stat('tourists', (v) => v > 20) },
   { id: 'fr', label: 'Le français y est langue officielle', test: (f) => FRANCOPHONE.has(f.code) },
   { id: 'ue', label: 'Membre de l’Union européenne', test: (f) => EU.has(f.code) },
-  { id: 'ie', label: 'Nom en « -ie »', test: (f) => normalize(f.name).endsWith('ie') },
-  ...['B', 'C', 'M', 'S'].map((l) => ({ id: `lettre-${l}`, label: `Nom qui commence par ${l}`, test: (f: Facts) => initial(f) === l })),
+  // aucun critère sur le nom : la grille du jour doit rester la même dans toutes les langues
+  { id: 'pop-100', label: 'Plus de 100 M d’habitants', test: stat('pop', (v) => v > 100) },
+  { id: 'life-70', label: 'Espérance de vie de moins de 70 ans', test: stat('life', (v) => v < 70) },
+  { id: 'forest-10', label: 'Moins de 10 % de forêts', test: stat('forest', (v) => v < 10) },
+  { id: 'flat', label: 'Aucun sommet au-dessus de 1 000 m', test: stat('peak', (v) => v < 1000) },
+  { id: 'tourists-1', label: 'Moins d’1 M de touristes par an', test: stat('tourists', (v) => v < 1) },
 ]
 
 const cache = new WeakMap<World, Facts[]>()
@@ -89,7 +91,6 @@ export function countryFacts(world: World): Facts[] {
       const land = [...(world.neighbors.get(code) ?? [])].filter((n) => !CROSSINGS.has(`${code}-${n}`))
       return {
         code,
-        name: meta.name,
         continent: meta.continent,
         stats: stats.get(code) ?? null,
         neighbors: new Set(land),
