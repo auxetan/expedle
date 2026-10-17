@@ -3,7 +3,7 @@ import { select } from 'd3-selection'
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom'
 import type { MultiPoint } from 'geojson'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { COUNTRY_BY_CODE, countryName, flagEmoji } from '../../geo/countries'
+import { COUNTRY_BY_CODE, countryName, flagEmoji, foreignNames } from '../../geo/countries'
 import { getWorld } from '../../geo/world'
 import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
@@ -292,7 +292,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   function onType() {
     if (!started || finished) return
     const meta = COUNTRY_BY_CODE.get(current)!
-    const ok = [meta.name, ...meta.aliases].some((n) => normalize(n) === normalize(typed))
+    const ok = [meta.name, ...meta.aliases, ...foreignNames(current)].some((n) => normalize(n) === normalize(typed))
     if (ok) {
       const tries = targets.get(current)!.tries
       setClicks((c) => c + 1)
