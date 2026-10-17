@@ -1,4 +1,5 @@
 import { ALL_GAMES } from './games'
+import { fmt, plural, t } from '../lib/i18n'
 
 // Nom, lien et unité de score de chaque jeu tel qu'il s'inscrit dans l'historique.
 export interface GameInfo {
@@ -10,11 +11,11 @@ export interface GameInfo {
   untimed?: boolean
 }
 
-const pts = (s: number) => `${s.toLocaleString('fr-FR')} pts`
-const essais = (s: number) => `${s} essai${s > 1 ? 's' : ''}`
-const rang = (s: number) => `total ${s}`
+const pts = (s: number) => t('{n} pts', { n: fmt(s) })
+const essais = (s: number) => plural(s, '{n} essai', '{n} essais')
+const rang = (s: number) => t('total {n}', { n: s })
 
-const GAMES: Record<string, GameInfo> = {
+export const GAMES: Record<string, GameInfo> = {
   itineraire: { title: 'Travle', href: '#/itineraire', unit: essais, lower: true },
   'itineraire-hebdo': { title: 'Travle : défi hebdo', href: '#/itineraire/hebdo', unit: essais, lower: true },
   'itineraire-usa': { title: 'Travle USA', href: '#/itineraire/usa', unit: essais, lower: true },
@@ -33,7 +34,7 @@ const GAMES: Record<string, GameInfo> = {
   'echelle-1000': { title: 'The Weekly 1K', href: '#/echelle/1000', unit: pts },
   balance: { title: 'Weigh It Up', href: '#/balance', unit: pts },
   question: { title: 'Daily Question', href: '#/question', unit: (s) => `${s} / 100`, untimed: true },
-  survie: { title: 'Survival Mode', href: '#/survie', unit: (s) => `${s} question${s > 1 ? 's' : ''}`, untimed: true },
+  survie: { title: 'Survival Mode', href: '#/survie', unit: (s) => plural(s, '{n} question', '{n} questions'), untimed: true },
   'quiz-jour': { title: 'Quiz du jour', href: '#/quiz/jour', unit: pts },
   'quiz-culture': { title: 'Quiz culture G', href: '#/quiz', unit: pts },
   'quiz-drapeaux': { title: 'Drapeaux', href: '#/quiz/drapeaux', unit: pts },
@@ -48,6 +49,7 @@ const GAMES: Record<string, GameInfo> = {
   geoguessr: { title: 'GeoGuessr', href: '#/geoguessr', unit: pts },
 }
 
+// le titre est traduit à l'affichage : t(gameInfo(g).title)
 export const gameInfo = (g: string): GameInfo => GAMES[g] ?? { title: g, href: '#/', unit: pts }
 export function gameIcon(g: string): string | null {
   const href = gameInfo(g).href
