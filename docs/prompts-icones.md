@@ -142,6 +142,26 @@ Icône de Worldle, où l'on reconnaît un pays à sa silhouette. La silhouette p
 Icône de Globle, où l'on cherche un pays mystère sur un globe qui « chauffe ». Un globe terrestre vu de l'espace, océans taupe et continents crème ; un pays au centre est noir (le plus chaud) et ses voisins sont d'un beige plus soutenu, comme une tache de chaleur.
 ```
 
+### `countryle.png` : Countryle
+
+```
+Icône de Countryle, où l'on devine un pays grâce à des indices (continent, population, superficie). Un globe taupe quadrillé de méridiens crème, examiné par une grosse loupe noire posée en bas à droite ; dans la lentille crème, deux petites flèches empilées, une vers le haut noire et une vers le bas taupe.
+```
+
+### `flagle.png` : Flagle
+
+```
+Icône de Flagle, où un drapeau se dévoile tuile par tuile. Un drapeau rectangulaire découpé en six tuiles (trois colonnes, deux rangées) accroché à une hampe noire : trois tuiles déjà retournées montrent des bandes taupe et noires, les trois autres sont encore des caches crème.
+```
+
+### `geogrid.png` : GeoGrid
+
+```
+Icône de GeoGrid, une grille de trois cases sur trois où chaque case attend un pays qui remplit deux critères. Neuf carrés aux angles arrondis bien espacés : cinq taupe (déjà remplis), trois crème (encore vides) et la case du milieu en haut noire, marquée d'une petite cible crème.
+```
+
+(Des versions provisoires dessinées dans le même style sont déjà en place pour ces trois jeux ; remplace `public/icons/countryle-*.webp`, `flagle-*.webp` et `geogrid-*.webp` si tu en génères.)
+
 ### `photoguessr.png` : PhotoGuessr
 
 ```
