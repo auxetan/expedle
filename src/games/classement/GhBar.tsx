@@ -1,14 +1,15 @@
 import AppBar, { SubLink } from '../../ui/AppBar'
+import { msg, t } from '../../lib/i18n'
 
 const SUBNAV: [string, string][] = [
-  ['#/classement', 'Accueil'],
-  ['#/classement/classique', 'Classique'],
-  ['#/classement/facile', 'Facile'],
-  ['#/classement/monde', 'Monde'],
-  ['#/classement/special', 'Spécial'],
-  ['#/classement/villes', 'Villes'],
-  ['#/classement/jour', 'Défi du jour'],
-  ['#/classement/hebdo', 'Hebdo'],
+  ['#/classement', msg('Accueil')],
+  ['#/classement/classique', msg('Classique')],
+  ['#/classement/facile', msg('Facile')],
+  ['#/classement/monde', msg('Monde')],
+  ['#/classement/special', msg('Spécial')],
+  ['#/classement/villes', msg('Villes')],
+  ['#/classement/jour', msg('Défi du jour')],
+  ['#/classement/hebdo', msg('Hebdo')],
 ]
 
 export default function GhBar() {
@@ -17,7 +18,7 @@ export default function GhBar() {
     <AppBar title="GeoHunter">
       {SUBNAV.map(([href, label]) => (
         <SubLink key={href} href={href} active={current === href}>
-          {label}
+          {t(label)}
         </SubLink>
       ))}
     </AppBar>
