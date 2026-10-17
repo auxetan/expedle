@@ -1,3 +1,4 @@
+import { getLang, locale } from '../lib/i18n'
 import { normalize } from '../lib/util'
 
 export type Continent = 'EU' | 'AF' | 'AS' | 'NA' | 'SA' | 'OC' | 'AN'
@@ -335,8 +336,15 @@ export function foreignNames(code: string): string[] {
   return foreign.get(code) ?? []
 }
 
+const displays = new Map<string, Intl.DisplayNames>()
+
+// Le nom affiché suit la langue du site ; le français vient de la liste ci-dessus, les autres du navigateur.
 export function countryName(code: string): string {
-  return COUNTRY_BY_CODE.get(code)?.name ?? code
+  const french = COUNTRY_BY_CODE.get(code)?.name ?? code
+  if (getLang() === 'fr') return french
+  let names = displays.get(locale())
+  if (!names) displays.set(locale(), (names = new Intl.DisplayNames([locale()], { type: 'region', fallback: 'none' })))
+  return names.of(code)?.replace(' - ', '-') ?? french
 }
 
 export function flagEmoji(code: string): string {
