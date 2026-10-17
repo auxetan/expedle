@@ -183,7 +183,7 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
           save(`mg-seen:${variant}`, seen.slice(-Math.floor(things.length * 0.7)))
         }
         const total = scores.reduce((a, b) => a + b, 0)
-        recordPlay(dailyId, { pts: total / scores.length, s: total, ms })
+        recordPlay(dailyId, { pts: total / scores.length, s: total, ms, sub: !daily ? 'libre' : date && date !== todayKey() ? 'archive' : undefined })
         recordTotal(dailyId, total)
         if (daily) saveDailyResult(dailyId, { scores }, dayKey)
       }}
