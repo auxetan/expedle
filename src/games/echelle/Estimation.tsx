@@ -93,7 +93,7 @@ function Daily({ date: day }: { date: string }) {
     if (!valid) return
     setGuess(parsed)
     const score = dailyScore(parsed, question.a)
-    recordPlay('question', { pts: score, s: score, ms: elapsed(), sub: practice ? 'entrainement' : undefined })
+    recordPlay('question', { pts: score, s: score, ms: elapsed(), sub: practice ? 'entrainement' : day !== todayKey() ? 'archive' : undefined })
     if (!practice) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
   }
 
