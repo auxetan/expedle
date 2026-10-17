@@ -76,7 +76,7 @@ export default function Worldle({ mode }: { mode?: string }) {
     const win = code === target
     if (!win && n < MAX_GUESSES) return
     if (!practice && !dailyResult('worldle', day)) saveDailyResult('worldle', { won: win, guesses: n }, day)
-    recordPlay('worldle', { pts: win ? Math.round((100 * (MAX_GUESSES + 1 - n)) / MAX_GUESSES) : 0, s: n, win, ms: elapsed() })
+    recordPlay('worldle', { pts: win ? Math.round((100 * (MAX_GUESSES + 1 - n)) / MAX_GUESSES) : 0, s: n, win, ms: elapsed(), sub: practice ? 'libre' : undefined })
   }
 
   function another() {
