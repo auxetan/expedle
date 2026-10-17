@@ -9,6 +9,8 @@ interface Props {
   used: Set<string>
   placeholder?: string
   button?: string
+  // prend le focus dès son apparition (GeoGrid l'affiche quand on choisit une case)
+  autoFocus?: boolean
 }
 
 function Highlight({ label, at, len }: { label: string; at: number; len: number }) {
@@ -23,7 +25,7 @@ function Highlight({ label, at, len }: { label: string; at: number; len: number 
 }
 
 // Saisie d'un pays avec la liste complète des correspondances, au clavier comme à la souris.
-export default function CountryInput({ atlas, onPick, used, placeholder = 'Entre un pays…', button = 'Deviner' }: Props) {
+export default function CountryInput({ atlas, onPick, used, placeholder = 'Entre un pays…', button = 'Deviner', autoFocus = false }: Props) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -82,6 +84,7 @@ export default function CountryInput({ atlas, onPick, used, placeholder = 'Entre
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={onKey}
+          autoFocus={autoFocus}
           autoComplete="off"
           spellCheck={false}
         />
