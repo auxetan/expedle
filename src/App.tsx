@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
+import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
 import { useRoute } from './lib/router'
 
@@ -14,6 +15,7 @@ const Cartographe = lazy(() => import('./games/cartographe/Cartographe'))
 const Quiz = lazy(() => import('./games/quiz/Quiz'))
 const Stats = lazy(() => import('./hub/Stats'))
 const Achievements = lazy(() => import('./hub/Achievements'))
+const Leaderboards = lazy(() => import('./hub/Leaderboards'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
@@ -61,6 +63,9 @@ export default function App() {
     case 'succes':
       content = <Achievements />
       break
+    case 'classements':
+      content = <Leaderboards key={key} tab={sub} />
+      break
     case 'jetpunk':
       content = <JetPunk key={key} segments={route.segments} params={route.params} />
       break
@@ -88,6 +93,7 @@ export default function App() {
         </div>
       </Suspense>
       <Celebrations />
+      <CloudSync />
     </>
   )
 }
