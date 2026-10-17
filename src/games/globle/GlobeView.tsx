@@ -4,6 +4,7 @@ import { countryCenter, simplifiedFeatures } from '../../geo/measure'
 import { getWorld } from '../../geo/world'
 import { cssColor, useTheme } from '../../ui/theme'
 import './globe.css'
+import { t } from '../../lib/i18n'
 
 interface Props {
   // couleur de remplissage par pays ; les autres restent couleur terre
@@ -220,7 +221,7 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
 
   return (
     <div className="globe" ref={wrap}>
-      <canvas ref={canvas} style={{ width: size, height: size }} aria-label="Globe : fais-le tourner pour explorer" />
+      <canvas ref={canvas} style={{ width: size, height: size }} aria-label={t('Globe : fais-le tourner pour explorer')} />
     </div>
   )
 }
