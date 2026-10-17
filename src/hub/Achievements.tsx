@@ -4,10 +4,10 @@ import { plays } from '../lib/stats'
 import AppBar from '../ui/AppBar'
 import CountUp from '../ui/CountUp'
 import './achievements.css'
+import { fmt, msg, t } from '../lib/i18n'
 
 const GROUPS = [...new Set(ACHIEVEMENTS.map((a) => a.group))]
-const TIER_LABEL = { bronze: 'Bronze', argent: 'Argent', or: 'Or' }
-const fmt = (n: number) => n.toLocaleString('fr-FR')
+const TIER_LABEL = { bronze: msg('Bronze'), argent: msg('Argent'), or: msg('Or') }
 
 export default function Achievements() {
   const { progress, level } = useMemo(() => {
@@ -19,23 +19,29 @@ export default function Achievements() {
 
   return (
     <div className="home">
-      <AppBar title="Succès" />
+      <AppBar title={t('Succès')} />
       <main className="home-main ach-main">
         <section className="ach-hero">
           <div className="ach-level" style={{ '--p': level.into / level.need } as React.CSSProperties}>
             <b>{level.level}</b>
-            <span>niveau</span>
+            <span>{t('niveau')}</span>
           </div>
           <div className="ach-hero-text">
-            <h1>{level.title}</h1>
+            <h1>{t(level.title)}</h1>
             <div className="ach-xp">
               <i style={{ width: `${(level.into / level.need) * 100}%` }} />
             </div>
             <p className="muted">
-              <CountUp value={level.into} format={fmt} /> / {fmt(level.need)} XP vers le niveau {level.level + 1} · {fmt(level.xp)} XP en tout
+              <CountUp value={level.into} format={(v) => fmt(v)} /> / {t('{need} XP vers le niveau {next} · {xp} XP en tout', { need: fmt(level.need), next: level.level + 1, xp: fmt(level.xp) })}
             </p>
             <p className="muted">
-              {unlocked} succès sur {progress.length} · chaque partie rapporte ses points, chaque succès un bonus ({TIER_XP.bronze}, {TIER_XP.argent} ou {fmt(TIER_XP.or)} XP)
+              {t('{done} succès sur {total} · chaque partie rapporte ses points, chaque succès un bonus ({bronze}, {argent} ou {or} XP)', {
+                done: unlocked,
+                total: progress.length,
+                bronze: TIER_XP.bronze,
+                argent: TIER_XP.argent,
+                or: fmt(TIER_XP.or),
+              })}
             </p>
           </div>
         </section>
@@ -45,18 +51,18 @@ export default function Achievements() {
           return (
             <section key={group} className="ach-group">
               <h2>
-                {group} <small>{items.filter((a) => a.unlocked).length} / {items.length}</small>
+                {t(group)} <small>{items.filter((a) => a.unlocked).length} / {items.length}</small>
               </h2>
               <div className="ach-grid stagger">
                 {items.map((a) => (
                   <article key={a.id} className={`ach-card ${a.tier} ${a.unlocked ? 'unlocked' : 'locked'}`}>
                     <span className="ach-badge">{a.glyph}</span>
                     <div>
-                      <b>{a.title}</b>
-                      <p>{a.desc}</p>
+                      <b>{t(a.title)}</b>
+                      <p>{t(a.desc)}</p>
                       {a.unlocked ? (
                         <span className="ach-tier">
-                          {TIER_LABEL[a.tier]} · +{fmt(TIER_XP[a.tier])} XP
+                          {t(TIER_LABEL[a.tier])} · +{fmt(TIER_XP[a.tier])} XP
                         </span>
                       ) : (
                         a.goal > 1 && (
