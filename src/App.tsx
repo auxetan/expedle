@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
+import Celebrations from './ui/Celebrations'
 import { useRoute } from './lib/router'
 
 const Itineraire = lazy(() => import('./games/itineraire/Itineraire'))
@@ -12,6 +13,7 @@ const Classement = lazy(() => import('./games/classement/Classement'))
 const Cartographe = lazy(() => import('./games/cartographe/Cartographe'))
 const Quiz = lazy(() => import('./games/quiz/Quiz'))
 const Stats = lazy(() => import('./hub/Stats'))
+const Achievements = lazy(() => import('./hub/Achievements'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
@@ -56,6 +58,9 @@ export default function App() {
     case 'stats':
       content = <Stats />
       break
+    case 'succes':
+      content = <Achievements />
+      break
     case 'jetpunk':
       content = <JetPunk key={key} segments={route.segments} params={route.params} />
       break
@@ -76,10 +81,13 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={<div className="page-loading">Chargement…</div>}>
-      <div className="page" key={`${page ?? ''}/${sub ?? ''}`}>
-        {content}
-      </div>
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="page-loading">Chargement…</div>}>
+        <div className="page" key={`${page ?? ''}/${sub ?? ''}`}>
+          {content}
+        </div>
+      </Suspense>
+      <Celebrations />
+    </>
   )
 }
