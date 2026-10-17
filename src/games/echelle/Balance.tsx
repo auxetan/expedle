@@ -8,6 +8,7 @@ import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import { emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
+import { t, tx } from '../../lib/i18n'
 
 const ROUNDS = 3
 
@@ -118,27 +119,23 @@ export default function Balance({ date }: { date?: string | null }) {
     <MgShell
       title="Weigh It Up"
       help={
-        <MgHelp title="Comment jouer à Weigh It Up" intro="Équilibre la référence avec le bon nombre d’objets identiques.">
-          <HelpStep n="01" title="Observer">
-            À gauche, une référence (×1). À droite, l’objet à empiler.
+        <MgHelp title={t('Comment jouer à {game}', { game: 'Weigh It Up' })} intro={t('Équilibre la référence avec le bon nombre d’objets identiques.')}>
+          <HelpStep n="01" title={t('Observer')}>
+            {t('À gauche, une référence (×1). À droite, l’objet à empiler.')}
           </HelpStep>
-          <HelpStep n="02" title="Estimer la quantité">
-            Indique combien d’objets rouges il faut pour égaler le poids de la référence. La balance penche en direct.
+          <HelpStep n="02" title={t('Estimer la quantité')}>
+            {t('Indique combien d’objets rouges il faut pour égaler le poids de la référence. La balance penche en direct.')}
           </HelpStep>
-          <HelpStep n="03" title="Valider">
-            Plus tu es proche en ordre de grandeur, plus tu marques (jusqu’à 100 points par manche).
+          <HelpStep n="03" title={t('Valider')}>
+            {t('Plus tu es proche en ordre de grandeur, plus tu marques (jusqu’à 100 points par manche).')}
           </HelpStep>
         </MgHelp>
       }
     >
-      <p className="mg-sub">Équilibre la référence avec le bon nombre d’objets.</p>
+      <p className="mg-sub">{t('Équilibre la référence avec le bon nombre d’objets.')}</p>
       <div className="mg-counter">
-        <span>
-          MANCHE <b>{index + 1}</b> / {ROUNDS}
-        </span>
-        <span>
-          SCORE <b>{total}</b>
-        </span>
+        <span>{tx('MANCHE {n} / {total}', { n: <b>{index + 1}</b>, total: ROUNDS })}</span>
+        <span>{tx('SCORE {score}', { score: <b>{total}</b> })}</span>
       </div>
       <div className="mg-board bal-board">
         <svg viewBox="0 0 900 400" width="100%" style={{ display: 'block' }}>
@@ -162,37 +159,38 @@ export default function Balance({ date }: { date?: string | null }) {
             <div className="mg-result-score">
               <span>{score}</span>/ 100
             </div>
-            <p>
-              Ta réponse : <b>{formatNumber(q)}</b>
-            </p>
-            <p>
-              Réel : <b>{formatNumber(Math.round(truth * 10) / 10)}</b>
-            </p>
+            <p>{tx('Ta réponse : {answer}', { answer: <b>{formatNumber(q)}</b> })}</p>
+            <p>{tx('Réel : {real}', { real: <b>{formatNumber(Math.round(truth * 10) / 10)}</b> })}</p>
           </div>
         )}
       </div>
 
       <div className="bal-input">
         <span className="red">× </span>
-        <NumberInput value={value} onChange={setValue} onSubmit={revealed ? next : lock} unit={tgt.name} disabled={revealed} placeholder="Quantité..." />
+        <NumberInput value={value} onChange={setValue} onSubmit={revealed ? next : lock} unit={tgt.name} disabled={revealed} placeholder={t('Quantité…')} />
       </div>
 
       <div className="mg-footer">
         <div className="mg-legend">
           <p>
-            Référence : 1 × <span className="blue">{ref.name}</span> <span className="dim">({ref.detail}) (poids à l’échelle)</span>
+            {tx('Référence : {ref}', { ref: <>1 × <span className="blue">{ref.name}</span></> })}{' '}
+            <span className="dim">
+              ({ref.detail}) {t('(poids à l’échelle)')}
+            </span>
           </p>
           <p>
-            <span className="red">{tgt.name}</span> <span className="dim">({tgt.detail}) (ajuste la quantité)</span>
+            <span className="red">{tgt.name}</span> <span className="dim">
+              ({tgt.detail}) {t('(ajuste la quantité)')}
+            </span>
           </p>
         </div>
         {revealed ? (
           <button className="mg-cta" onClick={next}>
-            {index + 1 >= ROUNDS ? 'Voir le bilan' : 'Manche suivante →'}
+            {index + 1 >= ROUNDS ? t('Voir le bilan') : t('Manche suivante →')}
           </button>
         ) : (
           <button className="mg-cta" disabled={!valid} onClick={lock}>
-            Valider
+            {t('Valider')}
           </button>
         )}
       </div>
@@ -202,15 +200,15 @@ export default function Balance({ date }: { date?: string | null }) {
           <div className="mg-modal mg-help">
             <MgSummary
               title=""
-              rounds={rounds.map(([r, t], i) => ({
+              rounds={rounds.map(([r, g], i) => ({
                 score: scores[i],
                 title: (
                   <>
-                    1 <span className="blue">{r.name}</span> = {formatNumber(Math.round((r.kg / t.kg) * 10) / 10)}{' '}
-                    <span className="red">{t.name}</span>
+                    1 <span className="blue">{r.name}</span> = {formatNumber(Math.round((r.kg / g.kg) * 10) / 10)}{' '}
+                    <span className="red">{g.name}</span>
                   </>
                 ),
-                detail: `Ta réponse : ${formatNumber(answers[i] ?? 0)}`,
+                detail: t('Ta réponse : {answer}', { answer: formatNumber(answers[i] ?? 0) }),
               }))}
               max={ROUNDS * 100}
               historyKey="balance"
