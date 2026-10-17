@@ -95,7 +95,7 @@ export default function Balance({ date }: { date?: string | null }) {
     if (index + 1 >= ROUNDS) {
       setSummary(true)
       const total = scores.reduce((a, b) => a + b, 0)
-      recordPlay('balance', { pts: total / ROUNDS, s: total, ms: elapsed() })
+      recordPlay('balance', { pts: total / ROUNDS, s: total, ms: elapsed(), sub: !daily ? 'libre' : day !== todayKey() ? 'archive' : undefined })
       recordTotal('balance', total)
       if (daily) saveDailyResult('balance', { scores }, day)
       return
