@@ -7,6 +7,7 @@ import { addRecord, computeStats, type GameRecord, type ItinSettings } from './h
 import { exactMatch, matchSuggestions, routeGraph, type Puzzle } from './puzzle'
 import RouteMap, { type Layer } from './RouteMap'
 import { useTheme } from '../../ui/theme'
+import { plural, t, tx } from '../../lib/i18n'
 
 const PALETTES = {
   sombre: { start: '#c9899a', end: '#88afa2', connected: '#d7c7a2', loose: '#4f4a45', solution: '#7d7464' },
@@ -134,10 +135,10 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   function submit(code?: string) {
     if (over) return
     const target = code ?? suggestions[active]?.s.code ?? exactMatch(atlas, query)?.code
-    if (!target) return flash(`${atlas.noun === 'pays' ? 'Pays' : 'État'} inconnu`)
-    if (target === start) return flash(`${name(start)} est le point de départ`)
-    if (target === end) return flash(`${name(end)} est la destination`)
-    if (guessedSet.has(target)) return flash('Déjà essayé')
+    if (!target) return flash(atlas.id === 'usa' ? t('État inconnu') : t('Pays inconnu'))
+    if (target === start) return flash(t('{name} est le point de départ', { name: name(start) }))
+    if (target === end) return flash(t('{name} est la destination', { name: name(end) }))
+    if (guessedSet.has(target)) return flash(t('Déjà essayé'))
     setGuesses([...guesses, target])
     setQuery('')
     setOpen(false)
@@ -173,32 +174,39 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
 
   const extra = guesses.length - shortest
   const emojis = marks.map((m) => MARK_EMOJI[m]).join('')
-  const shareText = `#travle ${slot.label} ${won ? `+${extra}` : '❌'}${hints ? ` (${hints} indice${hints > 1 ? 's' : ''})` : ''}\n${name(start)} ➡️ ${name(end)}\n${emojis}\n${shareUrl}`
+  const shareText = `#travle ${slot.label} ${won ? `+${extra}` : '❌'}${hints ? ` (${plural(hints, '{n} indice', '{n} indices')})` : ''}\n${name(start)} ➡️ ${name(end)}\n${emojis}\n${shareUrl}`
 
   async function copy(text: string, ok: string) {
-    setToast((await copyText(text)) ? ok : 'Copie impossible')
+    setToast((await copyText(text)) ? ok : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
   const stats = computeStats()
-  const hintLabels = ['Montrer les contours du (des) pays suivant(s)', 'Montrer les contours de tous les pays', 'Montrer les initiales des pays']
+  const hintLabels =
+    atlas.id === 'usa'
+      ? [t('Montrer les contours du (des) État(s) suivant(s)'), t('Montrer les contours de tous les États'), t('Montrer les initiales des États')]
+      : [t('Montrer les contours du (des) pays suivant(s)'), t('Montrer les contours de tous les pays'), t('Montrer les initiales des pays')]
   const guessLabel = Number.isFinite(maxGuesses) ? `${Math.min(guesses.length + 1, maxGuesses)}/${maxGuesses}` : `${guesses.length + 1}`
 
   return (
     <>
       <p className="itin-title">
-        {slot.intro}, j'aimerais <b>travle</b> de <span className="c-start">{name(start)}</span> à{' '}
-        <span className="c-end">{name(end)}</span>
+        {tx('{intro}, j’aimerais {travle} de {start} à {end}', {
+          intro: slot.intro,
+          travle: <b>travle</b>,
+          start: <span className="c-start">{name(start)}</span>,
+          end: <span className="c-end">{name(end)}</span>,
+        })}
       </p>
       <div className="itin-actions">
         <button className="itin-help" onClick={onHelp}>
-          <span className="q">?</span> Aide
+          <span className="q">?</span> {t('Aide')}
         </button>
-        <button className="itin-send" onClick={() => copy(shareUrl, 'Lien copié !')}>
+        <button className="itin-send" onClick={() => copy(shareUrl, t('Lien copié !'))}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
             <path d="M2 11.5 21.5 3l-5 18-5.2-6.3-4.8 4.1.9-6.4L2 11.5Zm7.4 1.4-.4 3 2-1.7 7.4-9.5-9 8.2Z" />
           </svg>
-          Envoyer cet itinéraire à un ami
+          {t('Envoyer cet itinéraire à un ami')}
         </button>
       </div>
 
@@ -207,7 +215,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
         <div className="itin-flip-inner">
           <div className="itin-face front" aria-hidden={results}>
             {settings.hideMap && !over ? (
-              <div className="rm-hidden">Carte masquée — désactivez « Masquer la carte » dans les réglages.</div>
+              <div className="rm-hidden">{t('Carte masquée — désactivez « Masquer la carte » dans les réglages.')}</div>
             ) : (
               <RouteMap
                 atlas={atlas}
@@ -225,40 +233,45 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
           {over && (
             <article className="itin-face back" aria-hidden={!results}>
               <div ref={backRef}>
-                <h2>{won ? 'Bravo !' : 'Dommage !'}</h2>
+                <h2>{won ? t('Bravo !') : t('Dommage !')}</h2>
                 <p>
                   {name(start)} → {name(end)}
                 </p>
                 <p>
-                  {won ? `Trajet trouvé en ${guesses.length} essai${guesses.length > 1 ? 's' : ''}` : 'Trajet non trouvé'} (minimum : {shortest}
-                  {hints ? `, ${hints} indice${hints > 1 ? 's' : ''}` : ''})
+                  {won ? plural(guesses.length, 'Trajet trouvé en {n} essai', 'Trajet trouvé en {n} essais') : t('Trajet non trouvé')} (
+                  {t('minimum : {n}', { n: shortest })}
+                  {hints ? `, ${plural(hints, '{n} indice', '{n} indices')}` : ''})
                 </p>
                 <p className="emoji-line">{emojis}</p>
-                <p>Un plus court chemin : {[start, ...solution, end].map(name).join(' → ')}</p>
+                <p>{t('Un plus court chemin : {path}', { path: [start, ...solution, end].map(name).join(' → ') })}</p>
                 <div className="stat-row">
                   <div>
-                    <b>{stats.played}</b>Parties
+                    <b>{stats.played}</b>
+                    {t('Parties')}
                   </div>
                   <div>
-                    <b>{stats.winRate}%</b>Victoires
+                    <b>{stats.winRate}%</b>
+                    {t('Victoires')}
                   </div>
                   <div>
-                    <b>{stats.streak}</b>Série
+                    <b>{stats.streak}</b>
+                    {t('Série')}
                   </div>
                   <div>
-                    <b>{stats.perfectRate}%</b>Parfaites
+                    <b>{stats.perfectRate}%</b>
+                    {t('Parfaites')}
                   </div>
                 </div>
                 <div className="itin-back-actions">
-                  <button className="pink" onClick={() => copy(shareText, 'Résultat copié !')}>
-                    Partager 📋
+                  <button className="pink" onClick={() => copy(shareText, t('Résultat copié !'))}>
+                    {t('Partager')} 📋
                   </button>
                   <button className="itin-turn" onClick={() => setResults(false)}>
-                    Revoir la carte <span className="ico">⇄</span>
+                    {t('Revoir la carte')} <span className="ico">⇄</span>
                   </button>
                 </div>
                 <a className="itin-link-stats" href="#/itineraire/stats">
-                  Toutes les statistiques →
+                  {t('Toutes les statistiques →')}
                 </a>
               
               </div>
@@ -271,20 +284,20 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
         <>
           <div className="itin-over">
             <button className="big-teal" onClick={onAnother}>
-              Jouer une autre <span className="ico">⟳</span>
+              {t('Jouer une autre')} <span className="ico">⟳</span>
             </button>
             <div className="itin-over-side">
               <button className="pink" onClick={() => setResults(!results)}>
-                {results ? 'Revoir la carte' : 'Voir les résultats'} <span className="ico">⇄</span>
+                {results ? t('Revoir la carte') : t('Voir les résultats')} <span className="ico">⇄</span>
               </button>
-              <button className="pink" onClick={() => copy(shareText, 'Résultat copié !')}>
-                Partager avec des amis <span className="ico">📋</span>
+              <button className="pink" onClick={() => copy(shareText, t('Résultat copié !'))}>
+                {t('Partager avec des amis')} <span className="ico">📋</span>
               </button>
             </div>
           </div>
           <p className="itin-more">
-            <a href="#/classement">Jouez à GeoHunter !</a> · <a href="#/echelle/geo">Essayez Size It Up : Géographie</a> ·{' '}
-            <a href="#/cartographe">Seterra</a> · <a href="#/itineraire/stats">Statistiques</a>
+            <a href="#/classement">{t('Jouez à GeoHunter !')}</a> · <a href="#/echelle/geo">{t('Essayez Size It Up : Géographie')}</a> ·{' '}
+            <a href="#/cartographe">Seterra</a> · <a href="#/itineraire/stats">{t('Statistiques')}</a>
           </p>
         </>
       ) : (
@@ -309,7 +322,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
           <input
             className={shake ? 'shake' : ''}
             value={query}
-            placeholder={atlas.id === 'usa' ? 'Entrez un État...' : 'Entrez un pays, un territoire...'}
+            placeholder={atlas.id === 'usa' ? t('Entrez un État…') : t('Entrez un pays, un territoire…')}
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
@@ -323,14 +336,14 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
             spellCheck={false}
           />
           <button className="itin-guess" onClick={() => submit()}>
-            Essais ({guessLabel})
+            {t('Essais ({n})', { n: guessLabel })}
           </button>
         </div>
       )}
       {message && <p className="itin-msg">{message}</p>}
-      {lost && <p className="itin-msg">Le chemin le plus court : {[start, ...solution, end].map(name).join(' → ')}</p>}
+      {lost && <p className="itin-msg">{t('Le chemin le plus court : {path}', { path: [start, ...solution, end].map(name).join(' → ') })}</p>}
 
-      <h3 className="itin-h">Essais précédents (cliquer pour afficher/masquer) :</h3>
+      <h3 className="itin-h">{t('Essais précédents (cliquer pour afficher/masquer) :')}</h3>
       <div className="itin-chips">
         {guesses.map((c, i) => (
           <button
@@ -350,17 +363,17 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
 
       {!over && !hard && (
         <>
-          <h3 className="itin-h">Avoir un indice ({hints}/3) :</h3>
+          <h3 className="itin-h">{t('Avoir un indice ({n}/3) :', { n: hints })}</h3>
           <div className="itin-hints">
             {hintLabels.map((text, i) => (
               <button key={text} disabled={i !== hints} className={i === hints ? 'hint on' : 'hint'} onClick={() => setHints(hints + 1)}>
-                {atlas.id === 'usa' ? text.replace(/pays/g, 'États') : text}
+                {text}
               </button>
             ))}
           </div>
         </>
       )}
-      {!over && hard && <p className="itin-hard">Mode difficile : pas d’indices ni de noms sur la carte.</p>}
+      {!over && hard && <p className="itin-hard">{t('Mode difficile : pas d’indices ni de noms sur la carte.')}</p>}
 
       {toast && <div className="toast-copy">{toast}</div>}
     </>
