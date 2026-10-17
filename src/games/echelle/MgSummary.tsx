@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { copyText, load, save } from '../../lib/util'
 import CountUp from '../../ui/CountUp'
+import { locale } from '../../lib/i18n'
 
 export interface RoundRecap {
   title: ReactNode
@@ -92,7 +93,7 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
       <div className="mg-sum-figs">
         <div>
           <small>TA MOYENNE</small>
-          <b>{avg.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</b>
+          <b>{avg.toLocaleString(locale(), { maximumFractionDigits: 1 })}</b>
         </div>
         <div>
           <small>MIEUX QUE</small>
