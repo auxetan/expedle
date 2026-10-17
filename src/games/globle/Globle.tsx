@@ -10,13 +10,14 @@ import { targets } from '../worldle/game'
 import GlobeView from './GlobeView'
 import { dailyTarget, heat } from './game'
 import './globle.css'
+import { locale, plural, t } from '../../lib/i18n'
 
 interface Saved {
   guesses: string[]
   gaveUp?: boolean
 }
 
-const fmtKm = (km: number) => `${Math.round(km).toLocaleString('fr-FR')} km`
+const fmtKm = (km: number) => `${Math.round(km).toLocaleString(locale())} km`
 
 export default function Globle({ mode }: { mode?: string }) {
   const practice = mode === 'libre'
@@ -76,11 +77,11 @@ export default function Globle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Globle Méridien ${practice ? '(partie libre)' : day}\n${won ? `🌍 Trouvé en ${state.guesses.length} essai${state.guesses.length > 1 ? 's' : ''}` : '🏳️ Abandon'}\n${guesses
+    const text = `Globle Méridien ${practice ? t('(partie libre)') : day}\n${won ? `🌍 ${plural(state.guesses.length, 'Trouvé en {n} essai', 'Trouvé en {n} essais')}` : `🏳️ ${t('Abandon')}`}\n${guesses
       .slice(0, 12)
       .map((g) => (g.code === target ? '🟩' : g.km < 500 ? '🟥' : g.km < 2000 ? '🟧' : g.km < 6000 ? '🟨' : '⬜'))
       .join('')}`
-    setToast((await copyText(text)) ? 'Résultat copié !' : 'Copie impossible')
+    setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
@@ -88,55 +89,53 @@ export default function Globle({ mode }: { mode?: string }) {
     <div className="gl">
       <AppBar title="Globle">
         <SubLink href="#/globle" active={!practice}>
-          Pays du jour
+          {t('Pays du jour')}
         </SubLink>
         <SubLink href="#/globle/libre" active={practice}>
-          Partie libre
+          {t('Partie libre')}
         </SubLink>
       </AppBar>
       <main className="gl-main">
         <section className="gl-globe">
           <GlobeView fills={fills} focus={over ? target : last} highlight={over ? target : last} />
-          <p className="gl-hint muted">Fais tourner le globe du doigt ou à la souris, zoome à la molette.</p>
+          <p className="gl-hint muted">{t('Fais tourner le globe du doigt ou à la souris, zoome à la molette.')}</p>
         </section>
         <section className="gl-side">
           <header>
-            <h1>{practice ? 'Partie libre' : 'Le pays mystère du jour'}</h1>
-            <p className="muted">Propose des pays : plus tu chauffes, plus ils rougissent. La couleur dit la distance entre les frontières.</p>
+            <h1>{practice ? t('Partie libre') : t('Le pays mystère du jour')}</h1>
+            <p className="muted">{t('Propose des pays : plus tu chauffes, plus ils rougissent. La couleur dit la distance entre les frontières.')}</p>
           </header>
 
           {over ? (
             <div className="gl-end">
-              <b>{won ? `Bravo ! Réponse : ${atlas.name(target)}` : `Réponse : ${atlas.name(target)}`}</b>
+              <b>{won ? t('Bravo ! Réponse : {name}', { name: atlas.name(target) }) : t('Réponse : {name}', { name: atlas.name(target) })}</b>
               <span className="muted">
-                {won ? `Trouvé en ${state.guesses.length} essai${state.guesses.length > 1 ? 's' : ''}.` : 'Tu feras mieux demain.'}
+                {won ? plural(state.guesses.length, 'Trouvé en {n} essai.', 'Trouvé en {n} essais.') : t('Tu feras mieux demain.')}
               </span>
               <div className="gl-actions">
                 <button className="ui-btn" onClick={share}>
-                  Partager
+                  {t('Partager')}
                 </button>
                 {practice ? (
                   <button className="ui-btn line" onClick={another}>
-                    Un autre pays ↻
+                    {t('Un autre pays ↻')}
                   </button>
                 ) : (
                   <a className="ui-btn line" href="#/globle/libre">
-                    Partie libre
+                    {t('Partie libre')}
                   </a>
                 )}
               </div>
             </div>
           ) : (
             <>
-              <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder="Propose un pays…" />
+              <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('Propose un pays…')} />
               <div className="gl-meta">
-                <span>
-                  {state.guesses.length} essai{state.guesses.length > 1 ? 's' : ''}
-                </span>
-                {closest && <span>Le plus proche : {fmtKm(closest.km)}</span>}
+                <span>{plural(state.guesses.length, '{n} essai', '{n} essais')}</span>
+                {closest && <span>{t('Le plus proche : {km}', { km: fmtKm(closest.km) })}</span>}
                 {state.guesses.length >= 3 && (
                   <button className="gl-giveup" onClick={giveUp}>
-                    Révéler la réponse
+                    {t('Révéler la réponse')}
                   </button>
                 )}
               </div>
@@ -149,7 +148,7 @@ export default function Globle({ mode }: { mode?: string }) {
                 <li key={g.code} className={g.code === last ? 'new' : ''}>
                   <i style={{ background: g.code === target ? good : heat(g.km) }} />
                   <span>{atlas.name(g.code)}</span>
-                  <b>{g.code === target ? 'trouvé' : g.km === 0 ? 'voisin' : fmtKm(g.km)}</b>
+                  <b>{g.code === target ? t('trouvé') : g.km === 0 ? t('voisin') : fmtKm(g.km)}</b>
                 </li>
               ))}
             </ol>
