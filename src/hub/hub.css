@@ -63,6 +63,49 @@
   color: var(--muted);
 }
 
+.home-level {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 14px 5px 5px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 14px;
+  overflow: hidden;
+  transition: border-color 0.18s;
+}
+
+.home-level:hover {
+  border-color: var(--muted);
+}
+
+.home-level b {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* progression vers le niveau suivant, en filet sous la pastille */
+.home-level i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--fg);
+}
+
 .home-stats-link {
   color: var(--fg);
   text-decoration: none;
