@@ -2,6 +2,7 @@ import { countryAt, randomPointIn } from '../../geo/measure'
 import type { World } from '../../geo/world'
 import { load, save } from '../../lib/util'
 import { pickCountry, type Mode } from './guess'
+import { t } from '../../lib/i18n'
 
 // Pays où Google a une couverture Street View officielle étendue ; ailleurs, la recherche tomberait à vide.
 export const COVERED = new Set(
@@ -45,8 +46,8 @@ async function metadata(key: string, lat: number, lng: number, radius: number, s
   const q = new URLSearchParams({ location: `${lat},${lng}`, radius: String(radius), source: 'outdoor', key })
   const res = await fetch(`${META}?${q}`, { signal })
   const data = (await res.json()) as Meta
-  if (data.status === 'REQUEST_DENIED') throw new KeyError(data.error_message || 'Google a refusé la clé.')
-  if (data.status === 'OVER_QUERY_LIMIT') throw new Error('Quota Google atteint pour aujourd’hui.')
+  if (data.status === 'REQUEST_DENIED') throw new KeyError(data.error_message || t('Google a refusé la clé.'))
+  if (data.status === 'OVER_QUERY_LIMIT') throw new Error(t('Quota Google atteint pour aujourd’hui.'))
   return data
 }
 
@@ -64,7 +65,7 @@ export async function findPano(world: World, key: string, mode: Mode, rng: () =>
   for (let wave = 0; wave < 6; wave++) {
     const points = Array.from({ length: 4 }, () => {
       const code = pickCountry(world, mode, rng, COVERED)
-      if (!code) throw new Error('Pas de Street View pour ce mode.')
+      if (!code) throw new Error(t('Pas de Street View pour ce mode.'))
       return randomPointIn(world, code, rng)
     })
     const metas = await Promise.all(points.map(([lng, lat]) => metadata(key, lat, lng, 50000, signal)))
@@ -74,7 +75,7 @@ export async function findPano(world: World, key: string, mode: Mode, rng: () =>
       return { id: hit.pano_id!, lat, lng, country: countryAt(world, [lng, lat]), heading: Math.round(rng() * 360), date: hit.date ?? '' }
     }
   }
-  throw new Error('Aucun panorama trouvé cette fois.')
+  throw new Error(t('Aucun panorama trouvé cette fois.'))
 }
 
 // L'API JavaScript ne se charge qu'une fois par page ; Google appelle gm_authFailure si la clé est refusée.
@@ -98,7 +99,7 @@ export function loadStreetView(key: string): Promise<typeof google.maps.StreetVi
     s.async = true
     s.onerror = () => {
       loading = null
-      reject(new Error('Impossible de charger Google Maps.'))
+      reject(new Error(t('Impossible de charger Google Maps.')))
     }
     document.head.appendChild(s)
   }).then(async () => ((await google.maps.importLibrary('streetView')) as google.maps.StreetViewLibrary).StreetViewPanorama)
