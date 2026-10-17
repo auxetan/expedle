@@ -2,17 +2,18 @@ import { hashString, seededRng, shuffle, todayKey, weekKey } from '../../lib/uti
 import { cityCategories, cityEntities, countryCategories, countryEntities, type Category, type Entity } from './categories'
 import { COUNTRY_STATS } from './data'
 import { MISSING_RANK, optimalAssignment, rankBy } from './ranking'
+import { msg } from '../../lib/i18n'
 
 export type Mode = 'classique' | 'facile' | 'monde' | 'special' | 'villes' | 'jour' | 'hebdo'
 
 export const MODE_LABEL: Record<Mode, string> = {
-  classique: 'Classique',
-  facile: 'Facile',
-  monde: 'Monde',
-  special: 'Spécial',
-  villes: 'Villes',
-  jour: 'Défi du jour',
-  hebdo: 'Hebdo',
+  classique: msg('Classique'),
+  facile: msg('Facile'),
+  monde: msg('Monde'),
+  special: msg('Spécial'),
+  villes: msg('Villes'),
+  jour: msg('Défi du jour'),
+  hebdo: msg('Hebdo'),
 }
 
 // Classique tire 8 catégories parmi celles-ci ; Monde et Spécial ont chacun leurs 8 catégories fixes.
@@ -23,9 +24,9 @@ const FIXED_CATS: Partial<Record<Mode, string[]>> = {
 }
 
 export const WEEKLY_THEMES: { name: string; icon: string; cats: string[] }[] = [
-  { name: 'Patrimoine culturel', icon: '🏛️', cats: ['unesco', 'tourism', 'nobel', 'medals', 'football', 'life', 'gdpcap', 'pop'] },
-  { name: 'Nature et reliefs', icon: '🏔️', cats: ['peak', 'forest', 'coast', 'area', 'tiny', 'neighbors', 'density', 'coffee'] },
-  { name: 'Économie et ressources', icon: '💰', cats: ['gdp', 'gdpcap', 'oil', 'gas', 'coffee', 'tourism', 'pop', 'density'] },
+  { name: msg('Patrimoine culturel'), icon: '🏛️', cats: ['unesco', 'tourism', 'nobel', 'medals', 'football', 'life', 'gdpcap', 'pop'] },
+  { name: msg('Nature et reliefs'), icon: '🏔️', cats: ['peak', 'forest', 'coast', 'area', 'tiny', 'neighbors', 'density', 'coffee'] },
+  { name: msg('Économie et ressources'), icon: '💰', cats: ['gdp', 'gdpcap', 'oil', 'gas', 'coffee', 'tourism', 'pop', 'density'] },
 ]
 
 export function weeklyTheme(week = weekKey()) {
