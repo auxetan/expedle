@@ -5,6 +5,7 @@ import type { World } from '../../geo/world'
 import { load, save } from '../../lib/util'
 import { modeCodes, pickCountry, type Mode } from './guess'
 import { wholeImage, type NodeLink, type SphereNode, type SphereSpot } from './sphere'
+import { t } from '../../lib/i18n'
 
 const GRAPH = 'https://graph.mapillary.com'
 // Tuile 0/0/0 : le monde entier en ~400 Ko, avec un point par séquence (calque « overview »).
@@ -145,14 +146,14 @@ export function mapillaryLoader(token: string) {
     let node = nodes.get(id)
     if (!node) {
       const frame = frames.get(id)
-      if (!frame) return Promise.reject(new Error('Vue Mapillary inconnue.'))
+      if (!frame) return Promise.reject(new Error(t('Vue Mapillary inconnue.')))
       node = graph<{ thumb_1024_url?: string; thumb_2048_url?: string; creator?: { username: string } }>(
         id,
         { fields: 'thumb_1024_url,thumb_2048_url,creator' },
         token,
       ).then((img) => {
         // certaines séquences sont en ligne avant que leurs images soient publiées
-        if (!img.thumb_2048_url) throw new Error('Image Mapillary pas encore publiée.')
+        if (!img.thumb_2048_url) throw new Error(t('Image Mapillary pas encore publiée.'))
         return { ...frame, panorama: wholeImage(img.thumb_2048_url, 2048, img.thumb_1024_url), creator: img.creator?.username ?? '' }
       })
       node.catch(() => nodes.delete(id))
@@ -215,5 +216,5 @@ export async function findMapillary(world: World, token: string, mode: Mode, rng
       page: `https://www.mapillary.com/app/?pKey=${frame.id}&focus=photo`,
     }
   }
-  throw new Error('Aucune vue 360° trouvée cette fois.')
+  throw new Error(t('Aucune vue 360° trouvée cette fois.'))
 }
