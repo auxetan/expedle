@@ -13,6 +13,7 @@ import CountUp from '../../ui/CountUp'
 import { Icon } from '../../ui/Panels'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
+import { locale } from '../../lib/i18n'
 
 type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
 
@@ -540,7 +541,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
             {members.length} pays à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs,
             le pays clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.
           </p>
-          <p className="st-list-names">{members.map(countryName).sort((a, b) => a.localeCompare(b, 'fr')).join(' · ')}</p>
+          <p className="st-list-names">{members.map(countryName).sort((a, b) => a.localeCompare(b, locale())).join(' · ')}</p>
         </section>
       </main>
     </div>
