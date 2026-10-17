@@ -2,6 +2,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef } from 'react'
 import { cssColor, useTheme } from '../../ui/theme'
+import { t } from '../../lib/i18n'
 
 export type LatLng = [number, number]
 
@@ -39,7 +40,7 @@ export default function GuessMap({ view, guess = null, onGuess, pairs = [] }: Pr
     L.tileLayer(TILES, {
       maxZoom: 19,
       className: 'wg-tiles',
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>',
+      attribution: `© <a href="https://www.openstreetmap.org/copyright">${t('contributeurs OpenStreetMap')}</a>`,
     }).addTo(m)
     layer.current = L.layerGroup().addTo(m)
     m.on('click', (e: L.LeafletMouseEvent) => {
