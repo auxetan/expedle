@@ -19,6 +19,9 @@ const Leaderboards = lazy(() => import('./hub/Leaderboards'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
+const Countryle = lazy(() => import('./games/countryle/Countryle'))
+const Flagle = lazy(() => import('./games/flagle/Flagle'))
+const GeoGrid = lazy(() => import('./games/geogrid/GeoGrid'))
 const PhotoGuessr = lazy(() => import('./games/guessr/PhotoGuessr'))
 const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
 
@@ -74,6 +77,15 @@ export default function App() {
       break
     case 'globle':
       content = <Globle key={key} mode={sub} />
+      break
+    case 'countryle':
+      content = <Countryle key={key} mode={sub} />
+      break
+    case 'flagle':
+      content = <Flagle key={key} mode={sub} />
+      break
+    case 'geogrid':
+      content = <GeoGrid key={key} mode={sub} />
       break
     case 'photoguessr':
       content = <PhotoGuessr key={key} />
