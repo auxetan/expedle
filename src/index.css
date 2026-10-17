@@ -95,7 +95,7 @@ a {
   place-items: center;
   /* n'apparaît que si le chargement traîne, pour éviter un flash à chaque jeu */
   animation: fade-in 0.3s 0.35s backwards;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, monospace;
   font-size: 13px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -330,4 +330,10 @@ a {
     opacity: 0;
     transform: translateY(-14px) scale(0.96);
   }
+}
+
+/* contour visible pour qui navigue au clavier, invisible au clic */
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
 }
