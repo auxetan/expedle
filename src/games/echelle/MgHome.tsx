@@ -9,6 +9,7 @@ import DrawingPaths from './DrawingPaths'
 import { MgNav } from './MgShell'
 import { drawingBox } from './silhouette'
 import './mg.css'
+import { locale } from '../../lib/i18n'
 
 interface Card {
   href: string
@@ -204,7 +205,7 @@ export function MgArchive() {
         </div>
         {days.map((day) => (
           <div key={day} className="mga-row">
-            <span className="mga-date">{new Date(day + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+            <span className="mga-date">{new Date(day + 'T12:00:00').toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</span>
             {ARCHIVE_GAMES.map((g) => {
               const res = dailyResult<{ scores?: number[]; score?: number }>(g.id, day)
               const score = res?.scores ? res.scores.reduce((a, b) => a + b, 0) : res?.score
