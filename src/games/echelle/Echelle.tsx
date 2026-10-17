@@ -10,7 +10,7 @@ import DrawingPaths from './DrawingPaths'
 import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
-import { locale } from '../../lib/i18n'
+import { locale, msg, t, tx } from '../../lib/i18n'
 
 export type Variant = 'objets' | 'geo' | '1000' | 'pop'
 
@@ -115,9 +115,9 @@ function Figure({ t, x, y, h, color, opacity = 1 }: { t: Thing; x: number; y: nu
 
 export const TITLES: Record<Variant, string> = {
   objets: 'Size It Up',
-  geo: 'Size It Up : Géographie',
+  geo: msg('Size It Up : Géographie'),
   '1000': 'The Weekly 1K',
-  pop: 'Size It Up : Pop Culture',
+  pop: msg('Size It Up : Pop Culture'),
 }
 
 export function weeklyTheme(week = weekKey()) {
@@ -148,22 +148,22 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
     [things, daily, seed, dailyId, dayKey, count, variant],
   )
 
-  const title = TITLES[variant]
+  const title = t(TITLES[variant])
   const subtitle =
     variant === '1000'
-      ? `Thème de la semaine : ${weeklyTheme().name}`
+      ? t('Thème de la semaine : {theme}', { theme: t(weeklyTheme().name) })
       : date && date !== todayKey()
-        ? `Archive du ${new Date(date + 'T12:00:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}`
+        ? t('Archive du {date}', { date: new Date(date + 'T12:00:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long' }) })
         : variant === 'pop'
-          ? 'Fais correspondre le personnage à sa taille officielle.'
+          ? t('Fais correspondre le personnage à sa taille officielle.')
           : null
   if (!rounds.length)
     return (
       <MgShell title={title} help={<EchelleHelp />}>
         <div className="mg-loading">
           <span className="spinner" />
-          <b>Préparation de l’échelle</b>
-          <small>Chargement des silhouettes…</small>
+          <b>{t('Préparation de l’échelle')}</b>
+          <small>{t('Chargement des silhouettes…')}</small>
         </div>
       </MgShell>
     )
@@ -198,19 +198,18 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
 
 function EchelleHelp() {
   return (
-    <MgHelp title="Comment jouer à Size It Up" intro="Retrouve l’échelle réelle en t’aidant uniquement de la référence visuelle.">
-      <HelpStep n="01" title="Comparer">
-        Utilise l’objet bleu comme référence fixe : sa taille ne change pas.
+    <MgHelp title={t('Comment jouer à {game}', { game: 'Size It Up' })} intro={t('Retrouve l’échelle réelle en t’aidant uniquement de la référence visuelle.')}>
+      <HelpStep n="01" title={t('Comparer')}>
+        {t('Utilise l’objet bleu comme référence fixe : sa taille ne change pas.')}
       </HelpStep>
-      <HelpStep n="02" title="Déplacer et redimensionner">
-        Fais glisser la silhouette rouge pour la déplacer. Tire la poignée ↗ (ou pince à deux doigts) pour la redimensionner.
-        Dézoome si tu as besoin de place.
+      <HelpStep n="02" title={t('Déplacer et redimensionner')}>
+        {t('Fais glisser la silhouette rouge pour la déplacer. Tire la poignée ↗ (ou pince à deux doigts) pour la redimensionner. Dézoome si tu as besoin de place.')}
       </HelpStep>
-      <HelpStep n="03" title="Valider">
-        Valide pour révéler la vraie taille et gagne jusqu’à 100 points par manche (100 − l’écart en %).
+      <HelpStep n="03" title={t('Valider')}>
+        {t('Valide pour révéler la vraie taille et gagne jusqu’à 100 points par manche (100 − l’écart en %).')}
       </HelpStep>
       <p className="mg-tip">
-        <b>Astuce :</b> commence par la dimension marquée par le guide en pointillés, puis compare les proportions.
+        <b>{t('Astuce :')}</b> {t('commence par la dimension marquée par le guide en pointillés, puis compare les proportions.')}
       </p>
     </MgHelp>
   )
@@ -405,22 +404,27 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
   }, [revealed, score])
 
   const shareText = `${title} ${daily ? dayKey : ''}\n${scores.map((s) => (s >= 90 ? '🟩' : s >= 60 ? '🟨' : s >= 30 ? '🟧' : '🟥')).join('')} ${total}/${ROUNDS * 100}`
-  const dimLabel = (d: Dim) => (d === 'h' ? 'la hauteur' : 'la longueur')
+  const dimLabel = (d: Dim) => (d === 'h' ? t('la hauteur') : t('la longueur'))
+  const dimName = (d: Dim) => (d === 'h' ? t('hauteur') : t('longueur'))
 
   return (
     <MgShell title={title} help={<EchelleHelp />}>
-      <p className="mg-sub">{subtitle ?? 'Fais correspondre la silhouette à sa taille réelle.'}</p>
+      <p className="mg-sub">{subtitle ?? t('Fais correspondre la silhouette à sa taille réelle.')}</p>
       {summary ? (
         <MgSummary
           title=""
-          rounds={rounds.map(([r, t], i) => ({
+          rounds={rounds.map(([r, g], i) => ({
             score: scores[i],
             title: (
               <>
-                <span className="blue">{r.name}</span> → <span className="red">{t.name}</span>
+                <span className="blue">{r.name}</span> → <span className="red">{g.name}</span>
               </>
             ),
-            detail: `Ta réponse : ${formatLength(answers[i], variant)} · Réel : ${formatLength(t.value, variant)} (${t.dim === 'h' ? 'hauteur' : 'longueur'})`,
+            detail: t('Ta réponse : {answer} · Réel : {real} ({dim})', {
+              answer: formatLength(answers[i], variant),
+              real: formatLength(g.value, variant),
+              dim: dimName(g.dim),
+            }),
           }))}
           max={ROUNDS * 100}
           historyKey={`echelle-${variant}`}
@@ -431,12 +435,8 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
       ) : (
         <>
       <div className="mg-counter">
-        <span>
-          MANCHE <b>{index + 1}</b> / {ROUNDS}
-        </span>
-        <span>
-          SCORE <b>{total}</b>
-        </span>
+        <span>{tx('MANCHE {n} / {total}', { n: <b>{index + 1}</b>, total: ROUNDS })}</span>
+        <span>{tx('SCORE {score}', { score: <b>{total}</b> })}</span>
       </div>
 
       <div className="mg-board" ref={boxRef} onWheel={onWheel}>
@@ -500,13 +500,13 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
 
         {!revealed ? (
           <div className="mg-zoom">
-            <button onClick={() => zoomBy(1.35)} aria-label="Zoomer">
+            <button onClick={() => zoomBy(1.35)} aria-label={t('Zoomer')}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
               </svg>
             </button>
-            <button onClick={() => zoomBy(1 / 1.35)} aria-label="Dézoomer">
+            <button onClick={() => zoomBy(1 / 1.35)} aria-label={t('Dézoomer')}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M21 21l-4.3-4.3M8 11h6" />
@@ -519,16 +519,12 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
               <div className="mg-result-score">
                 <span>{shown}</span>/ 100
               </div>
-              <p>
-                Ta réponse : <b>{formatLength(answer, variant)}</b>
-              </p>
-              <p>
-                Réel : <b>{formatLength(tgt.value, variant)}</b> ({tgt.dim === 'h' ? 'hauteur' : 'longueur'})
-              </p>
-              <small>Écart de {Math.round(off * 100)} %</small>
+              <p>{tx('Ta réponse : {answer}', { answer: <b>{formatLength(answer, variant)}</b> })}</p>
+              <p>{tx('Réel : {real} ({dim})', { real: <b>{formatLength(tgt.value, variant)}</b>, dim: dimName(tgt.dim) })}</p>
+              <small>{t('Écart de {n} %', { n: Math.round(off * 100) })}</small>
             </div>
             <button className="mg-fit" onClick={fitBoth}>
-              ⛶ Ajuster les deux
+              ⛶ {t('Ajuster les deux')}
             </button>
           </>
         )}
@@ -537,22 +533,29 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
       <div className="mg-footer">
         <div className="mg-legend">
           <p>
-            Référence : <span className="blue">{ref.name} ({ref.detail})</span> <span className="dim">(échelle réelle)</span>
+            {tx('Référence : {ref}', {
+              ref: (
+                <span className="blue">
+                  {ref.name} ({ref.detail})
+                </span>
+              ),
+            })}{' '}
+            <span className="dim">{t('(échelle réelle)')}</span>
           </p>
           <p>
             <span className="red">
               {tgt.name} ({tgt.detail})
             </span>{' '}
-            <span className="dim">(ajuste {dimLabel(tgt.dim)})</span>
+            <span className="dim">{t('(ajuste {dim})', { dim: dimLabel(tgt.dim) })}</span>
           </p>
         </div>
         {revealed ? (
           <button className="mg-cta" onClick={nextRound}>
-            {index + 1 >= rounds.length ? 'Voir le score final 🏆' : 'Manche suivante →'}
+            {index + 1 >= rounds.length ? t('Voir le score final 🏆') : t('Manche suivante →')}
           </button>
         ) : (
           <button className="mg-cta" onClick={lockIn}>
-            Valider
+            {t('Valider')}
           </button>
         )}
       </div>
