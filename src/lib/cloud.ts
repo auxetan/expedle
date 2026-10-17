@@ -12,8 +12,11 @@ export const cloudEnabled = !!SUPABASE_URL && !!KEY
 let client: Promise<SupabaseClient> | null = null
 function cloud(): Promise<SupabaseClient> {
   client ??= import('@supabase/supabase-js').then(({ createClient }) =>
-    // hors des clés cg: pour que « Effacer ma progression » ne déconnecte pas
-    createClient(SUPABASE_URL, KEY, { auth: { storageKey: 'meridien-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }),
+    // hors des clés cg: pour que « Effacer ma progression » ne déconnecte pas ; flux implicite : le lien
+    // reçu par email ouvre la session dans n'importe quel onglet, pas seulement celui qui l'a demandé
+    createClient(SUPABASE_URL, KEY, {
+      auth: { storageKey: 'meridien-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' },
+    }),
   )
   return client
 }
@@ -195,17 +198,22 @@ export function startCloud() {
   window.addEventListener(PLAYED, () => void sync(false))
 }
 
-/* Connexion par code à 6 chiffres reçu par email */
+/* Connexion par email : un lien (modèle par défaut de Supabase) ou un code à 6 chiffres (modèle personnalisé) */
 
 function french(e: { message?: string; status?: number; code?: string }): string {
-  if (e.code === 'over_email_send_rate_limit' || e.status === 429) return 'Trop de demandes : attends une minute avant de redemander un code.'
+  // tant que le projet utilise l'envoi d'emails par défaut de Supabase, seuls ses membres reçoivent l'email
+  if (e.code === 'email_address_not_authorized') return 'Les emails de connexion ne partent pas encore vers cette adresse. Réessaie plus tard.'
+  if (e.code === 'over_email_send_rate_limit' || e.status === 429) return 'Trop de demandes : attends une minute avant de redemander un email.'
   if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return 'Code incorrect ou expiré. Vérifie-le ou demande-en un nouveau.'
   if (e.code === 'email_address_invalid' || /email/i.test(e.message ?? '')) return 'Cette adresse email n’est pas valide.'
   return e.message || 'Une erreur est survenue. Réessaie.'
 }
 
 export async function sendCode(email: string): Promise<void> {
-  const { error } = await (await cloud()).auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } })
+  const { error } = await (await cloud()).auth.signInWithOtp({
+    email: email.trim(),
+    options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname },
+  })
   if (error) throw new Error(french(error))
 }
 
