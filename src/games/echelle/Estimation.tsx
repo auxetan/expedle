@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
-import { copyText, formatInt, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
+import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import type { EstimateQuestion } from './estimates'
 import { estimationBank } from './estimationBank'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import './mg.css'
+import { locale } from '../../lib/i18n'
 
 export function magnitudeError(guess: number, answer: number): number {
   return Math.abs(Math.log10(Math.max(guess, 1e-9) / answer))
@@ -19,7 +20,7 @@ function offLabel(guess: number, answer: number): string {
   const r = guess / answer
   if (Math.abs(Math.log10(r)) < 0.02) return 'Pile poil !'
   const k = r > 1 ? r : 1 / r
-  const txt = k < 10 ? `×${k.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}` : `${formatInt(k)}×`
+  const txt = k < 10 ? `×${k.toLocaleString(locale(), { maximumFractionDigits: 1 })}` : `${Math.round(k).toLocaleString(locale())}×`
   return `${txt} ${r > 1 ? 'trop haut' : 'trop bas'}`
 }
 
@@ -97,7 +98,7 @@ function Daily({ date: day }: { date: string }) {
     if (!practice) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
   }
 
-  const date = new Date(day + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).toUpperCase()
+  const date = new Date(day + 'T12:00:00').toLocaleDateString(locale(), { day: '2-digit', month: 'short' }).toUpperCase()
   return (
     <MgShell title="Daily Question" help={<DailyHelp />}>
       <section className="dq">
@@ -289,7 +290,7 @@ function Survival() {
               <div style={{ width: `${(left / TIME) * 100}%` }} />
             </div>
           )}
-          <span className="sv-life">♥ {life.toLocaleString('fr-FR', { minimumFractionDigits: 1 })}</span>
+          <span className="sv-life">♥ {life.toLocaleString(locale(), { minimumFractionDigits: 1 })}</span>
         </div>
 
         {phase === 'idle' && (
@@ -324,7 +325,7 @@ function Survival() {
               last && (
                 <div className="sv-feedback">
                   <span className="pill">{offLabel(last.guess, q.a)}</span>
-                  <b className="loss">−{last.loss.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} vie</b>
+                  <b className="loss">−{last.loss.toLocaleString(locale(), { minimumFractionDigits: 1 })} vie</b>
                   <span className="dim">Réponse : {formatNumber(q.a)} {q.unit}</span>
                 </div>
               )
