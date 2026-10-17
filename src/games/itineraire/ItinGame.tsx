@@ -112,6 +112,8 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
       s: guesses.length,
       ms: elapsed(),
       win: won,
+      // une archive rejouée ne compte pas pour le classement du jour
+      sub: (slot.kind === 'jour' || slot.kind === 'usa') && slot.dayKey !== todayKey() ? 'archive' : undefined,
     })
     setTimeout(() => setResults(true), 900)
   }, [over, won, slot, guesses.length, shortest, hints, elapsed])
