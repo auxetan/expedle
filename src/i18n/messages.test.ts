@@ -3,6 +3,7 @@ import { US_REGIONS } from '../geo/atlas'
 import { CONTINENT_NAMES } from '../geo/countries'
 import { COLUMNS, ROWS } from '../games/geogrid/game'
 import { MODES } from '../games/guessr/guess'
+import { CATEGORIES as QUIZ_CATEGORIES } from '../games/jetpunk/model'
 import { ACHIEVEMENTS, TITLES } from '../lib/achievements'
 import { GAMES } from '../ui/gameInfo'
 import { GAME_SECTIONS } from '../ui/games'
@@ -33,6 +34,7 @@ function usedKeys(): Set<string> {
     ...[...ROWS, ...COLUMNS].map((c) => c.label),
     ...MODES.map((m) => m.label),
     ...Object.keys(US_REGIONS),
+    ...QUIZ_CATEGORIES,
     'Nord',
     'Sud',
   ].forEach((k) => keys.add(k))
