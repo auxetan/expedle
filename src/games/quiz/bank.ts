@@ -18,6 +18,7 @@ import {
   WORLD_CUPS,
 } from './facts'
 import { QUESTIONS } from './questions'
+import { msg } from '../../lib/i18n'
 
 export interface BankQuestion {
   id: string
@@ -28,7 +29,17 @@ export interface BankQuestion {
   w: string[]
 }
 
-export const CATEGORIES = ['Géographie', 'Histoire', 'Sciences', 'Arts & Lettres', 'Cinéma & Musique', 'Sport', 'France', 'Nature', 'Divers']
+export const CATEGORIES = [
+  msg('Géographie'),
+  msg('Histoire'),
+  msg('Sciences'),
+  msg('Arts & Lettres'),
+  msg('Cinéma & Musique'),
+  msg('Sport'),
+  msg('France'),
+  msg('Nature'),
+  msg('Divers'),
+]
 
 // Les mauvaises réponses sont tirées de façon déterministe : une question garde toujours les mêmes choix.
 function distractors(pool: string[], answer: string, seed: number, prefer: string[] = []): string[] {
