@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { COUNTRIES, flagEmoji } from '../../geo/countries'
+import { COUNTRIES, countryName, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import CountUp from '../../ui/CountUp'
 import { CATEGORIES, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
+import { locale, msg, t, tx } from '../../lib/i18n'
 
 type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
 
@@ -18,16 +19,16 @@ interface Item {
   options: string[]
 }
 
-const MODE_TABS: Record<Kind, string> = { culture: 'Culture G', jour: 'Du jour', drapeaux: 'Drapeaux', capitales: 'Capitales' }
+const MODE_TABS: Record<Kind, string> = { culture: msg('Culture G'), jour: msg('Du jour'), drapeaux: msg('Drapeaux'), capitales: msg('Capitales') }
 
 const COUNT = 10
 const TIME = 20000
 
 const TITLES: Record<Kind, string> = {
-  culture: 'Quiz culture G',
-  jour: 'Quiz du jour',
-  drapeaux: 'Drapeaux',
-  capitales: 'Capitales',
+  culture: msg('Quiz culture G'),
+  jour: msg('Quiz du jour'),
+  drapeaux: msg('Drapeaux'),
+  capitales: msg('Capitales'),
 }
 
 function sovereign() {
@@ -50,15 +51,15 @@ function buildItems(kind: Kind, rng: () => number, category: string | null): Ite
         return kind === 'drapeaux'
           ? {
               cat: 'Drapeaux',
-              q: 'À quel pays appartient ce drapeau ?',
+              q: t('À quel pays appartient ce drapeau ?'),
               big: flagEmoji(c.code),
-              answer: c.name,
-              options: shuffle([c.name, ...wrong.map((w) => w.name)], rng),
+              answer: countryName(c.code),
+              options: shuffle([c.code, ...wrong.map((w) => w.code)], rng).map(countryName),
             }
           : {
               cat: 'Capitales',
-              q: `Quelle est la capitale de ce pays ?`,
-              big: c.name,
+              q: t('Quelle est la capitale de ce pays ?'),
+              big: countryName(c.code),
               answer: c.capital,
               options: shuffle([c.capital, ...wrong.map((w) => w.capital)], rng),
             }
@@ -197,12 +198,12 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
       <AppBar title="Quiz">
         {(['culture', 'jour', 'drapeaux', 'capitales'] as Kind[]).map((k) => (
           <SubLink key={k} href={`#/quiz/${k === 'culture' ? '' : k}`} active={k === kind}>
-            {MODE_TABS[k]}
+            {t(MODE_TABS[k])}
           </SubLink>
         ))}
       </AppBar>
       <header className="qz-top">
-        <h1>{TITLES[kind]}</h1>
+        <h1>{t(TITLES[kind])}</h1>
       </header>
       {kind === 'culture' && (
         <div className="qz-cats">
@@ -215,7 +216,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
                 replay()
               }}
             >
-              {c ?? 'Toutes'}
+              {c ? t(c) : t('Toutes')}
             </button>
           ))}
         </div>
@@ -223,22 +224,20 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
 
       {alreadyPlayed && done ? (
         <main className="qz-card qz-end">
-          <h2>Déjà joué aujourd’hui</h2>
-          <p>
-            Ton score du jour : <b>{done.score}</b> ({done.good}/{COUNT} bonnes réponses)
-          </p>
+          <h2>{t('Déjà joué aujourd’hui')}</h2>
+          <p>{tx('Ton score du jour : {score} ({good}/{count} bonnes réponses)', { score: <b>{done.score}</b>, good: done.good, count: COUNT })}</p>
           <button className="qz-cta" onClick={replay}>
-            Jouer une partie libre
+            {t('Jouer une partie libre')}
           </button>
         </main>
       ) : over ? (
         <main className="qz-card qz-end">
-          <span className="qz-kicker">PARTIE TERMINÉE</span>
+          <span className="qz-kicker">{t('PARTIE TERMINÉE')}</span>
           <div className="qz-final">
             <CountUp value={score} />
           </div>
           <p>
-            {good} / {COUNT} bonnes réponses {record && <b className="qz-record">· Nouveau record !</b>}
+            {t('{good} / {count} bonnes réponses', { good, count: COUNT })} {record && <b className="qz-record">· {t('Nouveau record !')}</b>}
           </p>
           <div className="qz-strip stagger">
             {results.map((r, k) => (
@@ -257,13 +256,13 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
             <button
               className="qz-ghost"
               onClick={async () =>
-                setCopied(await copyText(`${TITLES[kind]}${kind === 'jour' ? ' ' + day : ''}\n${results.map((r) => (r ? '🟩' : '🟥')).join('')} ${score} pts`))
+                setCopied(await copyText(`${t(TITLES[kind])}${kind === 'jour' ? ' ' + day : ''}\n${results.map((r) => (r ? '🟩' : '🟥')).join('')} ${t('{n} pts', { n: score })}`))
               }
             >
-              {copied ? 'Copié !' : 'Partager'}
+              {copied ? t('Copié !') : t('Partager')}
             </button>
             <button className="qz-cta" onClick={replay}>
-              Rejouer ↻
+              {t('Rejouer ↻')}
             </button>
           </div>
         </main>
@@ -271,9 +270,9 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
         <main className="qz-card" key={i + '-' + run}>
           <div className="qz-head">
             <span className="qz-kicker">
-              QUESTION {i + 1} / {COUNT} · {item.cat.toUpperCase()}
+              {t('QUESTION {n} / {total}', { n: i + 1, total: COUNT })} · {t(item.cat).toLocaleUpperCase(locale())}
             </span>
-            <span className="qz-score">{score} pts</span>
+            <span className="qz-score">{t('{n} pts', { n: score })}</span>
           </div>
           <div className="qz-progress">
             {items.map((_, k) => (
@@ -300,10 +299,10 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
           {picked !== null && (
             <div className="qz-feedback">
               <span className={picked === item.answer ? 'qz-pill ok' : 'qz-pill ko'}>
-                {picked === item.answer ? `Bonne réponse ! +${gain}` : picked === '' ? 'Temps écoulé !' : 'Raté !'}
+                {picked === item.answer ? t('Bonne réponse ! +{n}', { n: gain }) : picked === '' ? t('Temps écoulé !') : t('Raté !')}
               </span>
               <button className="qz-cta" onClick={next} autoFocus>
-                {i + 1 >= items.length ? 'Voir le score' : 'Question suivante →'}
+                {i + 1 >= items.length ? t('Voir le score') : t('Question suivante →')}
               </button>
             </div>
           )}
