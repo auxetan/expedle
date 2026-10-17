@@ -10,6 +10,7 @@ import DrawingPaths from './DrawingPaths'
 import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
+import { locale } from '../../lib/i18n'
 
 export type Variant = 'objets' | 'geo' | '1000' | 'pop'
 
@@ -32,7 +33,7 @@ interface Camera {
 
 
 export function formatLength(v: number, variant: Variant): string {
-  const nf = (n: number, d = 0) => n.toLocaleString('fr-FR', { maximumFractionDigits: d })
+  const nf = (n: number, d = 0) => n.toLocaleString(locale(), { maximumFractionDigits: d })
   if (variant === 'geo') return v < 1 ? `${nf(v * 1000)} m` : `${nf(v, v < 10 ? 1 : 0)} km`
   if (v < 1) return `${nf(v * 10, 1)} mm`
   if (v < 1000) return `${nf(v, v < 10 ? 1 : 0)} cm`
@@ -152,7 +153,7 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
     variant === '1000'
       ? `Thème de la semaine : ${weeklyTheme().name}`
       : date && date !== todayKey()
-        ? `Archive du ${new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+        ? `Archive du ${new Date(date + 'T12:00:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}`
         : variant === 'pop'
           ? 'Fais correspondre le personnage à sa taille officielle.'
           : null
