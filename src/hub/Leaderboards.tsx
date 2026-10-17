@@ -6,11 +6,11 @@ import { gameInfo } from '../ui/gameInfo'
 import GameIcon from '../ui/GameIcon'
 import { ALL_GAMES } from '../ui/games'
 import './leaderboards.css'
+import { fmt, locale, plural, t } from '../lib/i18n'
 
 type Tab = 'jour' | 'semaine' | 'toujours'
 
 const DAILIES = ALL_GAMES.filter((g) => g.rhythm === 'quotidien' && g.dailyId)
-const fmt = (n: number) => n.toLocaleString('fr-FR')
 
 function shift(day: string, by: number): string {
   const [y, m, d] = day.split('-').map(Number)
@@ -18,9 +18,9 @@ function shift(day: string, by: number): string {
 }
 
 function longDay(day: string): string {
-  if (day === todayKey()) return 'Aujourd’hui'
-  if (day === shift(todayKey(), -1)) return 'Hier'
-  return new Date(day + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  if (day === todayKey()) return t('Aujourd’hui')
+  if (day === shift(todayKey(), -1)) return t('Hier')
+  return new Date(day + 'T12:00:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 function clock(ms: number | null): string {
@@ -63,7 +63,7 @@ function Board<T extends { rank: number; name: string; avatar: string; me: boole
   empty: string
   value: (row: T) => React.ReactNode
 }) {
-  if (state.error) return <p className="lb-message">Classement indisponible : {state.error}</p>
+  if (state.error) return <p className="lb-message">{t('Classement indisponible : {error}', { error: state.error })}</p>
   if (!state.rows)
     return (
       <div className="lb-message">
@@ -80,7 +80,7 @@ function Board<T extends { rank: number; name: string; avatar: string; me: boole
           <span className="lb-avatar">{r.avatar}</span>
           <b className="lb-name">
             {r.name}
-            {r.me && <small> · toi</small>}
+            {r.me && <small> · {t('toi')}</small>}
           </b>
           <span className="lb-value">{value(r)}</span>
         </li>
@@ -109,30 +109,30 @@ function DailyTab() {
             }}
           >
             <GameIcon icon={g.icon} size={26} />
-            <span>{g.title}</span>
+            <span>{t(g.title)}</span>
           </button>
         ))}
       </div>
       <div className="lb-day">
-        <button onClick={() => setDay(shift(day, -1))} aria-label="Jour précédent">
+        <button onClick={() => setDay(shift(day, -1))} aria-label={t('Jour précédent')}>
           ‹
         </button>
         <b>{longDay(day)}</b>
-        <button onClick={() => setDay(shift(day, 1))} disabled={day >= todayKey()} aria-label="Jour suivant">
+        <button onClick={() => setDay(shift(day, 1))} disabled={day >= todayKey()} aria-label={t('Jour suivant')}>
           ›
         </button>
       </div>
       <Board
         state={state}
-        empty={day === todayKey() ? 'Personne n’a encore fini ce jeu aujourd’hui. À toi d’ouvrir le bal !' : 'Personne n’a joué ce jour-là.'}
+        empty={day === todayKey() ? t('Personne n’a encore fini ce jeu aujourd’hui. À toi d’ouvrir le bal !') : t('Personne n’a joué ce jour-là.')}
         value={(r) => (
           <>
-            <span>{r.win === false ? 'perdu' : r.score !== null ? info.unit(r.score) : `${r.pts} pts`}</span>
+            <span>{r.win === false ? t('perdu') : r.score !== null ? info.unit(r.score) : t('{n} pts', { n: r.pts })}</span>
             {!info.untimed && r.ms !== null && <small>{clock(r.ms)}</small>}
           </>
         )}
       />
-      <p className="lb-note muted">Seule ta première partie du jour compte : ni l’entraînement, ni les archives, ni les rejeux.</p>
+      <p className="lb-note muted">{t('Seule ta première partie du jour compte : ni l’entraînement, ni les archives, ni les rejeux.')}</p>
     </>
   )
 }
@@ -144,17 +144,15 @@ function PointsTab({ since }: { since: Date | null }) {
     <>
       <Board
         state={state}
-        empty="Personne n’a encore marqué de points sur cette période."
+        empty={t('Personne n’a encore marqué de points sur cette période.')}
         value={(r) => (
           <>
-            <span>{fmt(r.points)} pts</span>
-            <small>
-              {fmt(r.plays)} partie{r.plays > 1 ? 's' : ''}
-            </small>
+            <span>{t('{n} pts', { n: fmt(r.points) })}</span>
+            <small>{plural(r.plays, '{n} partie', '{n} parties')}</small>
           </>
         )}
       />
-      <p className="lb-note muted">Chaque partie terminée rapporte de 0 à 100 points selon ta performance, quel que soit le jeu.</p>
+      <p className="lb-note muted">{t('Chaque partie terminée rapporte de 0 à 100 points selon ta performance, quel que soit le jeu.')}</p>
     </>
   )
 }
@@ -166,27 +164,29 @@ export default function Leaderboards({ tab }: { tab?: string }) {
 
   return (
     <div className="home">
-      <AppBar title="Classements">
+      <AppBar title={t('Classements')}>
         <SubLink href="#/classements" active={current === 'jour'}>
-          Jeux du jour
+          {t('Jeux du jour')}
         </SubLink>
         <SubLink href="#/classements/semaine" active={current === 'semaine'}>
-          Cette semaine
+          {t('Cette semaine')}
         </SubLink>
         <SubLink href="#/classements/toujours" active={current === 'toujours'}>
-          Depuis toujours
+          {t('Depuis toujours')}
         </SubLink>
       </AppBar>
       <main className="home-main lb-main">
         {!cloudEnabled ? (
           <section className="lb-closed">
-            <h2>Les classements arrivent bientôt</h2>
-            <p className="muted">Cette version de Méridien n’est pas encore reliée à un compte en ligne : tes parties restent sur cet appareil.</p>
+            <h2>{t('Les classements arrivent bientôt')}</h2>
+            <p className="muted">{t('Cette version de Méridien n’est pas encore reliée à un compte en ligne : tes parties restent sur cet appareil.')}</p>
           </section>
         ) : (
           <>
             {account.state === 'out' && (
-              <p className="lb-banner">Connecte-toi depuis ton profil (en haut à droite) pour apparaître dans les classements : une adresse email suffit, sans mot de passe.</p>
+              <p className="lb-banner">
+                {t('Connecte-toi depuis ton profil (en haut à droite) pour apparaître dans les classements : une adresse email suffit, sans mot de passe.')}
+              </p>
             )}
             {current === 'jour' && <DailyTab />}
             {current === 'semaine' && <PointsTab since={monday} />}
