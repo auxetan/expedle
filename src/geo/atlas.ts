@@ -1,5 +1,6 @@
 import type { Topology } from 'topojson-specification'
-import { COUNTRY_BY_CODE, CONTINENT_NAMES, foreignNames } from './countries'
+import { getLang } from '../lib/i18n'
+import { COUNTRY_BY_CODE, CONTINENT_NAMES, countryName, foreignNames } from './countries'
 import { assemble, getWorld, polygonPart, type PolygonArcs, type RawPolygon, type World } from './world'
 
 export type AtlasId = 'monde' | 'usa'
@@ -7,7 +8,6 @@ export type AtlasId = 'monde' | 'usa'
 export interface Atlas extends World {
   id: AtlasId
   label: string
-  noun: string
   name: (code: string) => string
   aliases: (code: string) => string[]
   // départs/arrivées tirés au hasard
@@ -24,9 +24,12 @@ export function worldAtlas(): Atlas {
     ...w,
     id: 'monde',
     label: 'Monde',
-    noun: 'pays',
-    name: (c) => COUNTRY_BY_CODE.get(c)?.name ?? c,
-    aliases: (c) => [...(COUNTRY_BY_CODE.get(c)?.aliases ?? []), ...foreignNames(c)],
+    name: countryName,
+    // le nom français reste une réponse valable quelle que soit la langue du site
+    aliases: (c) => {
+      const meta = COUNTRY_BY_CODE.get(c)
+      return meta ? [meta.name, ...meta.aliases, ...foreignNames(c)] : []
+    },
     playable: w.codes.filter((c) => w.neighbors.has(c) && !COUNTRY_BY_CODE.get(c)?.territory),
     region: (c) => {
       const cont = COUNTRY_BY_CODE.get(c)?.continent
@@ -97,7 +100,7 @@ const STATE_META = new Map(
   }),
 )
 
-const REGIONS: Record<string, string[]> = {
+export const US_REGIONS: Record<string, string[]> = {
   'Nord-Est': ['09', '23', '25', '33', '44', '50', '34', '36', '42'],
   'Midwest': ['17', '18', '26', '39', '55', '19', '20', '27', '29', '31', '38', '46'],
   Sud: ['10', '11', '12', '13', '24', '37', '45', '51', '54', '01', '21', '28', '47', '05', '22', '40', '48'],
@@ -120,17 +123,24 @@ export function loadUsaAtlas(): Promise<Atlas> {
       ['49', '35'],
       ['04', '08'],
     ])
-    const regionOf = new Map(Object.entries(REGIONS).flatMap(([r, codes]) => codes.map((c) => [c, r] as const)))
+    const regionOf = new Map(Object.entries(US_REGIONS).flatMap(([r, codes]) => codes.map((c) => [c, r] as const)))
     return {
       ...built,
       id: 'usa',
       label: 'États-Unis',
-      noun: 'État',
-      name: (c) => STATE_META.get(c)?.name ?? c,
-      aliases: (c) => STATE_META.get(c)?.aliases ?? [],
+      // hors du français, le nom anglais de l'État quand il diffère (California, Georgia…)
+      name: (c) => {
+        const meta = STATE_META.get(c)
+        if (!meta) return c
+        return getLang() === 'fr' ? meta.name : (meta.aliases.find((a) => a.length > 2) ?? meta.name)
+      },
+      aliases: (c) => {
+        const meta = STATE_META.get(c)
+        return meta ? [meta.name, ...meta.aliases] : []
+      },
       playable: built.codes.filter((c) => built.neighbors.has(c) && c !== '11'),
       region: (c) => regionOf.get(c) ?? null,
-      regions: Object.keys(REGIONS),
+      regions: Object.keys(US_REGIONS),
     } satisfies Atlas
   })
   return usa
