@@ -70,6 +70,10 @@ export default function Hub() {
             {doneToday}/{dailies.length} jeux du jour · série de {streak} jour{streak > 1 ? 's' : ''} · {total} partie{total > 1 ? 's' : ''} ·{' '}
             <a href="#/stats" className="home-stats-link">
               Mes statistiques →
+            </a>{' '}
+            ·{' '}
+            <a href="#/classements" className="home-stats-link">
+              Classements →
             </a>
           </p>
         </section>
