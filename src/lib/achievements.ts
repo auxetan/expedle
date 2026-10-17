@@ -105,7 +105,7 @@ export function evaluate(plays: Play[], now = new Date()): Progress[] {
   })
 }
 
-const TITLES: [number, string][] = [
+export const TITLES: [number, string][] = [
   [1, 'Touriste'],
   [5, 'Voyageur'],
   [10, 'Explorateur'],
