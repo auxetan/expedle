@@ -13,15 +13,15 @@ import CountUp from '../../ui/CountUp'
 import { Icon } from '../../ui/Panels'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
-import { locale } from '../../lib/i18n'
+import { locale, msg, plural, t, tx } from '../../lib/i18n'
 
 type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
 
 const MODES: [PlayMode, string, string][] = [
-  ['epingler', 'Épingler', 'M12 2v5M12 17v5M2 12h5M17 12h5M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'],
-  ['saisir', 'Saisir', 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'],
-  ['placer', 'Placer', 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3'],
-  ['apprendre', 'Apprendre', 'M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5zM4 19.5A1.5 1.5 0 0 0 5.5 21H20'],
+  ['epingler', msg('Épingler'), 'M12 2v5M12 17v5M2 12h5M17 12h5M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'],
+  ['saisir', msg('Saisir'), 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'],
+  ['placer', msg('Placer'), 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3'],
+  ['apprendre', msg('Apprendre'), 'M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5zM4 19.5A1.5 1.5 0 0 0 5.5 21H20'],
 ]
 
 export default function Cartographe({ quizId: id, params }: { quizId?: string; params: URLSearchParams }) {
@@ -37,11 +37,11 @@ function Brand() {
   return (
     <AppBar title="Seterra">
       <SubLink href="#/cartographe" active={current === '#/cartographe'}>
-        Tous les quiz
+        {t('Tous les quiz')}
       </SubLink>
       {REGIONS.map((r) => (
         <SubLink key={r.id} href={`#/cartographe/${r.id}`} active={current === `#/cartographe/${r.id}`}>
-          {r.name}
+          {t(r.name)}
         </SubLink>
       ))}
     </AppBar>
@@ -54,22 +54,20 @@ function QuizList() {
     <div className="st">
       <Brand />
       <main className="st-list">
-        <h1>Quiz de géographie</h1>
-        <p className="st-lead">Clique sur la carte, ou tape le nom : apprends à situer chaque pays du monde.</p>
+        <h1>{t('Quiz de géographie')}</h1>
+        <p className="st-lead">{t('Clique sur la carte, ou tape le nom : apprends à situer chaque pays du monde.')}</p>
         {asks.map((ask) => (
           <section key={ask}>
-            <h2>Jeux {ask === 'pays' ? 'de carte' : ask === 'capitales' ? 'de capitales' : 'de drapeaux'}</h2>
+            <h2>{ask === 'pays' ? t('Jeux de carte') : ask === 'capitales' ? t('Jeux de capitales') : t('Jeux de drapeaux')}</h2>
             <div className="st-grid">
               {REGIONS.map((r) => {
                 const id = quizId(r.id, ask)
                 const best = bestScore('carto-' + id)
                 return (
                   <a key={id} href={`#/cartographe/${id}`} className="st-tile">
-                    <b>
-                      {r.name} : {ASK_LABEL[ask]}
-                    </b>
-                    <span>{quizMembers(r).length} questions</span>
-                    {best !== null && <em>Record : {best} %</em>}
+                    <b>{t('{region} : {ask}', { region: t(r.name), ask: t(ASK_LABEL[ask]) })}</b>
+                    <span>{plural(quizMembers(r).length, '{n} question', '{n} questions')}</span>
+                    {best !== null && <em>{t('Record : {n} %', { n: best })}</em>}
                   </a>
                 )
               })}
@@ -327,7 +325,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const pct = clicks ? Math.round((correct / clicks) * 100) : 0
   const blink = started && !finished && (targets.get(current)?.tries ?? 0) >= 3
   const k = zt.k
-  const title = `${region.name} : ${ASK_LABEL[ask]}`
+  const title = t('{region} : {ask}', { region: t(region.name), ask: t(ASK_LABEL[ask]) })
 
   return (
     <div className="st">
@@ -337,14 +335,14 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           {started && learning && (
             <div className="st-bar">
               <span className="st-score">
-                <b>Apprendre</b>
+                <b>{t('Apprendre')}</b>
               </span>
-              <span className="st-target">{hover ? countryName(hover) : 'Survole ou clique un pays'}</span>
+              <span className="st-target">{hover ? countryName(hover) : t('Survole ou clique un pays')}</span>
               <span className="st-right">
                 <button className="st-pill ui-btn line" onClick={() => setPinned(pinned.size ? new Set() : new Set(members))}>
-                  {pinned.size ? 'Masquer les noms' : 'Tous les noms'}
+                  {pinned.size ? t('Masquer les noms') : t('Tous les noms')}
                 </button>
-                <button className="st-x" onClick={() => go('/cartographe')} aria-label="Quitter">
+                <button className="st-x" onClick={() => go('/cartographe')} aria-label={t('Quitter')}>
                   ✕
                 </button>
               </span>
@@ -364,7 +362,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               )}
               <span className="st-right">
                 <span className="st-time">{formatTime(elapsed)}</span>
-                <button className="st-x" onClick={() => go('/cartographe')} aria-label="Quitter">
+                <button className="st-x" onClick={() => go('/cartographe')} aria-label={t('Quitter')}>
                   ✕
                 </button>
               </span>
@@ -465,40 +463,43 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           {!started && (
             <div className="st-start">
               <h1>{title}</h1>
-              <span className="st-kicker">MODE DE JEU</span>
+              <span className="st-kicker">{t('MODE DE JEU')}</span>
               <div className="st-modes">
                 {MODES.map(([m, label, icon]) => (
                   <a key={m} href={`#/cartographe/${quizId(region.id, ask)}${m === 'epingler' ? '' : `?mode=${m}`}`} className={mode === m ? 'on' : ''}>
                     <span>
                       <Icon d={icon} size={22} />
                     </span>
-                    {label}
+                    {t(label)}
                   </a>
                 ))}
               </div>
               <button className="st-go ui-btn" onClick={start}>
-                {learning ? 'Explorer la carte' : 'Commencer le quiz'}
+                {learning ? t('Explorer la carte') : t('Commencer le quiz')}
               </button>
             </div>
           )}
 
           {finished && started && (
             <div className="st-start st-end">
-              <h1>{pct >= 90 ? 'Bravo !' : pct >= 60 ? 'Bien joué !' : 'Continue !'}</h1>
+              <h1>{pct >= 90 ? t('Bravo !') : pct >= 60 ? t('Bien joué !') : t('Continue !')}</h1>
               <p>
-                Score :{' '}
-                <b>
-                  <CountUp value={pct} /> %
-                </b>{' '}
-                en <b>{formatTime(elapsed)}</b>
+                {tx('Score : {score} en {time}', {
+                  score: (
+                    <b>
+                      <CountUp value={pct} /> %
+                    </b>
+                  ),
+                  time: <b>{formatTime(elapsed)}</b>,
+                })}
               </p>
-              {record && <p className="st-record">Nouveau record !</p>}
+              {record && <p className="st-record">{t('Nouveau record !')}</p>}
               <div className="st-modes">
                 <button className="st-go ui-btn" onClick={restart}>
-                  Rejouer
+                  {t('Rejouer')}
                 </button>
                 <button className="st-pill ui-btn line" onClick={() => go('/cartographe')}>
-                  Autres quiz
+                  {t('Autres quiz')}
                 </button>
               </div>
             </div>
@@ -507,7 +508,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
 
         {placing && started && !finished && (
           <div className="st-place">
-            <span className="ui-label">Glisse l’étiquette sur la carte</span>
+            <span className="ui-label">{t('Glisse l’étiquette sur la carte')}</span>
             <button className={drag ? 'st-chip dragging' : 'st-chip'} onPointerDown={startDrag}>
               {prompt(current, ask)}
             </button>
@@ -525,12 +526,12 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               autoFocus
               className={shake ? 'shake' : ''}
               value={typed}
-              placeholder="Quel est ce pays ?"
+              placeholder={t('Quel est ce pays ?')}
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onType()}
             />
             <button className="st-go ui-btn" onClick={onType}>
-              Valider
+              {t('Valider')}
             </button>
           </div>
         )}
@@ -538,8 +539,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
         <section className="st-info">
           <h2>{title}</h2>
           <p>
-            {members.length} pays à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs,
-            le pays clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.
+            {t('{n} pays à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs, le pays clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.', { n: members.length })}
           </p>
           <p className="st-list-names">{members.map(countryName).sort((a, b) => a.localeCompare(b, locale())).join(' · ')}</p>
         </section>
