@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PROFILE_CHANGED } from '../lib/cloud'
+import { t } from '../lib/i18n'
 import Logo from './Logo'
 import { Drawer, GamesPanel, Icon, ICONS, loadProfile, ProfilePanel, SettingsPanel } from './Panels'
 import './ui.css'
@@ -45,22 +46,22 @@ export default function AppBar({ title, home = false, settings, tools, children 
               <span>méridien</span>
             </a>
           ) : (
-            <a href="#/" className="ui-back" aria-label="Accueil">
+            <a href="#/" className="ui-back" aria-label={t('Accueil')}>
               <Icon d={ICONS.back} />
-              <span>Accueil</span>
+              <span>{t('Accueil')}</span>
             </a>
           )}
         </div>
         {title && <div className="ui-bar-title">{title}</div>}
         <div className="ui-bar-right">
           {tools}
-          <button className="ui-tool" onClick={() => toggle('jeux')} aria-label="Tous les jeux">
+          <button className="ui-tool" onClick={() => toggle('jeux')} aria-label={t('Tous les jeux')}>
             <Icon d={ICONS.menu} />
           </button>
-          <button className="ui-tool" onClick={() => toggle('reglages')} aria-label="Réglages">
+          <button className="ui-tool" onClick={() => toggle('reglages')} aria-label={t('Réglages')}>
             <Icon d={ICONS.settings} />
           </button>
-          <button className="ui-tool ui-avatar" onClick={() => toggle('profil')} aria-label="Profil">
+          <button className="ui-tool ui-avatar" onClick={() => toggle('profil')} aria-label={t('Profil')}>
             {avatar}
           </button>
         </div>
