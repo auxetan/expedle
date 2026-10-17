@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloudEnabled, sendCode, signOut, startCloud, useAccount, verifyCode } from '../lib/cloud'
+import { t } from '../lib/i18n'
 
 // Branche le compte au démarrage : session rétablie, synchronisation, envoi des parties.
 export function CloudSync() {
@@ -29,32 +30,35 @@ export default function AccountBox() {
     try {
       await action()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Une erreur est survenue.')
+      setError(e instanceof Error ? e.message : t('Une erreur est survenue.'))
     } finally {
       setBusy(false)
     }
   }
 
-  if (account.state === 'loading') return <p className="ui-note">Connexion au compte…</p>
+  if (account.state === 'loading') return <p className="ui-note">{t('Connexion au compte…')}</p>
 
   if (account.state === 'in')
     return (
       <div className="ui-field ui-account">
-        <span>Compte</span>
+        <span>{t('Compte')}</span>
         <p className="ui-note">
-          Connecté avec <b>{account.email}</b>. {account.syncing ? 'Synchronisation…' : account.error ? '' : 'Tes parties sont sauvegardées et suivent sur tous tes appareils.'}
+          {t('Connecté avec')} <b>{account.email}</b>.{' '}
+          {account.syncing ? t('Synchronisation…') : account.error ? '' : t('Tes parties sont sauvegardées et suivent sur tous tes appareils.')}
         </p>
         {account.error && <p className="ui-error">{account.error}</p>}
         <button className="ui-btn-line" onClick={() => void signOut()}>
-          Se déconnecter
+          {t('Se déconnecter')}
         </button>
       </div>
     )
 
   return (
     <div className="ui-field ui-account">
-      <span>Compte</span>
-      <p className="ui-note">Connecte-toi pour apparaître dans les classements et retrouver ta progression sur tous tes appareils. Pas de mot de passe : tout passe par un email.</p>
+      <span>{t('Compte')}</span>
+      <p className="ui-note">
+        {t('Connecte-toi pour apparaître dans les classements et retrouver ta progression sur tous tes appareils. Pas de mot de passe : tout passe par un email.')}
+      </p>
       {step === 'email' ? (
         <form
           className="ui-account-form"
@@ -66,9 +70,9 @@ export default function AccountBox() {
             })
           }}
         >
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.fr" autoComplete="email" required />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('ton@email.fr')} autoComplete="email" required />
           <button className="ui-btn" disabled={busy || !email.includes('@')}>
-            {busy ? 'Envoi…' : 'Recevoir l’email'}
+            {busy ? t('Envoi…') : t('Recevoir l’email')}
           </button>
         </form>
       ) : (
@@ -83,16 +87,16 @@ export default function AccountBox() {
             ref={codeRef}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="Code à 6 chiffres"
+            placeholder={t('Code à 6 chiffres')}
             inputMode="numeric"
             autoComplete="one-time-code"
             className="ui-code"
           />
           <button className="ui-btn" disabled={busy || code.length !== 6}>
-            {busy ? 'Vérification…' : 'Se connecter'}
+            {busy ? t('Vérification…') : t('Se connecter')}
           </button>
           <p className="ui-note">
-            Email envoyé à <b>{email}</b> : clique sur le lien qu’il contient, ou tape ici son code s’il en affiche un.{' '}
+            {t('Email envoyé à {email} : clique sur le lien qu’il contient, ou tape ici son code s’il en affiche un.', { email })}{' '}
             <button
               type="button"
               className="ui-link"
@@ -102,11 +106,11 @@ export default function AccountBox() {
                 setError('')
               }}
             >
-              Changer d’adresse
+              {t('Changer d’adresse')}
             </button>{' '}
             ·{' '}
             <button type="button" className="ui-link" disabled={busy} onClick={() => void run(() => sendCode(email))}>
-              Renvoyer
+              {t('Renvoyer')}
             </button>
           </p>
         </form>
