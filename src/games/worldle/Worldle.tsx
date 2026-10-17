@@ -11,6 +11,7 @@ import { cssColor, useTheme } from '../../ui/theme'
 import GlobeView from '../globle/GlobeView'
 import { bonusChoices, dailyTarget, evaluate, MAX_GUESSES, squares, targets } from './game'
 import './worldle.css'
+import { locale, t } from '../../lib/i18n'
 
 interface Saved {
   guesses: string[]
@@ -37,7 +38,7 @@ function Silhouette({ code, color }: { code: string; color: string }) {
     return geoPath(projection)(feature) ?? ''
   }, [atlas, code])
   return (
-    <svg className="wd-shape" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-label="Silhouette du pays à trouver">
+    <svg className="wd-shape" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-label={t('Silhouette du pays à trouver')}>
       <path d={d} fill={color} />
     </svg>
   )
@@ -88,10 +89,10 @@ export default function Worldle({ mode }: { mode?: string }) {
 
   async function share() {
     const stars = (state.flag === target ? '⭐' : '') + (state.capital === meta.capital ? '⭐' : '')
-    const text = `Worldle Méridien ${practice ? '(partie libre)' : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
+    const text = `Worldle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
-    setToast((await copyText(text)) ? 'Résultat copié !' : 'Copie impossible')
+    setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
@@ -102,10 +103,10 @@ export default function Worldle({ mode }: { mode?: string }) {
     <div className="wd">
       <AppBar title="Worldle">
         <SubLink href="#/worldle" active={!practice}>
-          Pays du jour
+          {t('Pays du jour')}
         </SubLink>
         <SubLink href="#/worldle/libre" active={practice}>
-          Partie libre
+          {t('Partie libre')}
         </SubLink>
       </AppBar>
       <main className="wd-main">
@@ -119,7 +120,7 @@ export default function Worldle({ mode }: { mode?: string }) {
             return r ? (
               <li key={i} className="wd-row filled">
                 <span className="wd-name">{atlas.name(r.code)}</span>
-                <span className="wd-km">{r.km.toLocaleString('fr-FR')} km</span>
+                <span className="wd-km">{r.km.toLocaleString(locale())} km</span>
                 <span className="wd-arrow">{r.arrow}</span>
                 <span className="wd-prox">{r.proximity} %</span>
               </li>
@@ -129,26 +130,26 @@ export default function Worldle({ mode }: { mode?: string }) {
           })}
         </ol>
 
-        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder="Quel est ce pays ?" button="🌍 Deviner" />}
+        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('Quel est ce pays ?')} button={`🌍 ${t('Deviner')}`} />}
 
         {over && !bonus && (
           <section className="wd-end">
-            <b>{won ? `Bravo ! Réponse : ${atlas.name(target)}` : `Perdu. Réponse : ${atlas.name(target)}`}</b>
-            <span className="muted">{won ? `Trouvé en ${state.guesses.length}/${MAX_GUESSES}.` : 'Six essais, pas un de plus.'}</span>
+            <b>{won ? t('Bravo ! Réponse : {name}', { name: atlas.name(target) }) : t('Perdu. Réponse : {name}', { name: atlas.name(target) })}</b>
+            <span className="muted">{won ? t('Trouvé en {n}/{max}.', { n: state.guesses.length, max: MAX_GUESSES }) : t('Six essais, pas un de plus.')}</span>
             <div className="wd-actions">
               <button className="ui-btn" onClick={() => setBonus(true)}>
-                Manches bonus ★
+                {t('Manches bonus ★')}
               </button>
               <button className="ui-btn line" onClick={share}>
-                Partager
+                {t('Partager')}
               </button>
               {practice ? (
                 <button className="ui-btn line" onClick={another}>
-                  Un autre pays ↻
+                  {t('Un autre pays ↻')}
                 </button>
               ) : (
                 <a className="ui-btn line" href="#/worldle/libre">
-                  Partie libre
+                  {t('Partie libre')}
                 </a>
               )}
             </div>
@@ -158,13 +159,13 @@ export default function Worldle({ mode }: { mode?: string }) {
 
         {over && bonus && (
           <section className="wd-bonus">
-            <h2>Bonus 1 · Quel est le drapeau de ce pays ?</h2>
+            <h2>{t('Bonus 1 · Quel est le drapeau de ce pays ?')}</h2>
             <div className="wd-flags">
               {choices.flags.map((c) => {
                 const picked = state.flag
                 const cls = !picked ? '' : c === target ? 'right' : c === picked ? 'wrong' : 'dim'
                 return (
-                  <button key={c} className={cls} disabled={!!picked} onClick={() => update({ ...state, flag: c })} aria-label={picked ? atlas.name(c) : 'Drapeau'}>
+                  <button key={c} className={cls} disabled={!!picked} onClick={() => update({ ...state, flag: c })} aria-label={picked ? atlas.name(c) : t('Drapeau')}>
                     <span>{flagEmoji(c)}</span>
                     {picked && <small>{atlas.name(c)}</small>}
                   </button>
@@ -173,7 +174,7 @@ export default function Worldle({ mode }: { mode?: string }) {
             </div>
             {state.flag && (
               <>
-                <h2>Bonus 2 · Quelle est sa capitale ?</h2>
+                <h2>{t('Bonus 2 · Quelle est sa capitale ?')}</h2>
                 <div className="wd-caps">
                   {choices.capitals.map((cap) => {
                     const picked = state.capital
@@ -190,13 +191,13 @@ export default function Worldle({ mode }: { mode?: string }) {
             {state.capital && (
               <div className="wd-actions">
                 <b className="wd-stars">
-                  {(state.flag === target ? 1 : 0) + (state.capital === meta.capital ? 1 : 0)} / 2 bonus
+                  {t('{n} / 2 bonus', { n: (state.flag === target ? 1 : 0) + (state.capital === meta.capital ? 1 : 0) })}
                 </b>
                 <button className="ui-btn" onClick={share}>
-                  Partager
+                  {t('Partager')}
                 </button>
                 <button className="ui-btn line" onClick={() => setBonus(false)}>
-                  Retour au résultat
+                  {t('Retour au résultat')}
                 </button>
               </div>
             )}
