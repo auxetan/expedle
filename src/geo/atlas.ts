@@ -1,5 +1,5 @@
 import type { Topology } from 'topojson-specification'
-import { COUNTRY_BY_CODE, CONTINENT_NAMES } from './countries'
+import { COUNTRY_BY_CODE, CONTINENT_NAMES, foreignNames } from './countries'
 import { assemble, getWorld, polygonPart, type PolygonArcs, type RawPolygon, type World } from './world'
 
 export type AtlasId = 'monde' | 'usa'
@@ -26,7 +26,7 @@ export function worldAtlas(): Atlas {
     label: 'Monde',
     noun: 'pays',
     name: (c) => COUNTRY_BY_CODE.get(c)?.name ?? c,
-    aliases: (c) => COUNTRY_BY_CODE.get(c)?.aliases ?? [],
+    aliases: (c) => [...(COUNTRY_BY_CODE.get(c)?.aliases ?? []), ...foreignNames(c)],
     playable: w.codes.filter((c) => w.neighbors.has(c) && !COUNTRY_BY_CODE.get(c)?.territory),
     region: (c) => {
       const cont = COUNTRY_BY_CODE.get(c)?.continent
