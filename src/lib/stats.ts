@@ -17,10 +17,16 @@ export function plays(): Play[] {
   return load<Play[]>('history', [])
 }
 
+export const PLAYED = 'cg:played'
+
 export function recordPlay(g: string, detail: Omit<Play, 'g' | 't'>): void {
   const pts = Math.round(Math.max(0, Math.min(100, detail.pts)))
-  save('history', [...plays(), { ...detail, g, t: Date.now(), pts }].slice(-5000))
+  const play = { ...detail, g, t: Date.now(), pts }
+  save('history', [...plays(), play].slice(-5000))
+  // succès, niveau et synchronisation écoutent les parties terminées
+  globalThis.dispatchEvent?.(new CustomEvent<Play>(PLAYED, { detail: play }))
 }
+
 
 // Durée écoulée depuis le début de la partie, relancée quand `reset` change.
 export function useStopwatch(reset?: unknown): () => number {
