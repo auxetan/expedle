@@ -4,16 +4,16 @@ import { plays, PLAYED, type Play } from './stats'
 import { load, save, todayKey } from './util'
 
 // Le compte est facultatif : sans projet Supabase configuré dans .env.local, le site reste 100 % local.
-const URL = ((import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '').trim()
+const SUPABASE_URL = ((import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '').trim()
 const KEY = ((import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '').trim()
-export const cloudEnabled = !!URL && !!KEY
+export const cloudEnabled = !!SUPABASE_URL && !!KEY
 
 // Le client (≈ 50 Ko) ne se charge que si le compte est configuré.
 let client: Promise<SupabaseClient> | null = null
 function cloud(): Promise<SupabaseClient> {
   client ??= import('@supabase/supabase-js').then(({ createClient }) =>
     // hors des clés cg: pour que « Effacer ma progression » ne déconnecte pas
-    createClient(URL, KEY, { auth: { storageKey: 'meridien-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }),
+    createClient(SUPABASE_URL, KEY, { auth: { storageKey: 'meridien-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }),
   )
   return client
 }
