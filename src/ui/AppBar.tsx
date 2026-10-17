@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { PROFILE_CHANGED } from '../lib/cloud'
 import Logo from './Logo'
 import { Drawer, GamesPanel, Icon, ICONS, loadProfile, ProfilePanel, SettingsPanel } from './Panels'
 import './ui.css'
@@ -20,6 +21,12 @@ export default function AppBar({ title, home = false, settings, tools, children 
   const nav = useRef<HTMLElement>(null)
 
   const hash = window.location.hash
+
+  useEffect(() => {
+    const refresh = () => setAvatar(loadProfile().avatar)
+    window.addEventListener(PROFILE_CHANGED, refresh)
+    return () => window.removeEventListener(PROFILE_CHANGED, refresh)
+  }, [])
 
   // l'onglet actif reste visible quand la sous-navigation défile sur mobile
   useEffect(() => {
