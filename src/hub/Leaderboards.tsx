@@ -186,7 +186,7 @@ export default function Leaderboards({ tab }: { tab?: string }) {
         ) : (
           <>
             {account.state === 'out' && (
-              <p className="lb-banner">Connecte-toi depuis ton profil (en haut à droite) pour apparaître dans les classements : un code par email suffit.</p>
+              <p className="lb-banner">Connecte-toi depuis ton profil (en haut à droite) pour apparaître dans les classements : une adresse email suffit, sans mot de passe.</p>
             )}
             {current === 'jour' && <DailyTab />}
             {current === 'semaine' && <PointsTab since={monday} />}
