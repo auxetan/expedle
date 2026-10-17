@@ -2,6 +2,7 @@ import { countryAt, randomPointIn } from '../../geo/measure'
 import type { World } from '../../geo/world'
 import { normalize } from '../../lib/util'
 import { pickCountry, type Mode } from './guess'
+import { t } from '../../lib/i18n'
 
 export interface CommonsPage {
   pageid: number
@@ -80,8 +81,8 @@ function toPlace(world: World, p: CommonsPage): Place {
     image: ii.thumburl!,
     page: ii.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title)}`,
     title: p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, '').replace(/_/g, ' '),
-    author: stripHtml(meta(p, 'Artist')) || 'auteur inconnu',
-    license: meta(p, 'LicenseShortName') || 'licence libre',
+    author: stripHtml(meta(p, 'Artist')) || t('auteur inconnu'),
+    license: meta(p, 'LicenseShortName') || t('licence libre'),
     licenseUrl: meta(p, 'LicenseUrl'),
     country: countryAt(world, [lon, lat]),
   }
