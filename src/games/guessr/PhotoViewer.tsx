@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { t } from '../../lib/i18n'
 
 interface View {
   k: number
@@ -86,7 +87,7 @@ export default function PhotoViewer({ src, alt }: { src: string; alt: string }) 
 
   return (
     <div className={view.k > 1 ? 'wg-photo zoomed' : 'wg-photo'} ref={box}>
-      {!loaded && <div className="wg-spinner" aria-label="Chargement de la photo" />}
+      {!loaded && <div className="wg-spinner" aria-label={t('Chargement de la photo')} />}
       <img
         key={src}
         src={src}
@@ -100,7 +101,7 @@ export default function PhotoViewer({ src, alt }: { src: string; alt: string }) 
         <button onClick={() => setView((v) => ({ ...v, k: Math.min(6, v.k * 1.5) }))} aria-label="Zoomer">
           +
         </button>
-        <button onClick={() => setView({ k: 1, x: 0, y: 0 })} aria-label="Vue entière">
+        <button onClick={() => setView({ k: 1, x: 0, y: 0 })} aria-label={t('Vue entière')}>
           ⤢
         </button>
       </div>
