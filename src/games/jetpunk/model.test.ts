@@ -31,6 +31,15 @@ describe('answerKey', () => {
 })
 
 describe('matchAnswer', () => {
+  it('accepte un pays dans n’importe quelle langue, même dans un quiz de joueur', () => {
+    const quiz = { id: 'q', title: 'Voisins', description: '', category: 'Géographie', tags: [], time: 60, answer: 'Pays', rows: [{ answer: 'Allemagne' }, { answer: 'Japon' }] } as TableQuiz
+    expect(matchAnswer(quiz, 'Germany', new Set())).toEqual([0])
+    expect(matchAnswer(quiz, 'Германия', new Set())).toEqual([0])
+    expect(matchAnswer(quiz, '日本', new Set())).toEqual([1])
+    expect(answerKey('Германия')).toBe('германия')
+  })
+
+
   it('reconnaît la réponse et ses variantes', () => {
     expect(matchAnswer(quiz, 'caire', new Set())).toEqual([0])
     expect(matchAnswer(quiz, 'washington dc', new Set())).toEqual([1])
