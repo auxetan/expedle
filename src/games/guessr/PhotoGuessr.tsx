@@ -2,27 +2,29 @@ import { getWorld } from '../../geo/world'
 import GuessGame, { type GuessSource } from './GuessGame'
 import PhotoViewer from './PhotoViewer'
 import { findPlace, type Place } from './photos'
+import { msg, t } from '../../lib/i18n'
 
 const world = getWorld()
 
 const photos: GuessSource<Place> = {
   game: 'photoguessr',
   title: 'PhotoGuessr',
-  question: 'Où a été prise cette photo ?',
-  intro:
+  question: msg('Où a été prise cette photo ?'),
+  intro: msg(
     'Cinq vraies photos géolocalisées, venues de Wikimedia Commons. Scrute les panneaux, la végétation, l’architecture, puis place ton repère sur la carte : plus tu es près, plus tu marques, jusqu’à 5 000 points par manche.',
-  note: 'Il faut une connexion : les photos et le fond de carte sont chargés en direct.',
+  ),
+  note: msg('Il faut une connexion : les photos et le fond de carte sont chargés en direct.'),
   find: (mode, seen, signal) =>
     findPlace(world, mode, Math.random, seen, signal).then((p) => {
       new Image().src = p.image
       return p
     }),
-  View: ({ spot }) => <PhotoViewer key={spot.id} src={spot.image} alt="Lieu à retrouver" />,
+  View: ({ spot }) => <PhotoViewer key={spot.id} src={spot.image} alt={t('Lieu à retrouver')} />,
   Details: ({ spot }) => (
     <>
       <p className="wg-place muted">{spot.title}</p>
       <p className="wg-credit muted">
-        Photo : {spot.author} ·{' '}
+        {t('Photo : {author}', { author: spot.author })} ·{' '}
         {spot.licenseUrl ? (
           <a href={spot.licenseUrl} target="_blank" rel="noopener noreferrer">
             {spot.license}
@@ -39,7 +41,7 @@ const photos: GuessSource<Place> = {
   ),
   Thumb: ({ spot }) => <img src={spot.image} alt="" />,
   explain: (e) =>
-    e instanceof Error && /Commons|Failed to fetch|NetworkError/.test(e.message) ? 'Impossible de joindre Wikimedia Commons. Vérifie ta connexion.' : 'Aucune photo trouvée cette fois.',
+    e instanceof Error && /Commons|Failed to fetch|NetworkError/.test(e.message) ? t('Impossible de joindre Wikimedia Commons. Vérifie ta connexion.') : t('Aucune photo trouvée cette fois.'),
 }
 
 export default function PhotoGuessr() {
