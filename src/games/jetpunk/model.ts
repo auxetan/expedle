@@ -1,3 +1,4 @@
+import { COUNTRIES, foreignNames } from '../../geo/countries'
 import { load, save } from '../../lib/util'
 
 export const CATEGORIES = ['Géographie', 'Histoire', 'Sciences', 'Arts & culture', 'Sport', 'Langues', 'Divers'] as const
@@ -41,15 +42,27 @@ export function answerKey(s: string): string {
     .replace(/[’`]/g, "'")
     .trim()
     .replace(/^(?:le |la |les |l'|the )/, '')
-    .replace(/[^a-z0-9]/g, '')
+    // toutes les écritures comptent : « Германия » ou « ドイツ » valent une réponse
+    .replace(/[^\p{L}\p{N}]/gu, '')
 }
 
 const keyCache = new WeakMap<TableQuiz, string[][]>()
 
+let countryKeys: Map<string, string> | null = null
+
+// Une réponse qui est un pays s'accepte dans toutes les langues, même dans un quiz créé par un joueur.
+function countryOf(answer: string): string | undefined {
+  countryKeys ??= new Map(COUNTRIES.flatMap((c) => [c.name, ...c.aliases].map((n) => [answerKey(n), c.code] as const)))
+  return countryKeys.get(answerKey(answer))
+}
+
 function rowKeys(quiz: TableQuiz): string[][] {
   let keys = keyCache.get(quiz)
   if (!keys) {
-    keys = quiz.rows.map((r) => [r.answer, ...(r.alts ?? [])].map(answerKey))
+    keys = quiz.rows.map((r) => {
+      const code = countryOf(r.answer)
+      return [r.answer, ...(r.alts ?? []), ...(code ? foreignNames(code) : [])].map(answerKey)
+    })
     keyCache.set(quiz, keys)
   }
   return keys
