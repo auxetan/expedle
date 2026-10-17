@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
 import AccountBox from './Account'
+import { LANGS, plural, setLang, t, useLang } from '../lib/i18n'
 import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
@@ -60,7 +61,7 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   return (
     <div className={closing ? 'ui-drawer-bg out' : 'ui-drawer-bg'} onClick={close}>
       <aside className="ui-drawer" onClick={(e) => e.stopPropagation()}>
-        <button className="ui-tool ui-drawer-close" onClick={close} aria-label="Fermer">
+        <button className="ui-tool ui-drawer-close" onClick={close} aria-label={t('Fermer')}>
           <Icon d={ICONS.close} />
         </button>
         {children}
@@ -94,13 +95,13 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
 
   return (
     <>
-      <h3>Profil</h3>
+      <h3>{t('Profil')}</h3>
       <label className="ui-field">
-        <span>Pseudo</span>
-        <input value={profile.name} maxLength={24} placeholder="Ton pseudo" onChange={(e) => update({ name: e.target.value })} />
+        <span>{t('Pseudo')}</span>
+        <input value={profile.name} maxLength={24} placeholder={t('Ton pseudo')} onChange={(e) => update({ name: e.target.value })} />
       </label>
       <div className="ui-field">
-        <span>Avatar</span>
+        <span>{t('Avatar')}</span>
         <div className="ui-avatars">
           {AVATARS.map((a) => (
             <button key={a} className={a === profile.avatar ? 'on' : ''} onClick={() => update({ avatar: a })}>
@@ -111,31 +112,33 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
       </div>
       <div className="ui-figures">
         <div>
-          <b>{total}</b>parties
+          <b>{total}</b>
+          {plural(total, 'partie', 'parties')}
         </div>
         <div>
-          <b>{streak}</b>jours de série
+          <b>{streak}</b>
+          {plural(streak, 'jour de série', 'jours de série')}
         </div>
         <div>
           <b>{level.level}</b>
-          {level.title.toLowerCase()}
+          {t(level.title).toLowerCase()}
         </div>
       </div>
       <p className="ui-note">
-        {doneToday}/{dailies.length} jeux du jour terminés aujourd’hui.
+        {t('{done}/{total} jeux du jour terminés aujourd’hui.', { done: doneToday, total: dailies.length })}
       </p>
       <AccountBox />
       <a href="#/classements" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.podium} />
-        Classements
+        {t('Classements')}
       </a>
       <a href="#/succes" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.trophy} />
-        Mes succès
+        {t('Mes succès')}
       </a>
       <a href="#/stats" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.chart} />
-        Toutes mes statistiques
+        {t('Toutes mes statistiques')}
       </a>
     </>
   )
@@ -143,11 +146,12 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
 
 export function SettingsPanel({ extra }: { extra?: ReactNode }) {
   const theme = useTheme()
+  const lang = useLang()
   const [confirm, setConfirm] = useState(false)
 
   function reset() {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('cg:') && k !== 'cg:theme' && k !== 'cg:profile')
+      .filter((k) => k.startsWith('cg:') && !['cg:theme', 'cg:profile', 'cg:lang'].includes(k))
       .forEach((k) => localStorage.removeItem(k))
     setConfirm(false)
     window.location.reload()
@@ -155,32 +159,42 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
 
   return (
     <>
-      <h3>Réglages</h3>
+      <h3>{t('Réglages')}</h3>
       <div className="ui-field">
-        <span>Thème</span>
+        <span>{t('Langue')}</span>
         <div className="ui-seg">
-          {(['sombre', 'clair'] as Theme[]).map((t) => (
-            <button key={t} className={theme === t ? 'on' : ''} onClick={() => setTheme(t)}>
-              {t === 'sombre' ? 'Sombre' : 'Clair'}
+          {LANGS.map((l) => (
+            <button key={l.id} lang={l.id} className={lang === l.id ? 'on' : ''} onClick={() => setLang(l.id)}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ui-field">
+        <span>{t('Thème')}</span>
+        <div className="ui-seg">
+          {(['sombre', 'clair'] as Theme[]).map((th) => (
+            <button key={th} className={theme === th ? 'on' : ''} onClick={() => setTheme(th)}>
+              {th === 'sombre' ? t('Sombre') : t('Clair')}
             </button>
           ))}
         </div>
       </div>
       {extra}
       <div className="ui-field">
-        <span>Données</span>
-        <p className="ui-note">Tes parties, séries et records sont enregistrés uniquement dans ce navigateur.</p>
+        <span>{t('Données')}</span>
+        <p className="ui-note">{t('Tes parties, séries et records sont enregistrés uniquement dans ce navigateur.')}</p>
         {confirm ? (
           <div className="ui-confirm">
-            <span>Tout effacer ? Cette action est définitive.</span>
+            <span>{t('Tout effacer ? Cette action est définitive.')}</span>
             <button className="danger" onClick={reset}>
-              Oui, effacer
+              {t('Oui, effacer')}
             </button>
-            <button onClick={() => setConfirm(false)}>Annuler</button>
+            <button onClick={() => setConfirm(false)}>{t('Annuler')}</button>
           </div>
         ) : (
           <button className="ui-btn-line" onClick={() => setConfirm(true)}>
-            Réinitialiser mes données
+            {t('Réinitialiser mes données')}
           </button>
         )}
       </div>
@@ -192,30 +206,30 @@ export function GamesPanel({ onPick }: { onPick: () => void }) {
   const current = window.location.hash.split('?')[0]
   return (
     <>
-      <h3>Jeux</h3>
+      <h3>{t('Jeux')}</h3>
       <a href="#/" className="ui-game-row" onClick={onPick}>
         <span className="ui-game-glyph">
           <Icon d={ICONS.home} />
         </span>
-        <b>Accueil</b>
+        <b>{t('Accueil')}</b>
       </a>
       <a href="#/stats" className={current === '#/stats' ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
         <span className="ui-game-glyph">
           <Icon d={ICONS.chart} />
         </span>
-        <b>Statistiques</b>
+        <b>{t('Statistiques')}</b>
       </a>
       {GAME_SECTIONS.map((s) => (
         <div key={s.label} className="ui-game-section">
-          <h4>{s.label}</h4>
+          <h4>{t(s.label)}</h4>
           {s.games.map((g) => (
             <a key={g.href} href={g.href} className={current === g.href ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
               <span className="ui-game-glyph">
                 <GameIcon icon={g.icon} size={30} />
               </span>
               <span className="ui-game-text">
-                <b>{g.title}</b>
-                <small>{g.tagline}</small>
+                <b>{t(g.title)}</b>
+                <small>{t(g.tagline)}</small>
               </span>
               {isDoneToday(g) && <span className="ui-game-done">✓</span>}
             </a>
