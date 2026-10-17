@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { COUNTRY_BY_CODE } from '../../geo/countries'
+import { countryName as nameOf } from '../../geo/countries'
 import { distanceKm } from '../../geo/measure'
 import { recordPlay, useStopwatch } from '../../lib/stats'
 import { copyText, load, save } from '../../lib/util'
@@ -8,6 +8,7 @@ import CountUp from '../../ui/CountUp'
 import GuessMap, { type LatLng, type Pair } from './GuessMap'
 import { MODES, score, type Mode } from './guess'
 import './guessr.css'
+import { fmt, locale, t, tx } from '../../lib/i18n'
 
 export interface Spot {
   id: string
@@ -37,8 +38,8 @@ export interface GuessSource<S extends Spot> {
 const ROUNDS = 5
 type Phase = 'menu' | 'play' | 'summary' | 'error'
 
-const fmtKm = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${Math.round(km).toLocaleString('fr-FR')} km`)
-const countryName = (s: Spot) => (s.country ? COUNTRY_BY_CODE.get(s.country)?.name ?? s.country : 'en mer ou hors carte')
+const fmtKm = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${Math.round(km).toLocaleString(locale())} km`)
+const countryName = (s: Spot) => (s.country ? nameOf(s.country) : t('en mer ou hors carte'))
 
 export default function GuessGame<S extends Spot>({ source, settings, menuTop }: { source: GuessSource<S>; settings?: ReactNode; menuTop?: ReactNode }) {
   const { game, modes = MODES } = source
@@ -176,10 +177,10 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
   }
 
   async function share() {
-    const text = `${source.title} Méridien · ${mode.label}\n${results
-      .map((r, i) => `${i + 1}. ${r.points.toLocaleString('fr-FR')} pts (${fmtKm(r.km)})`)
-      .join('\n')}\nTotal : ${total.toLocaleString('fr-FR')} / ${(ROUNDS * 5000).toLocaleString('fr-FR')}`
-    setToast((await copyText(text)) ? 'Résultat copié !' : 'Copie impossible')
+    const text = `${source.title} Méridien · ${t(mode.label)}\n${results
+      .map((r, i) => `${i + 1}. ${t('{n} pts', { n: fmt(r.points) })} (${fmtKm(r.km)})`)
+      .join('\n')}\n${t('Total : {total} / {max}', { total: fmt(total), max: fmt(ROUNDS * 5000) })}`
+    setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
@@ -193,21 +194,21 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
 
       {phase === 'menu' && (
         <main className="wg-menu">
-          <h1>{source.question}</h1>
-          <p className="muted">{source.intro}</p>
+          <h1>{t(source.question)}</h1>
+          <p className="muted">{t(source.intro)}</p>
           {menuTop}
           <div className="wg-modes">
             {modes.map((m) => {
               const b = load<number | null>(`${store}:best:${m.id}`, null)
               return (
                 <button key={m.id} className={m.id === mode.id ? 'on' : ''} onClick={() => start(m)}>
-                  <b>{m.label}</b>
-                  <span>{b !== null ? `record ${b.toLocaleString('fr-FR')}` : 'jamais joué'}</span>
+                  <b>{t(m.label)}</b>
+                  <span>{b !== null ? t('record {n}', { n: fmt(b) }) : t('jamais joué')}</span>
                 </button>
               )
             })}
           </div>
-          <p className="wg-note muted">{source.note}</p>
+          <p className="wg-note muted">{t(source.note)}</p>
         </main>
       )}
 
@@ -216,10 +217,10 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
           <p>{error}</p>
           <div className="wg-row">
             <button className="ui-btn" onClick={retry}>
-              Réessayer
+              {t('Réessayer')}
             </button>
             <button className="ui-btn line" onClick={() => setPhase('menu')}>
-              Changer de mode
+              {t('Changer de mode')}
             </button>
           </div>
         </main>
@@ -229,10 +230,10 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
         <main className="wg-play">
           <div className="wg-hud">
             <span>
-              {mode.label} · manche <b>{round + 1}</b> / {ROUNDS}
+              {tx('{mode} · manche {round} / {total}', { mode: t(mode.label), round: <b>{round + 1}</b>, total: ROUNDS })}
             </span>
             <span>
-              <b>{total.toLocaleString('fr-FR')}</b> pts
+              {tx('{n} pts', { n: <b>{fmt(total)}</b> })}
             </span>
           </div>
 
@@ -241,7 +242,7 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
             {!ready && (
               <div className="wg-veil">
                 <div className="wg-spinner" />
-                <p>Recherche d’un lieu{round ? '' : ' de départ'}…</p>
+                <p>{round ? t('Recherche d’un lieu…') : t('Recherche d’un lieu de départ…')}</p>
               </div>
             )}
 
@@ -250,11 +251,11 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
                 <div className={mapOpen ? 'wg-map open' : 'wg-map'}>
                   <GuessMap view={mode.view} guess={pick} onGuess={setPick} />
                   <button className="ui-btn wg-validate" disabled={!pick} onClick={validate}>
-                    {pick ? 'Valider ce lieu' : 'Place ton repère'}
+                    {pick ? t('Valider ce lieu') : t('Place ton repère')}
                   </button>
                 </div>
                 <button className="ui-btn wg-map-toggle" onClick={() => setMapOpen(!mapOpen)}>
-                  {mapOpen ? 'Revenir au lieu' : 'Ouvrir la carte'}
+                  {mapOpen ? t('Revenir au lieu') : t('Ouvrir la carte')}
                 </button>
               </>
             )}
@@ -269,7 +270,7 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
                     <b>
                       <CountUp value={results[round].points} />
                     </b>
-                    <span>points · à {fmtKm(results[round].km)}</span>
+                    <span>{t('points · à {km}', { km: fmtKm(results[round].km) })}</span>
                   </div>
                   <div className="wg-bar">
                     <i style={{ width: `${(results[round].points / 5000) * 100}%` }} />
@@ -277,7 +278,7 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
                   <p className="wg-place">{countryName(spot)}</p>
                   <Details spot={spot} />
                   <button className="ui-btn" onClick={advance} autoFocus>
-                    {round + 1 < ROUNDS ? 'Manche suivante →' : 'Voir le bilan'}
+                    {round + 1 < ROUNDS ? t('Manche suivante →') : t('Voir le bilan')}
                   </button>
                 </div>
               </div>
@@ -289,11 +290,11 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
       {phase === 'summary' && (
         <main className="wg-summary">
           <div className="wg-total">
-            <span className="ui-label">{mode.label} · bilan</span>
+            <span className="ui-label">{t('{mode} · bilan', { mode: t(mode.label) })}</span>
             <b>
-              <CountUp value={total} /> <small>/ {(ROUNDS * 5000).toLocaleString('fr-FR')}</small>
+              <CountUp value={total} /> <small>/ {(ROUNDS * 5000).toLocaleString(locale())}</small>
             </b>
-            {record ? <span className="wg-record">Nouveau record !</span> : best !== null && <span className="muted">Record : {best.toLocaleString('fr-FR')}</span>}
+            {record ? <span className="wg-record">{t('Nouveau record !')}</span> : best !== null && <span className="muted">{t('Record : {n}', { n: fmt(best) })}</span>}
           </div>
           <div className="wg-reveal-map tall">
             <GuessMap view={mode.view} pairs={spots.map((s, i): Pair => ({ guess: guesses[i], truth: [s.lat, s.lng] }))} />
@@ -306,19 +307,19 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop }:
                   {countryName(s)}
                   <small className="muted">{fmtKm(results[i].km)}</small>
                 </span>
-                <b>{results[i].points.toLocaleString('fr-FR')}</b>
+                <b>{results[i].points.toLocaleString(locale())}</b>
               </li>
             ))}
           </ol>
           <div className="wg-row">
             <button className="ui-btn" onClick={() => start()}>
-              Rejouer ↻
+              {t('Rejouer ↻')}
             </button>
             <button className="ui-btn line" onClick={share}>
-              Partager
+              {t('Partager')}
             </button>
             <button className="ui-btn line" onClick={() => setPhase('menu')}>
-              Changer de mode
+              {t('Changer de mode')}
             </button>
           </div>
         </main>
