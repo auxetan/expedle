@@ -8,6 +8,7 @@ import ClassementHome from './ClassementHome'
 import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
 import { MODE_LABEL, rankMatrix, setupFor, type Mode } from './setup'
 import './classement.css'
+import { getLang, t } from '../../lib/i18n'
 
 function rankColor(r: number): string {
   if (r <= 5) return 'var(--good)'
@@ -18,7 +19,13 @@ function rankColor(r: number): string {
 }
 
 const rankText = (r: number) => (r >= MISSING_RANK ? '100+' : String(r))
-const ordinal = (r: number) => (r === 1 ? '1er' : `${r}e`)
+// 1er, 1st, 1.º… selon la langue du site
+function ordinal(r: number): string {
+  const lang = getLang()
+  if (lang === 'fr') return r === 1 ? '1er' : `${r}e`
+  if (lang === 'en') return `${r}${{ one: 'st', two: 'nd', few: 'rd' }[new Intl.PluralRules('en', { type: 'ordinal' }).select(r) as string] ?? 'th'}`
+  return lang === 'de' ? `${r}.` : `${r}º`
+}
 
 interface Toast {
   title: string
@@ -77,11 +84,11 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
     setToast(
       good
         ? {
-            title: r <= 10 ? 'Excellent !' : 'Bon choix !',
-            text: r >= MISSING_RANK ? 'Aucune meilleure option restante.' : `Ce pays est classé ${ordinal(r)} dans cette catégorie.`,
+            title: r <= 10 ? t('Excellent !') : t('Bon choix !'),
+            text: r >= MISSING_RANK ? t('Aucune meilleure option restante.') : t('Ce pays est classé {rank} dans cette catégorie.', { rank: ordinal(r) }),
             good,
           }
-        : { title: `Meilleur choix : ${categories[bestCat].label} ${rankText(best)}`, text: '', good },
+        : { title: t('Meilleur choix : {cat} {rank}', { cat: t(categories[bestCat].label), rank: rankText(best) }), text: '', good },
     )
     toastTimer.current = window.setTimeout(() => setToast(null), 2600)
     setFloat(r)
@@ -107,7 +114,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   const entity = entities[Math.min(current, entities.length - 1)]
   const correct = picks.filter((c, i) => perfect.perm[i] === c || matrix[i][c] === matrix[i][perfect.perm[i]]).length
 
-  const shareText = `GeoHunter ${MODE_LABEL[mode]}${dailyId ? ' ' + dayKey : ''}\nTotal : ${total} (parfait : ${perfect.total})\n${picks
+  const shareText = `GeoHunter ${t(MODE_LABEL[mode])}${dailyId ? ' ' + dayKey : ''}\n${t('Total : {total} (parfait : {best})', { total, best: perfect.total })}\n${picks
     .map((c, i) => {
       const r = matrix[i][c]
       return r <= 5 ? '🟩' : r <= 20 ? '🟨' : r <= 40 ? '🟧' : '🟥'
@@ -124,8 +131,8 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
           <header className="gh-head">
             <div className="gh-total">
               <span className="gh-total-label">
-                {MODE_LABEL[mode]}
-                {easy ? ' facile' : ''} · total
+                {t(MODE_LABEL[mode])}
+                {easy ? ` ${t('facile')}` : ''} · {t('total')}
               </span>
               <span className="gh-total-value">
                 {current ? total : '–'}
@@ -139,13 +146,13 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
                   {Math.min(current + 1, 8)}/{entities.length}
                 </b>
               </div>
-              {dailyId && <span className="gh-goal">Objectif : {perfect.total}</span>}
+              {dailyId && <span className="gh-goal">{t('Objectif : {n}', { n: perfect.total })}</span>}
             </div>
             <div className="gh-side">
-              <button className="ui-tool" onClick={() => setHelp(true)} aria-label="Aide">
+              <button className="ui-tool" onClick={() => setHelp(true)} aria-label={t('Aide')}>
                 ?
               </button>
-              <button className="ui-tool" onClick={restart} aria-label="Recommencer">
+              <button className="ui-tool" onClick={restart} aria-label={t('Recommencer')}>
                 ↻
               </button>
             </div>
@@ -154,7 +161,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
           <main className="gh-card">
             <div className={between ? 'gh-entity between' : 'gh-entity'} key={entity.id}>
               {between ? (
-                <span className="gh-ready">🎯 Prêt à jouer !</span>
+                <span className="gh-ready">🎯 {t('Prêt à jouer !')}</span>
               ) : (
                 <>
                   <span className="gh-flag">{entity.flag}</span>
@@ -170,7 +177,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
                   <li key={c.id}>
                     <button className={owner >= 0 ? 'gh-cat taken' : 'gh-cat'} onClick={() => choose(ci)} disabled={owner >= 0}>
                       <span className="gh-cat-icon">{c.icon}</span>
-                      <span className="gh-cat-label">{c.label}</span>
+                      <span className="gh-cat-label">{t(c.label)}</span>
                       {owner >= 0 && (
                         <span className="gh-cat-result">
                           <span>{entities[owner].flag}</span>
@@ -186,7 +193,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
             </ul>
           </main>
           <button className="gh-restart ui-btn line" onClick={restart}>
-            ↻ Recommencer
+            ↻ {t('Recommencer')}
           </button>
         </div>
       ) : (
@@ -194,7 +201,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
           <section className="gh-end">
             <div className="gh-end-head">
               <div className="gh-end-title">
-                <span className="gh-end-icon">◎</span> {MODE_LABEL[mode].toUpperCase()}
+                <span className="gh-end-icon">◎</span> {t(MODE_LABEL[mode]).toUpperCase()}
               </div>
               <div className="gh-end-score">
                 <CountUp value={total} />
@@ -206,11 +213,11 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
                 </span>
                 <span className="gh-bar-mark avg" style={{ left: `${(average / scale) * 100}%` }}>
                   {Math.round(average)}
-                  <small>moyenne</small>
+                  <small>{t('moyenne')}</small>
                 </span>
                 <span className="gh-bar-mark best" style={{ left: `${(perfect.total / scale) * 100}%` }}>
                   {perfect.total}
-                  <small>parfait</small>
+                  <small>{t('parfait')}</small>
                 </span>
               </div>
             </div>
@@ -224,7 +231,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
                     <span className="gh-flag-s">{e.flag}</span>
                     <b>{e.name}</b>
                     <span className="gh-end-cat">
-                      {categories[c].icon} {categories[c].label}
+                      {categories[c].icon} {t(categories[c].label)}
                     </span>
                     <span className="gh-end-rank" style={{ color: rankColor(r) }}>
                       {rankText(r)}
@@ -234,20 +241,20 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
               })}
             </ul>
             <p className="gh-end-note">
-              {correct} sur 8 correctes ({Math.round((correct / 8) * 100)} %) ·{' '}
-              <button onClick={() => setShowPerfect(!showPerfect)}>{showPerfect ? 'Voir mes choix' : 'Voir parfait'}</button>
+              {t('{n} sur 8 correctes ({pct} %)', { n: correct, pct: Math.round((correct / 8) * 100) })} ·{' '}
+              <button onClick={() => setShowPerfect(!showPerfect)}>{showPerfect ? t('Voir mes choix') : t('Voir parfait')}</button>
             </p>
           </section>
           <nav className="gh-bottom">
             <a href="#/classement" className="gh-b">
-              ←<small>Modes</small>
+              ←<small>{t('Modes')}</small>
             </a>
             <button className="gh-b" onClick={async () => setCopied(await copyText(shareText))}>
               {copied ? '✓' : '⇪'}
-              <small>{copied ? 'Copié' : 'Partager'}</small>
+              <small>{copied ? t('Copié') : t('Partager')}</small>
             </button>
             <button className="gh-replay ui-btn" onClick={restart}>
-              ↗ Rejouer
+              ↗ {t('Rejouer')}
             </button>
           </nav>
         </div>
@@ -266,18 +273,17 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
       {help && (
         <div className="gh-modal-bg" onClick={() => setHelp(false)}>
           <div className="gh-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Comment jouer</h2>
-            <h3>Obtiens le score total le plus bas</h3>
+            <h2>{t('Comment jouer')}</h2>
+            <h3>{t('Obtiens le score total le plus bas')}</h3>
             <p>
-              Associe {mode === 'villes' ? 'chaque ville' : 'chaque pays'} à la catégorie où {mode === 'villes' ? 'elle' : 'il'} est le
-              mieux classé·e.
+              {mode === 'villes' ? t('Associe chaque ville à la catégorie où elle est le mieux classée.') : t('Associe chaque pays à la catégorie où il est le mieux classé.')}
             </p>
-            <h3>Vise les rangs n°1 et le top 5</h3>
-            <p>Un n°1 ajoute seulement 1 point. Les moins bons rangs en ajoutent davantage.</p>
-            <h3>Chaque catégorie ne sert qu’une fois</h3>
-            <p>Sans donnée, on compte le rang 100 : évite-les !</p>
+            <h3>{t('Vise les rangs n°1 et le top 5')}</h3>
+            <p>{t('Un n°1 ajoute seulement 1 point. Les moins bons rangs en ajoutent davantage.')}</p>
+            <h3>{t('Chaque catégorie ne sert qu’une fois')}</h3>
+            <p>{t('Sans donnée, on compte le rang 100 : évite-les !')}</p>
             <button className="gh-replay ui-btn" onClick={() => setHelp(false)}>
-              C’est parti
+              {t('C’est parti')}
             </button>
           </div>
         </div>
