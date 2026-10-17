@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { evaluate, levelOf } from '../lib/achievements'
 import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
@@ -33,6 +34,8 @@ export const ICONS = {
   close: 'M18 6 6 18M6 6l12 12',
   home: 'M3 10.5 12 3l9 7.5M5.5 9v11h13V9',
   chart: 'M4 20h16M7 16v-4M12 16V7M17 16v-7',
+  trophy: 'M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9.5 17h5',
+  podium: 'M3 20h18M5 20v-6h4v6M10 20V9h4v11M15 20v-8h4v8',
 }
 
 export function isDoneToday(g: { dailyId?: string; weekly?: boolean }): boolean {
@@ -66,7 +69,9 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
 
 export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) {
   const [profile, setProfile] = useState(loadProfile)
-  const { total, streak, points } = summarize(plays())
+  const history = plays()
+  const { total, streak } = summarize(history)
+  const level = levelOf(history, evaluate(history))
   const dailies = ALL_GAMES.filter((g) => g.rhythm === 'quotidien')
   const doneToday = dailies.filter(isDoneToday).length
 
@@ -102,13 +107,17 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
           <b>{streak}</b>jours de série
         </div>
         <div>
-          <b>{points.toLocaleString('fr-FR')}</b>
-          points
+          <b>{level.level}</b>
+          {level.title.toLowerCase()}
         </div>
       </div>
       <p className="ui-note">
         {doneToday}/{dailies.length} jeux du jour terminés aujourd’hui.
       </p>
+      <a href="#/succes" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.trophy} />
+        Mes succès
+      </a>
       <a href="#/stats" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.chart} />
         Toutes mes statistiques
