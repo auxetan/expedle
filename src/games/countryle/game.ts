@@ -3,6 +3,7 @@ import { compassArrow, countryCenter, distanceKm, rhumbBearing } from '../../geo
 import type { World } from '../../geo/world'
 import { seededRng } from '../../lib/util'
 import { COUNTRY_STATS } from '../classement/data'
+import { locale, t } from '../../lib/i18n'
 
 export const MAX_GUESSES = 8
 
@@ -86,15 +87,15 @@ export const score = (won: boolean, guesses: number) => (won ? Math.round((100 *
 
 // Population en millions, superficie en milliers de km², PIB en milliards de dollars.
 export function formatPop(m: number): string {
-  if (m >= 1000) return `${(m / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} Md`
-  if (m >= 1) return `${m.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M`
-  return `${Math.round(m * 1000).toLocaleString('fr-FR')} k`
+  if (m >= 1000) return t('{n} Md', { n: (m / 1000).toLocaleString(locale(), { maximumFractionDigits: 2 }) })
+  if (m >= 1) return t('{n} M', { n: m.toLocaleString(locale(), { maximumFractionDigits: 1 }) })
+  return t('{n} k', { n: Math.round(m * 1000).toLocaleString(locale()) })
 }
 
 export function formatArea(k: number): string {
-  return `${Math.round(k * 1000).toLocaleString('fr-FR')} km²`
+  return `${Math.round(k * 1000).toLocaleString(locale())} km²`
 }
 
 export function formatGdp(md: number): string {
-  return `${md.toLocaleString('fr-FR', { maximumFractionDigits: md < 10 ? 1 : 0 })} Md$`
+  return t('{n} Md$', { n: md.toLocaleString(locale(), { maximumFractionDigits: md < 10 ? 1 : 0 }) })
 }
