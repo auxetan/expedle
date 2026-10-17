@@ -61,7 +61,7 @@ export default function Globle({ mode }: { mode?: string }) {
 
   function finish(n: number, win: boolean) {
     if (!practice && !dailyResult('globle', day)) saveDailyResult('globle', { won: win, guesses: n }, day)
-    recordPlay('globle', { pts: win ? Math.max(10, 100 - 5 * (n - 1)) : 0, s: n, win, ms: elapsed() })
+    recordPlay('globle', { pts: win ? Math.max(10, 100 - 5 * (n - 1)) : 0, s: n, win, ms: elapsed(), sub: practice ? 'libre' : undefined })
   }
 
   function giveUp() {
