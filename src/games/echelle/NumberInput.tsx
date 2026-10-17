@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { locale } from '../../lib/i18n'
+import { locale, t } from '../../lib/i18n'
 
 const MULTIPLIERS: [string, number][] = [
   ['×1K', 1e3],
@@ -38,7 +38,7 @@ interface Props {
 }
 
 const NumberInput = forwardRef<HTMLInputElement, Props>(function NumberInput(
-  { value, onChange, onSubmit, unit, disabled, placeholder = 'Ton estimation...' },
+  { value, onChange, onSubmit, unit, disabled, placeholder = t('Ton estimation…') },
   ref,
 ) {
   return (
