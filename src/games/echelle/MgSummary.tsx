@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { copyText, load, save } from '../../lib/util'
 import CountUp from '../../ui/CountUp'
-import { locale } from '../../lib/i18n'
+import { locale, t } from '../../lib/i18n'
 
 export interface RoundRecap {
   title: ReactNode
@@ -16,11 +16,11 @@ export function recordTotal(key: string, total: number): number[] {
 }
 
 function message(ratio: number): string {
-  if (ratio >= 0.9) return 'Un œil parfait pour l’échelle !'
-  if (ratio >= 0.7) return 'Très bonne vision des proportions.'
-  if (ratio >= 0.5) return 'Pas mal du tout, continue d’entraîner ton œil.'
-  if (ratio >= 0.3) return 'Une série délicate. Continue d’entraîner ton œil.'
-  return 'Une série corsée : l’échelle t’a joué des tours.'
+  if (ratio >= 0.9) return t('Un œil parfait pour l’échelle !')
+  if (ratio >= 0.7) return t('Très bonne vision des proportions.')
+  if (ratio >= 0.5) return t('Pas mal du tout, continue d’entraîner ton œil.')
+  if (ratio >= 0.3) return t('Une série délicate. Continue d’entraîner ton œil.')
+  return t('Une série corsée : l’échelle t’a joué des tours.')
 }
 
 interface Props {
@@ -50,17 +50,17 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
 
   return (
     <section className="mg-summary">
-      <h3 className="mg-sum-h">Tes manches</h3>
+      <h3 className="mg-sum-h">{t('Tes manches')}</h3>
       <div className="mg-sum-rounds stagger">
         {rounds.map((r, i) => (
           <button key={i} className={selected === i ? 'on' : ''} onClick={() => setSelected(selected === i ? null : i)}>
-            <small>MANCHE {i + 1}</small>
+            <small>{t('MANCHE {n}', { n: i + 1 })}</small>
             <b>{r.score}</b>
           </button>
         ))}
       </div>
       {selected === null ? (
-        <p className="mg-sum-hint">Sélectionne une manche pour revoir ta réponse.</p>
+        <p className="mg-sum-hint">{t('Sélectionne une manche pour revoir ta réponse.')}</p>
       ) : (
         <div className="mg-sum-detail">
           <div>{rounds[selected].title}</div>
@@ -71,14 +71,14 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
         <b>
           <CountUp value={total} />
         </b>
-        <small>(SUR {max})</small>
+        <small>{t('(SUR {max})', { max })}</small>
       </div>
       <p className="mg-sum-msg">{message(total / max)}</p>
       <button className="mg-cta mg-sum-share" onClick={async () => setCopied(await copyText(shareText))}>
-        {copied ? 'Copié !' : 'Partager le résultat'}
+        {copied ? t('Copié !') : t('Partager le résultat')}
       </button>
 
-      <h3 className="mg-sum-h">Comment tu te situes</h3>
+      <h3 className="mg-sum-h">{t('Comment tu te situes')}</h3>
       <div className="mg-hist">
         {counts.map((c, i) => (
           <div key={i} className={i === mine ? 'mine' : ''}>
@@ -92,21 +92,21 @@ export default function MgSummary({ title, rounds, max, historyKey, shareText, a
       </div>
       <div className="mg-sum-figs">
         <div>
-          <small>TA MOYENNE</small>
+          <small>{t('TA MOYENNE')}</small>
           <b>{avg.toLocaleString(locale(), { maximumFractionDigits: 1 })}</b>
         </div>
         <div>
-          <small>MIEUX QUE</small>
+          <small>{t('MIEUX QUE')}</small>
           <b>{beat} %</b>
-          <span className="dim">de tes parties</span>
+          <span className="dim">{t('de tes parties')}</span>
         </div>
       </div>
       <div className="mg-modal-actions mg-sum-actions">
         <a className="mg-ghost-btn" href={archiveHref}>
-          Jouer l’archive
+          {t('Jouer l’archive')}
         </a>
         <button className="mg-cta" onClick={onReplay}>
-          Rejouer {title} ↻
+          {t('Rejouer {title} ↻', { title })}
         </button>
       </div>
     </section>
