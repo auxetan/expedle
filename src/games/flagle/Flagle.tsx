@@ -8,8 +8,9 @@ import { evaluate, squares } from '../worldle/game'
 import '../worldle/worldle.css'
 import { dailyTarget, flagUrl, MAX_GUESSES, revealOrder, score, targets, TILES, visibleTiles } from './game'
 import './flagle.css'
+import { locale, plural, t } from '../../lib/i18n'
 
-const tilesLabel = (n: number) => `${n} tuile${n > 1 ? 's' : ''}`
+const tilesLabel = (n: number) => plural(n, '{n} tuile', '{n} tuiles')
 
 interface Saved {
   guesses: string[]
@@ -26,7 +27,7 @@ function Flag({ code, shown, order }: { code: string; shown: number; order: numb
   }, [code])
   const open = new Set(order.slice(0, shown))
   return (
-    <div className="fg-flag" aria-label={`Drapeau à deviner, ${shown} tuile${shown > 1 ? 's' : ''} sur ${TILES} dévoilée${shown > 1 ? 's' : ''}`}>
+    <div className="fg-flag" aria-label={t('Drapeau à deviner, {shown} tuiles sur {total} dévoilées', { shown, total: TILES })}>
       {src && <img src={src} alt="" draggable={false} />}
       <div className="fg-tiles">
         {Array.from({ length: TILES }, (_, i) => (
@@ -67,11 +68,11 @@ export default function Flagle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const tiles = `${visibleTiles(won ? state.guesses.length - 1 : MAX_GUESSES, false)}/${TILES} tuiles vues`
-    const text = `Flagle Méridien ${practice ? '(partie libre)' : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES} · ${tiles}\n${rows
+    const tiles = t('{n}/{total} tuiles vues', { n: visibleTiles(won ? state.guesses.length - 1 : MAX_GUESSES, false), total: TILES })
+    const text = `Flagle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES} · ${tiles}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
-    setToast((await copyText(text)) ? 'Résultat copié !' : 'Copie impossible')
+    setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
@@ -79,10 +80,10 @@ export default function Flagle({ mode }: { mode?: string }) {
     <div className="wd">
       <AppBar title="Flagle">
         <SubLink href="#/flagle" active={!practice}>
-          Drapeau du jour
+          {t('Drapeau du jour')}
         </SubLink>
         <SubLink href="#/flagle/libre" active={practice}>
-          Partie libre
+          {t('Partie libre')}
         </SubLink>
       </AppBar>
       <main className="wd-main">
@@ -96,7 +97,7 @@ export default function Flagle({ mode }: { mode?: string }) {
             return r ? (
               <li key={i} className="wd-row filled">
                 <span className="wd-name">{atlas.name(r.code)}</span>
-                <span className="wd-km">{r.km.toLocaleString('fr-FR')} km</span>
+                <span className="wd-km">{r.km.toLocaleString(locale())} km</span>
                 <span className="wd-arrow">{r.arrow}</span>
                 <span className="wd-prox">{r.proximity} %</span>
               </li>
@@ -106,17 +107,19 @@ export default function Flagle({ mode }: { mode?: string }) {
           })}
         </ol>
 
-        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder="À quel pays est ce drapeau ?" button="Deviner" />}
+        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('À quel pays est ce drapeau ?')} button={t('Deviner')} />}
 
         {over && (
           <section className="wd-end">
-            <b>{won ? `Bravo ! C’est ${atlas.name(target)}.` : `Perdu : c’était ${atlas.name(target)}.`}</b>
+            <b>{won ? t('Bravo ! C’est {name}.', { name: atlas.name(target) }) : t('Perdu : c’était {name}.', { name: atlas.name(target) })}</b>
             <span className="muted">
-              {won ? `Trouvé en ${state.guesses.length}/${MAX_GUESSES}, avec ${tilesLabel(visibleTiles(state.guesses.length - 1, false))} sur ${TILES}.` : 'Six essais, pas un de plus.'}
+              {won
+                ? t('Trouvé en {n}/{max}, avec {tiles} sur {total}.', { n: state.guesses.length, max: MAX_GUESSES, tiles: tilesLabel(visibleTiles(state.guesses.length - 1, false)), total: TILES })
+                : t('Six essais, pas un de plus.')}
             </span>
             <div className="wd-actions">
               <button className="ui-btn" onClick={share}>
-                Partager
+                {t('Partager')}
               </button>
               {practice ? (
                 <button
@@ -126,11 +129,11 @@ export default function Flagle({ mode }: { mode?: string }) {
                     setState({ guesses: [] })
                   }}
                 >
-                  Un autre drapeau ↻
+                  {t('Un autre drapeau ↻')}
                 </button>
               ) : (
                 <a className="ui-btn line" href="#/flagle/libre">
-                  Partie libre
+                  {t('Partie libre')}
                 </a>
               )}
             </div>
