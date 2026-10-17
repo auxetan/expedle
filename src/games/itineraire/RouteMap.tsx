@@ -4,6 +4,7 @@ import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zo
 import type { Feature, FeatureCollection, MultiPolygon } from 'geojson'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Atlas } from '../../geo/atlas'
+import { t } from '../../lib/i18n'
 
 export interface Layer {
   code: string
@@ -269,15 +270,15 @@ export default function RouteMap({ atlas, layers, focus, outlines, showAll, init
       )}
       <div className="rm-controls">
         <div className="rm-zoom">
-          <button onClick={() => zoomBy(1.6)} aria-label="Zoomer">
+          <button onClick={() => zoomBy(1.6)} aria-label={t('Zoomer')}>
             +
           </button>
-          <button onClick={() => zoomBy(1 / 1.6)} aria-label="Dézoomer">
+          <button onClick={() => zoomBy(1 / 1.6)} aria-label={t('Dézoomer')}>
             −
           </button>
         </div>
         {moved && (
-          <button className="rm-recenter" onClick={recenter} aria-label="Recentrer la carte" title="Recentrer">
+          <button className="rm-recenter" onClick={recenter} aria-label={t('Recentrer la carte')} title={t('Recentrer')}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <path d="M20 12a8 8 0 1 1-2.3-5.6" />
               <path d="M20 4v5h-5" />
