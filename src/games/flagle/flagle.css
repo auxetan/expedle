@@ -1,0 +1,39 @@
+.fg-flag {
+  position: relative;
+  width: min(360px, 78vw);
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.fg-flag img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* six caches qui tombent un à un pour dévoiler le drapeau */
+.fg-tiles {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.fg-tiles span {
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.fg-tiles span.open {
+  opacity: 0;
+  transform: scale(0.85) rotate(-4deg);
+}
