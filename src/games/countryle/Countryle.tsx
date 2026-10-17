@@ -8,6 +8,7 @@ import CountryInput from '../../ui/CountryInput'
 import { COUNTRY_STATS } from '../classement/data'
 import { dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, targets, type Clue, type Row } from './game'
 import './countryle.css'
+import { locale, plural, t } from '../../lib/i18n'
 
 interface Saved {
   guesses: string[]
@@ -21,7 +22,7 @@ function Chip({ label, value, hit, trend }: { label: string; value: string; hit:
       <small>{label}</small>
       <b>
         {value}
-        {trend && <i aria-label={trend === 'up' ? 'plus' : 'moins'}>{trend === 'up' ? '↑' : '↓'}</i>}
+        {trend && <i aria-label={trend === 'up' ? t('plus') : t('moins')}>{trend === 'up' ? '↑' : '↓'}</i>}
       </b>
     </span>
   )
@@ -35,15 +36,15 @@ function Guess({ row, name }: { row: Row; name: string }) {
         <span className="cy-flag">{flagEmoji(row.code)}</span>
         <b>{name}</b>
         <span className="cy-dist">
-          {row.km ? `${row.km.toLocaleString('fr-FR')} km` : ''} {row.arrow}
+          {row.km ? `${row.km.toLocaleString(locale())} km` : ''} {row.arrow}
         </span>
       </div>
       <div className="cy-chips">
-        <Chip label="Continent" value={row.continent.label} hit={row.continent.hit ? 'hit' : 'far'} />
-        <Chip label="Hémisphère" value={row.hemisphere.label} hit={row.hemisphere.hit ? 'hit' : 'far'} />
-        <Chip label="Population" value={num(row.pop, formatPop)} hit={row.pop.heat} trend={row.pop.trend} />
-        <Chip label="Superficie" value={num(row.area, formatArea)} hit={row.area.heat} trend={row.area.trend} />
-        <Chip label="PIB" value={num(row.gdp, formatGdp)} hit={row.gdp.heat} trend={row.gdp.trend} />
+        <Chip label={t('Continent')} value={t(row.continent.label)} hit={row.continent.hit ? 'hit' : 'far'} />
+        <Chip label={t('Hémisphère')} value={t(row.hemisphere.label)} hit={row.hemisphere.hit ? 'hit' : 'far'} />
+        <Chip label={t('Population')} value={num(row.pop, formatPop)} hit={row.pop.heat} trend={row.pop.trend} />
+        <Chip label={t('Superficie')} value={num(row.area, formatArea)} hit={row.area.heat} trend={row.area.trend} />
+        <Chip label={t('PIB')} value={num(row.gdp, formatGdp)} hit={row.gdp.heat} trend={row.gdp.trend} />
       </div>
     </li>
   )
@@ -63,7 +64,7 @@ export default function Countryle({ mode }: { mode?: string }) {
   const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c)), [state.guesses, atlas, target])
   const won = state.guesses.includes(target)
   const over = won || state.guesses.length >= MAX_GUESSES
-  const t = STATS.get(target)!
+  const facts = STATS.get(target)!
 
   function guess(code: string) {
     const next = { guesses: [...state.guesses, code] }
@@ -77,8 +78,8 @@ export default function Countryle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Countryle Méridien ${practice ? '(partie libre)' : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}\n${rows.map(shareLine).join('\n')}`
-    setToast((await copyText(text)) ? 'Résultat copié !' : 'Copie impossible')
+    const text = `Countryle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}\n${rows.map(shareLine).join('\n')}`
+    setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
 
@@ -86,40 +87,40 @@ export default function Countryle({ mode }: { mode?: string }) {
     <div className="cy">
       <AppBar title="Countryle">
         <SubLink href="#/countryle" active={!practice}>
-          Pays du jour
+          {t('Pays du jour')}
         </SubLink>
         <SubLink href="#/countryle/libre" active={practice}>
-          Partie libre
+          {t('Partie libre')}
         </SubLink>
       </AppBar>
       <main className="cy-main">
         {!rows.length && (
           <p className="cy-intro">
-            Un pays mystère, {MAX_GUESSES} essais. Chaque proposition dit si tu as le bon continent et le bon hémisphère, si le pays mystère est plus ou moins peuplé, grand
-            et riche (<b className="cy-legend cy-hit">à 10 %</b> <b className="cy-legend cy-near">à moins d’un facteur 2</b>), et dans quelle direction il se trouve.
+            {t('Un pays mystère, {n} essais. Chaque proposition dit si tu as le bon continent et le bon hémisphère, si le pays mystère est plus ou moins peuplé, grand et riche, et dans quelle direction il se trouve.', { n: MAX_GUESSES })}{' '}
+            <b className="cy-legend cy-hit">{t('à 10 %')}</b> <b className="cy-legend cy-near">{t('à moins d’un facteur 2')}</b>
           </p>
         )}
 
         {!over && (
           <>
             <p className="cy-count muted">
-              Essai {state.guesses.length + 1} sur {MAX_GUESSES}
+              {t('Essai {n} sur {max}', { n: state.guesses.length + 1, max: MAX_GUESSES })}
             </p>
-            <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder="Propose un pays…" button="Deviner" />
+            <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('Propose un pays…')} button={t('Deviner')} />
           </>
         )}
 
         {over && (
           <section className="cy-end">
             <span className="cy-end-flag">{flagEmoji(target)}</span>
-            <b>{won ? `Bravo, c’était ${atlas.name(target)} !` : `Perdu : c’était ${atlas.name(target)}.`}</b>
+            <b>{won ? t('Bravo, c’était {name} !', { name: atlas.name(target) }) : t('Perdu : c’était {name}.', { name: atlas.name(target) })}</b>
             <span className="muted">
-              {COUNTRY_BY_CODE.get(target)!.capital} · {formatPop(t.pop)} d’habitants · {formatArea(t.area)} · {formatGdp(t.gdp)}
+              {COUNTRY_BY_CODE.get(target)!.capital} · {t('{pop} d’habitants', { pop: formatPop(facts.pop) })} · {formatArea(facts.area)} · {formatGdp(facts.gdp)}
             </span>
-            <span className="muted">{won ? `Trouvé en ${state.guesses.length} essai${state.guesses.length > 1 ? 's' : ''}.` : `${MAX_GUESSES} essais, pas un de plus.`}</span>
+            <span className="muted">{won ? plural(state.guesses.length, 'Trouvé en {n} essai.', 'Trouvé en {n} essais.') : t('{n} essais, pas un de plus.', { n: MAX_GUESSES })}</span>
             <div className="cy-actions">
               <button className="ui-btn" onClick={share}>
-                Partager
+                {t('Partager')}
               </button>
               {practice ? (
                 <button
@@ -129,11 +130,11 @@ export default function Countryle({ mode }: { mode?: string }) {
                     setState({ guesses: [] })
                   }}
                 >
-                  Un autre pays ↻
+                  {t('Un autre pays ↻')}
                 </button>
               ) : (
                 <a className="ui-btn line" href="#/countryle/libre">
-                  Partie libre
+                  {t('Partie libre')}
                 </a>
               )}
             </div>
