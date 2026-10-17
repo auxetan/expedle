@@ -1,6 +1,6 @@
 # Jeux à ajouter plus tard
 
-Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
+Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, Countryle, Flagle, GeoGrid, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
 
 Effort : **petit** = quelques heures avec les données du projet, **moyen** = une nouvelle source de données, **gros** = un serveur ou un service payant.
 
@@ -9,10 +9,7 @@ Effort : **petit** = quelques heures avec les données du projet, **moyen** = un
 | Jeu | Principe | Ce qu'on a déjà | Effort |
 |---|---|---|---|
 | **Statele** | Worldle avec les États américains | Contours des États (atlas de Travle USA), moteur de Worldle | petit |
-| **Countryle** | Deviner un pays avec des indices : continent, hémisphère, population, superficie, PIB | `COUNTRY_STATS` de GeoHunter, continents, voisins | petit |
 | **DailyGeo** | Une capitale et un pays mystères par jour, avec indices (monnaie, langue, distance, direction) | Capitales, monnaies, langues (`facts.ts`), distances et caps (`geo/measure.ts`) | petit |
-| **GeoGrid** | Grille 3×3 : un pays qui remplit deux critères à la fois (enclavé ET hémisphère Sud…) | Catégories de GeoHunter, voisins, continents | moyen (bien choisir les critères pour que chaque case ait des réponses) |
-| **Flagle** | Le drapeau se dévoile tuile par tuile | Rien d'exploitable : les emojis ne se découpent pas | moyen (ajouter un jeu de drapeaux SVG libre, par exemple `flag-icons`, licence MIT) |
 | **Tradle** | Deviner un pays d'après le graphique de ses exportations | Rien | moyen (jeu de données des exportations par pays, par exemple l'OEC ou l'ONU Comtrade) |
 
 ## Culture générale
