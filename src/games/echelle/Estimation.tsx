@@ -6,7 +6,7 @@ import { estimationBank } from './estimationBank'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import './mg.css'
-import { locale } from '../../lib/i18n'
+import { locale, plural, t } from '../../lib/i18n'
 
 export function magnitudeError(guess: number, answer: number): number {
   return Math.abs(Math.log10(Math.max(guess, 1e-9) / answer))
@@ -18,10 +18,10 @@ export function dailyScore(guess: number, answer: number): number {
 
 function offLabel(guess: number, answer: number): string {
   const r = guess / answer
-  if (Math.abs(Math.log10(r)) < 0.02) return 'Pile poil !'
+  if (Math.abs(Math.log10(r)) < 0.02) return t('Pile poil !')
   const k = r > 1 ? r : 1 / r
   const txt = k < 10 ? `×${k.toLocaleString(locale(), { maximumFractionDigits: 1 })}` : `${Math.round(k).toLocaleString(locale())}×`
-  return `${txt} ${r > 1 ? 'trop haut' : 'trop bas'}`
+  return r > 1 ? t('{k} trop haut', { k: txt }) : t('{k} trop bas', { k: txt })
 }
 
 function Scale({ guess, answer }: { guess: number; answer: number }) {
@@ -33,10 +33,10 @@ function Scale({ guess, answer }: { guess: number; answer: number }) {
   for (let e = lo; e <= hi; e += step) ticks.push(e)
   return (
     <div className="oom">
-      <span className="oom-label">ORDRE DE GRANDEUR</span>
+      <span className="oom-label">{t('ORDRE DE GRANDEUR')}</span>
       <div className="oom-track">
-        <span className="oom-mark guess" style={{ left: pos(guess) }} title="Ton estimation" />
-        <span className="oom-mark answer" style={{ left: pos(answer) }} title="Réponse" />
+        <span className="oom-mark guess" style={{ left: pos(guess) }} title={t('Ton estimation')} />
+        <span className="oom-mark answer" style={{ left: pos(answer) }} title={t('Réponse')} />
       </div>
       <div className="oom-ticks">
         {ticks.map((e) => (
@@ -55,19 +55,21 @@ export default function Estimation({ mode, date }: { mode: 'daily' | 'survival';
 
 function DailyHelp() {
   return (
-    <MgHelp title="Comment jouer" intro="Le déroulé, le calcul du score et quelques stratégies en moins d’une minute.">
-      <HelpStep n="01" title="Lire">
-        Une nouvelle question d’estimation chaque jour.
+    <MgHelp title={t('Comment jouer')} intro={t('Le déroulé, le calcul du score et quelques stratégies en moins d’une minute.')}>
+      <HelpStep n="01" title={t('Lire')}>
+        {t('Une nouvelle question d’estimation chaque jour.')}
       </HelpStep>
-      <HelpStep n="02" title="Estimer">
-        Entre un seul nombre. Utilise ×1K, ×1M et les autres raccourcis pour changer d’échelle rapidement.
+      <HelpStep n="02" title={t('Estimer')}>
+        {t('Entre un seul nombre. Utilise ×1K, ×1M et les autres raccourcis pour changer d’échelle rapidement.')}
       </HelpStep>
-      <HelpStep n="03" title="Calibrer">
-        Ton score dépend de l’écart entre ton estimation et la réponse, en puissances de dix. Exemple : 1 000 000 pour une
-        réponse de 600 000 donne 92 points.
+      <HelpStep n="03" title={t('Calibrer')}>
+        {t('Ton score dépend de l’écart entre ton estimation et la réponse, en puissances de dix. Exemple : {guess} pour une réponse de {answer} donne 92 points.', {
+          guess: formatNumber(1e6),
+          answer: formatNumber(6e5),
+        })}
       </HelpStep>
       <p className="mg-tip">
-        <b>Astuce :</b> pars d’un repère familier, puis multiplie.
+        <b>{t('Astuce :')}</b> {t('pars d’un repère familier, puis multiplie.')}
       </p>
     </MgHelp>
   )
@@ -103,14 +105,14 @@ function Daily({ date: day }: { date: string }) {
     <MgShell title="Daily Question" help={<DailyHelp />}>
       <section className="dq">
         <div className="dq-kicker">
-          {practice ? 'ENTRAÎNEMENT' : date} · <span>{question.cat.toUpperCase()}</span>
+          {practice ? t('ENTRAÎNEMENT') : date} · <span>{question.cat.toUpperCase()}</span>
         </div>
         <h2 className="dq-q">{question.q}</h2>
         {guess === null ? (
           <>
             <NumberInput ref={inputRef} value={value} onChange={setValue} onSubmit={lock} unit={question.unit} />
             <button className="mg-cta dq-lock" disabled={!valid} onClick={lock}>
-              Valider →
+              {t('Valider →')}
             </button>
           </>
         ) : (
@@ -120,7 +122,7 @@ function Daily({ date: day }: { date: string }) {
             onShare={async () =>
               setCopied(
                 await copyText(
-                  `Daily Question ${day}\n${question.q}\nScore : ${dailyScore(guess, question.a)}/100 (${offLabel(guess, question.a)})`,
+                  `Daily Question ${day}\n${question.q}\n${t('Score : {score}/100 ({off})', { score: dailyScore(guess, question.a), off: offLabel(guess, question.a) })}`,
                 ),
               )
             }
@@ -159,15 +161,15 @@ function Result({
       </div>
       <div className="dq-pair">
         <div>
-          <small>TON ESTIMATION</small>
+          <small>{t('TON ESTIMATION')}</small>
           <b className="red">{formatNumber(guess)}</b>
         </div>
         <div>
-          <small>RÉPONSE</small>
+          <small>{t('RÉPONSE')}</small>
           <b className="blue">{formatNumber(question.a)}</b>
         </div>
         <div>
-          <small>ÉCART</small>
+          <small>{t('ÉCART')}</small>
           <b>{offLabel(guess, question.a)}</b>
         </div>
       </div>
@@ -175,10 +177,10 @@ function Result({
       {question.fact && <p className="dq-fact">{question.fact}</p>}
       <div className="mg-modal-actions">
         <button className="mg-ghost-btn" onClick={onShare}>
-          {copied ? 'Copié !' : 'Partager'}
+          {copied ? t('Copié !') : t('Partager')}
         </button>
         <button className="mg-cta" onClick={onAgain}>
-          Une autre question ↻
+          {t('Une autre question ↻')}
         </button>
       </div>
     </div>
@@ -187,19 +189,20 @@ function Result({
 
 function SurvivalHelp() {
   return (
-    <MgHelp title="Comment jouer à Survival Mode" intro="Estime vite, protège ta vie et survis au plus grand nombre de questions.">
-      <HelpStep n="01" title="Course contre la montre">
-        Tu as 15 secondes par question. Si le temps s’écoule, ta saisie actuelle (ou 1) est envoyée.
+    <MgHelp title={t('Comment jouer à {game}', { game: 'Survival Mode' })} intro={t('Estime vite, protège ta vie et survis au plus grand nombre de questions.')}>
+      <HelpStep n="01" title={t('Course contre la montre')}>
+        {t('Tu as 15 secondes par question. Si le temps s’écoule, ta saisie actuelle (ou 1) est envoyée.')}
       </HelpStep>
-      <HelpStep n="02" title="Protège ta vie">
-        Tu commences avec 10 points de vie. Ton erreur en ordres de grandeur est retirée après chaque réponse (100× trop haut =
-        −2,0).
+      <HelpStep n="02" title={t('Protège ta vie')}>
+        {t('Tu commences avec 10 points de vie. Ton erreur en ordres de grandeur est retirée après chaque réponse (100× trop haut = {loss}).', {
+          loss: (-2).toLocaleString(locale(), { minimumFractionDigits: 1 }),
+        })}
       </HelpStep>
-      <HelpStep n="03" title="Survis">
-        Continue jusqu’à ce que ta vie tombe à zéro.
+      <HelpStep n="03" title={t('Survis')}>
+        {t('Continue jusqu’à ce que ta vie tombe à zéro.')}
       </HelpStep>
       <p className="mg-tip">
-        <b>Astuce :</b> les raccourcis ×K, ×M, ×Md, ×T et ×Q permettent d’atteindre vite le bon ordre de grandeur.
+        <b>{t('Astuce :')}</b> {t('les raccourcis ×K, ×M, ×Md, ×T et ×Q permettent d’atteindre vite le bon ordre de grandeur.')}
       </p>
     </MgHelp>
   )
@@ -284,7 +287,7 @@ function Survival() {
     <MgShell title="Survival Mode" help={<SurvivalHelp />}>
       <section className="dq">
         <div className="sv-bar">
-          <span className="sv-q">QUESTION {phase === 'idle' ? 1 : i + 1}</span>
+          <span className="sv-q">{t('QUESTION {n}', { n: phase === 'idle' ? 1 : i + 1 })}</span>
           {phase !== 'idle' && phase !== 'over' && (
             <div className="sv-timer">
               <div style={{ width: `${(left / TIME) * 100}%` }} />
@@ -295,10 +298,10 @@ function Survival() {
 
         {phase === 'idle' && (
           <div className="sv-start">
-            <p>Appuie sur départ pour lancer ta partie de Survie.</p>
-            {best !== null && <p className="dim">Record : {best} question(s)</p>}
+            <p>{t('Appuie sur départ pour lancer ta partie de Survie.')}</p>
+            {best !== null && <p className="dim">{plural(best, 'Record : {n} question', 'Record : {n} questions')}</p>}
             <button className="mg-cta" onClick={start}>
-              C’est parti →
+              {t('C’est parti →')}
             </button>
           </div>
         )}
@@ -319,14 +322,14 @@ function Survival() {
             />
             {phase === 'play' ? (
               <button className="mg-cta dq-lock" onClick={() => submit()}>
-                Valider →
+                {t('Valider →')}
               </button>
             ) : (
               last && (
                 <div className="sv-feedback">
                   <span className="pill">{offLabel(last.guess, q.a)}</span>
-                  <b className="loss">−{last.loss.toLocaleString(locale(), { minimumFractionDigits: 1 })} vie</b>
-                  <span className="dim">Réponse : {formatNumber(q.a)} {q.unit}</span>
+                  <b className="loss">{t('−{n} vie', { n: last.loss.toLocaleString(locale(), { minimumFractionDigits: 1 }) })}</b>
+                  <span className="dim">{t('Réponse : {answer}', { answer: `${formatNumber(q.a)} ${q.unit}` })}</span>
                 </div>
               )
             )}
@@ -335,13 +338,11 @@ function Survival() {
 
         {phase === 'over' && (
           <div className="sv-start">
-            <h2 className="dq-q">Partie terminée</h2>
-            <p>
-              Tu as survécu à <b>{i + 1}</b> question{i ? 's' : ''}.
-            </p>
-            {record && <p className="red">Nouveau record !</p>}
+            <h2 className="dq-q">{t('Partie terminée')}</h2>
+            <p>{plural(i + 1, 'Tu as survécu à {n} question.', 'Tu as survécu à {n} questions.')}</p>
+            {record && <p className="red">{t('Nouveau record !')}</p>}
             <button className="mg-cta" onClick={start}>
-              Rejouer ↻
+              {t('Rejouer ↻')}
             </button>
           </div>
         )}
