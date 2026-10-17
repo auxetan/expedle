@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { useSyncExternalStore } from 'react'
+import { t } from './i18n'
 import { plays, PLAYED, type Play } from './stats'
 import { load, save, todayKey } from './util'
 
@@ -176,7 +177,7 @@ function sync(full: boolean) {
       if (full) await download(sb)
       set({ syncing: false })
     } catch (e) {
-      set({ syncing: false, error: e instanceof Error ? e.message : 'Synchronisation impossible.' })
+      set({ syncing: false, error: e instanceof Error ? e.message : t('Synchronisation impossible.') })
     }
   })
   return queue
@@ -202,11 +203,11 @@ export function startCloud() {
 
 function french(e: { message?: string; status?: number; code?: string }): string {
   // tant que le projet utilise l'envoi d'emails par défaut de Supabase, seuls ses membres reçoivent l'email
-  if (e.code === 'email_address_not_authorized') return 'Les emails de connexion ne partent pas encore vers cette adresse. Réessaie plus tard.'
-  if (e.code === 'over_email_send_rate_limit' || e.status === 429) return 'Trop de demandes : attends une minute avant de redemander un email.'
-  if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return 'Code incorrect ou expiré. Vérifie-le ou demande-en un nouveau.'
-  if (e.code === 'email_address_invalid' || /email/i.test(e.message ?? '')) return 'Cette adresse email n’est pas valide.'
-  return e.message || 'Une erreur est survenue. Réessaie.'
+  if (e.code === 'email_address_not_authorized') return t('Les emails de connexion ne partent pas encore vers cette adresse. Réessaie plus tard.')
+  if (e.code === 'over_email_send_rate_limit' || e.status === 429) return t('Trop de demandes : attends une minute avant de redemander un email.')
+  if (e.code === 'otp_expired' || /expired|invalid/i.test(e.message ?? '')) return t('Code incorrect ou expiré. Vérifie-le ou demande-en un nouveau.')
+  if (e.code === 'email_address_invalid' || /email/i.test(e.message ?? '')) return t('Cette adresse email n’est pas valide.')
+  return e.message || t('Une erreur est survenue. Réessaie.')
 }
 
 export async function sendCode(email: string): Promise<void> {
