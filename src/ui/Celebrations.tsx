@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { evaluate, levelOf, loadSeen, saveSeen, TIER_XP, type Tier } from '../lib/achievements'
 import { HISTORY_CHANGED } from '../lib/cloud'
+import { plural, t } from '../lib/i18n'
 import { plays, PLAYED } from '../lib/stats'
 
 interface Toast {
@@ -35,12 +36,12 @@ export default function Celebrations() {
       // première visite depuis l'arrivée des succès : un seul message pour les parties passées
       if (!seen) {
         if (unlocked.length)
-          push({ glyph: '🏅', title: `${unlocked.length} succès débloqué${unlocked.length > 1 ? 's' : ''}`, desc: `Grâce à tes parties passées · niveau ${level.level}` }, 400)
+          push({ glyph: '🏅', title: plural(unlocked.length, '{n} succès débloqué', '{n} succès débloqués'), desc: t('Grâce à tes parties passées · niveau {n}', { n: level.level }) }, 400)
         return
       }
       const fresh = unlocked.filter((a) => !seen.ids.includes(a.id))
-      fresh.forEach((a, i) => push({ glyph: a.glyph, title: a.title, desc: `Succès débloqué · +${TIER_XP[a.tier]} XP`, tier: a.tier }, i * 700))
-      if (level.level > seen.level) push({ glyph: '⬆️', title: `Niveau ${level.level}`, desc: level.title }, fresh.length * 700)
+      fresh.forEach((a, i) => push({ glyph: a.glyph, title: t(a.title), desc: t('Succès débloqué · +{xp} XP', { xp: TIER_XP[a.tier] }), tier: a.tier }, i * 700))
+      if (level.level > seen.level) push({ glyph: '⬆️', title: t('Niveau {n}', { n: level.level }), desc: t(level.title) }, fresh.length * 700)
     }
 
     let timer = 0
