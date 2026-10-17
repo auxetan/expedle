@@ -1,5 +1,6 @@
 import { load, save, todayKey } from '../../lib/util'
 import type { ProjectionKind } from './RouteMap'
+import { msg } from '../../lib/i18n'
 
 export interface ItinSettings {
   hard: boolean
@@ -73,7 +74,7 @@ export function computeStats(list = history()): ItinStats {
     run = i > 0 && dayBefore(d) === days[i - 1] ? run + 1 : 1
     maxStreak = Math.max(maxStreak, run)
   })
-  const buckets = ['Parfait', '+1', '+2', '+3', '+4', '+5 et plus', 'Perdu']
+  const buckets = [msg('Parfait'), '+1', '+2', '+3', '+4', msg('+5 et plus'), msg('Perdu')]
   const distribution = buckets.map((label) => ({ label, count: 0 }))
   for (const r of list) {
     const extra = r.guesses - r.shortest
