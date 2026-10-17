@@ -1,3 +1,5 @@
+import { msg } from '../../lib/i18n'
+
 export type Dim = 'h' | 'l'
 
 export interface ObjectItem {
@@ -237,7 +239,7 @@ export const POP_ITEMS = toItems(POP, 'pop')
 
 // Thèmes du « Weekly 1K »
 export const WEEKLY_THEMES: { name: string; items: ObjectItem[] }[] = [
-  { name: 'Le règne animal', items: OBJECTS.filter((o) => o.theme === 'animaux') },
-  { name: 'La vie quotidienne', items: OBJECTS.filter((o) => o.theme === 'quotidien') },
-  { name: 'Monuments, nature et véhicules', items: OBJECTS.filter((o) => o.theme === 'monuments') },
+  { name: msg('Le règne animal'), items: OBJECTS.filter((o) => o.theme === 'animaux') },
+  { name: msg('La vie quotidienne'), items: OBJECTS.filter((o) => o.theme === 'quotidien') },
+  { name: msg('Monuments, nature et véhicules'), items: OBJECTS.filter((o) => o.theme === 'monuments') },
 ]
