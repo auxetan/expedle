@@ -7,7 +7,7 @@ export function CloudSync() {
   return null
 }
 
-// Connexion sans mot de passe : un email, puis le code à 6 chiffres reçu.
+// Connexion sans mot de passe : un email, puis le lien ou le code à 6 chiffres qu'il contient.
 export default function AccountBox() {
   const account = useAccount()
   const [email, setEmail] = useState('')
@@ -54,7 +54,7 @@ export default function AccountBox() {
   return (
     <div className="ui-field ui-account">
       <span>Compte</span>
-      <p className="ui-note">Connecte-toi pour apparaître dans les classements et retrouver ta progression sur tous tes appareils. Pas de mot de passe : un code arrive par email.</p>
+      <p className="ui-note">Connecte-toi pour apparaître dans les classements et retrouver ta progression sur tous tes appareils. Pas de mot de passe : tout passe par un email.</p>
       {step === 'email' ? (
         <form
           className="ui-account-form"
@@ -68,7 +68,7 @@ export default function AccountBox() {
         >
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.fr" autoComplete="email" required />
           <button className="ui-btn" disabled={busy || !email.includes('@')}>
-            {busy ? 'Envoi…' : 'Recevoir un code'}
+            {busy ? 'Envoi…' : 'Recevoir l’email'}
           </button>
         </form>
       ) : (
@@ -92,7 +92,7 @@ export default function AccountBox() {
             {busy ? 'Vérification…' : 'Se connecter'}
           </button>
           <p className="ui-note">
-            Code envoyé à <b>{email}</b>.{' '}
+            Email envoyé à <b>{email}</b> : clique sur le lien qu’il contient, ou tape ici son code s’il en affiche un.{' '}
             <button
               type="button"
               className="ui-link"
