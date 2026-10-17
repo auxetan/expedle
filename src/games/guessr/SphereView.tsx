@@ -5,6 +5,7 @@ import { VirtualTourPlugin, type VirtualTourNode } from '@photo-sphere-viewer/vi
 import '@photo-sphere-viewer/virtual-tour-plugin/index.css'
 import { useEffect, useRef } from 'react'
 import type { SphereNode, SphereSpot } from './sphere'
+import { t } from '../../lib/i18n'
 
 const RAD = Math.PI / 180
 
@@ -73,7 +74,7 @@ export default function SphereView({ spot, load }: { spot: SphereSpot; load: (id
     <div className="gg-pano-wrap">
       <div className="gg-pano" ref={el} />
       <button className="gg-return" onClick={() => goStart('fade')}>
-        ⟲ Retour au départ
+        ⟲ {t('Retour au départ')}
       </button>
     </div>
   )
