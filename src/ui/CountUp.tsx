@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { locale } from '../lib/i18n'
 
 // Le nombre défile jusqu'à sa valeur, en ralentissant vers la fin.
-export default function CountUp({ value, format = (v) => v.toLocaleString('fr-FR'), ms = 900 }: { value: number; format?: (v: number) => string; ms?: number }) {
+export default function CountUp({ value, format = (v) => v.toLocaleString(locale()), ms = 900 }: { value: number; format?: (v: number) => string; ms?: number }) {
   const [shown, setShown] = useState(0)
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
