@@ -5,6 +5,7 @@ import { dailyResult } from '../../lib/stats'
 import { copyText, load, seededRng, todayKey } from '../../lib/util'
 import { computeStats } from './history'
 import { makePuzzle, type Extra } from './puzzle'
+import { locale, plural, t, tx } from '../../lib/i18n'
 
 export function playUrl(p: {
   atlas: AtlasId
@@ -59,7 +60,7 @@ export function Practice() {
   }, [atlasId])
 
   const sorted = useMemo(
-    () => atlas.codes.filter((c) => atlas.neighbors.has(c)).sort((a, b) => atlas.name(a).localeCompare(atlas.name(b), 'fr')),
+    () => atlas.codes.filter((c) => atlas.neighbors.has(c)).sort((a, b) => atlas.name(a).localeCompare(atlas.name(b), locale())),
     [atlas],
   )
 
@@ -72,7 +73,7 @@ export function Practice() {
       extra,
     })
     if (!p) {
-      setError('Aucun trajet ne correspond à ces réglages.')
+      setError(t('Aucun trajet ne correspond à ces réglages.'))
       return null
     }
     setError('')
@@ -83,30 +84,30 @@ export function Practice() {
     const url = resolve()
     if (!url) return
     const ok = await copyText(`${location.origin}${location.pathname}#${url}`)
-    setToast(ok ? 'Lien du défi copié !' : 'Copie impossible')
+    setToast(ok ? t('Lien du défi copié !') : t('Copie impossible'))
     setTimeout(() => go(url), 900)
   }
 
   return (
     <div className="itin-config">
-      <h2>⚙ Configuration</h2>
+      <h2>⚙ {t('Configuration')}</h2>
       <div className="cfg-grid">
         <div className="cfg-card">
-          <span className="cfg-step">1. Choisir la carte</span>
+          <span className="cfg-step">{t('1. Choisir la carte')}</span>
           <div className="cfg-maps">
             {(['monde', 'usa'] as AtlasId[]).map((id) => (
               <button key={id} className={atlasId === id ? 'on' : ''} onClick={() => setAtlasId(id)}>
-                {id === 'monde' ? '🌍 Monde' : '🇺🇸 États-Unis'}
+                {id === 'monde' ? `🌍 ${t('Monde')}` : `🇺🇸 ${t('États-Unis')}`}
               </button>
             ))}
           </div>
         </div>
         <div className="cfg-card">
-          <span className="cfg-step">2. Choisir le trajet</span>
+          <span className="cfg-step">{t('2. Choisir le trajet')}</span>
           <label>
-            Départ
+            {t('Départ')}
             <Select value={start} onChange={setStart}>
-              <option value="">— Aléatoire —</option>
+              <option value="">— {t('Aléatoire')} —</option>
               {sorted.map((c) => (
                 <option key={c} value={c}>
                   {atlas.name(c)}
@@ -116,9 +117,9 @@ export function Practice() {
           </label>
           <span className="cfg-arrow">↓</span>
           <label>
-            Arrivée
+            {t('Arrivée')}
             <Select value={end} onChange={setEnd}>
-              <option value="">— Aléatoire —</option>
+              <option value="">— {t('Aléatoire')} —</option>
               {sorted.map((c) => (
                 <option key={c} value={c}>
                   {atlas.name(c)}
@@ -130,47 +131,47 @@ export function Practice() {
       </div>
 
       <button className="cfg-adv-toggle" onClick={() => setAdvanced(!advanced)}>
-        🔧 Réglages avancés <span>{advanced ? '▴' : '▾'}</span>
+        🔧 {t('Réglages avancés')} <span>{advanced ? '▴' : '▾'}</span>
       </button>
       {advanced && (
         <div className="cfg-adv">
           <label>
-            Longueur du trajet : de <b>{minLen}</b> à <b>{maxLen}</b> essais
+            {tx('Longueur du trajet : de {min} à {max} essais', { min: <b>{minLen}</b>, max: <b>{maxLen}</b> })}
             <span className="cfg-range">
               <input type="range" min={1} max={12} value={minLen} onChange={(e) => setMinLen(+e.target.value)} />
               <input type="range" min={1} max={14} value={maxLen} onChange={(e) => setMaxLen(+e.target.value)} />
             </span>
           </label>
           <label>
-            Mode de jeu
+            {t('Mode de jeu')}
             <Select value={hard ? 'difficile' : 'normal'} onChange={(v) => setHard(v === 'difficile')}>
-              <option value="normal">Normal</option>
-              <option value="difficile">Difficile (ni indices, ni noms)</option>
+              <option value="normal">{t('Normal')}</option>
+              <option value="difficile">{t('Difficile (ni indices, ni noms)')}</option>
             </Select>
           </label>
           <label>
-            Essais bonus
+            {t('Essais bonus')}
             <Select value={extra} onChange={(v) => setExtra(v as Extra)}>
-              <option value="defaut">Par défaut</option>
-              <option value="aucun">Aucun : trajet le plus court uniquement</option>
-              <option value="illimite">Essais illimités</option>
+              <option value="defaut">{t('Par défaut')}</option>
+              <option value="aucun">{t('Aucun : trajet le plus court uniquement')}</option>
+              <option value="illimite">{t('Essais illimités')}</option>
             </Select>
           </label>
           <label>
-            {atlas.id === 'usa' ? 'Région' : 'Continent'}
+            {atlas.id === 'usa' ? t('Région') : t('Continent')}
             <Select value={region} onChange={setRegion}>
-              <option value="">— Tous —</option>
+              <option value="">— {t('Tous')} —</option>
               {atlas.regions.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {t(r)}
                 </option>
               ))}
             </Select>
           </label>
           <label>
-            Sans passer par
+            {t('Sans passer par')}
             <Select value={avoid} onChange={setAvoid}>
-              <option value="">— Aucun —</option>
+              <option value="">— {t('Aucun')} —</option>
               {sorted.map((c) => (
                 <option key={c} value={c}>
                   {atlas.name(c)}
@@ -182,8 +183,8 @@ export function Practice() {
       )}
       {error && <p className="itin-msg">{error}</p>}
       <button className="cfg-challenge" onClick={challenge}>
-        <b>🏅 Créer un défi</b>
-        <span>Crée un défi à partager et affronte tes amis</span>
+        <b>🏅 {t('Créer un défi')}</b>
+        <span>{t('Crée un défi à partager et affronte tes amis')}</span>
       </button>
       <button
         className="cfg-solo"
@@ -192,10 +193,10 @@ export function Practice() {
           if (url) go(url)
         }}
       >
-        ▶ Jouer en solo
+        ▶ {t('Jouer en solo')}
       </button>
       <a className="cfg-back" href="#/itineraire">
-        ← Retour à Travle
+        ← {t('Retour à Travle')}
       </a>
       {toast && <div className="toast-copy">{toast}</div>}
     </div>
@@ -230,11 +231,11 @@ export function Archive() {
   const base = atlas.id === 'usa' ? '/itineraire/usa' : '/itineraire'
   return (
     <div className="itin-page">
-      <h2>Archive</h2>
+      <h2>{t('Archive')}</h2>
       <div className="cfg-maps">
         {(['monde', 'usa'] as AtlasId[]).map((id) => (
           <button key={id} className={atlasId === id ? 'on' : ''} onClick={() => setAtlasId(id)}>
-            {id === 'monde' ? '🌍 Monde' : '🇺🇸 États-Unis'}
+            {id === 'monde' ? `🌍 ${t('Monde')}` : `🇺🇸 ${t('États-Unis')}`}
           </button>
         ))}
       </div>
@@ -243,13 +244,13 @@ export function Archive() {
           <li key={date}>
             <a href={`#${base}?date=${date}`}>
               <span className="arch-date">
-                {new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {new Date(date + 'T12:00:00').toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
               <span className="arch-route">
                 <span className="c-start">{atlas.name(p.start)}</span> → <span className="c-end">{atlas.name(p.end)}</span>
               </span>
               <span className="arch-state">
-                {res ? (res.won ? `✅ ${res.guesses} essais` : '❌ perdu') : started ? 'en cours' : `${p.shortest} min.`}
+                {res ? (res.won ? `✅ ${plural(res.guesses, '{n} essai', '{n} essais')}` : `❌ ${t('perdu')}`) : started ? t('en cours') : t('{n} min.', { n: p.shortest })}
               </span>
             </a>
           </li>
@@ -263,36 +264,40 @@ export function Stats() {
   const s = computeStats()
   const [toast, setToast] = useState('')
   const max = Math.max(1, ...s.distribution.map((d) => d.count))
-  const text = `Mes statistiques Travle\n🎮 ${s.played} parties · 🏆 ${s.winRate}% · 🔥 ${s.streak} (max ${s.maxStreak})\nParfaites : ${s.perfectRate}% · Sans indice : ${s.noHintRate}%`
+  const text = `${t('Mes statistiques Travle')}\n🎮 ${plural(s.played, '{n} partie', '{n} parties')} · 🏆 ${s.winRate}% · 🔥 ${s.streak} (max ${s.maxStreak})\n${t('Parfaites : {perfect}% · Sans indice : {nohint}%', { perfect: s.perfectRate, nohint: s.noHintRate })}`
   return (
     <div className="itin-page">
-      <h2>Statistiques</h2>
+      <h2>{t('Statistiques')}</h2>
       <div className="st-tiles">
         <div>
           <span>🎮</span>
-          <b>{s.played}</b>Parties
+          <b>{s.played}</b>
+          {t('Parties')}
         </div>
         <div>
           <span>🏆</span>
-          <b>{s.winRate}</b>% victoires
+          <b>{s.winRate}</b>
+          {t('% victoires')}
         </div>
         <div>
           <span>🔥</span>
-          <b>{s.streak}</b>Série actuelle
+          <b>{s.streak}</b>
+          {t('Série actuelle')}
         </div>
         <div>
           <span>🚀</span>
-          <b>{s.maxStreak}</b>Meilleure série
+          <b>{s.maxStreak}</b>
+          {t('Meilleure série')}
         </div>
       </div>
-      <h3 className="itin-h">Répartition des essais</h3>
+      <h3 className="itin-h">{t('Répartition des essais')}</h3>
       {s.played === 0 ? (
-        <p className="itin-muted">Joue et gagne une partie pour voir ta répartition.</p>
+        <p className="itin-muted">{t('Joue et gagne une partie pour voir ta répartition.')}</p>
       ) : (
         <div className="dist">
           {s.distribution.map((d) => (
             <div key={d.label} className="dist-row">
-              <span>{d.label}</span>
+              <span>{t(d.label)}</span>
               <div>
                 <i style={{ width: `${(d.count / max) * 100}%` }}>{d.count || ''}</i>
               </div>
@@ -302,28 +307,32 @@ export function Stats() {
       )}
       <div className="st-tiles small">
         <div>
-          <b>{s.perfectRate}%</b>Taux parfait
+          <b>{s.perfectRate}%</b>
+          {t('Taux parfait')}
         </div>
         <div>
-          <b>{s.noHintRate}%</b>Sans indice
+          <b>{s.noHintRate}%</b>
+          {t('Sans indice')}
         </div>
         <div>
-          <b>{s.hints}</b>Indices utilisés
+          <b>{s.hints}</b>
+          {t('Indices utilisés')}
         </div>
         <div>
-          <b>{s.last10}%</b>10 dernières
+          <b>{s.last10}%</b>
+          {t('10 dernières')}
         </div>
       </div>
-      <h3 className="itin-h">Partager tes statistiques</h3>
-      <p className="itin-muted">Copie un résumé et compare-toi à tes amis.</p>
+      <h3 className="itin-h">{t('Partager tes statistiques')}</h3>
+      <p className="itin-muted">{t('Copie un résumé et compare-toi à tes amis.')}</p>
       <button
         className="pink wide"
         onClick={async () => {
-          setToast((await copyText(text)) ? 'Statistiques copiées !' : 'Copie impossible')
+          setToast((await copyText(text)) ? t('Statistiques copiées !') : t('Copie impossible'))
           setTimeout(() => setToast(''), 1600)
         }}
       >
-        Copier mes statistiques
+        {t('Copier mes statistiques')}
       </button>
       {toast && <div className="toast-copy">{toast}</div>}
     </div>
@@ -332,15 +341,15 @@ export function Stats() {
 
 export function Maps() {
   const cards = [
-    { href: '#/itineraire', icon: '🌍', title: 'Quotidien', text: 'Le trajet du jour à travers le monde' },
-    { href: '#/itineraire/hebdo', icon: '🗓', title: 'Défi hebdomadaire', text: 'Un long trajet, chaque lundi' },
-    { href: '#/itineraire/usa', icon: '🇺🇸', title: 'États-Unis', text: 'D’un État à l’autre, chaque jour' },
-    { href: '#/itineraire/libre', icon: '🎲', title: 'Entraînement', text: 'Trajets aléatoires ou sur mesure' },
-    { href: '#/itineraire/archive', icon: '📚', title: 'Archive', text: 'Rejoue les jours précédents' },
+    { href: '#/itineraire', icon: '🌍', title: t('Quotidien'), text: t('Le trajet du jour à travers le monde') },
+    { href: '#/itineraire/hebdo', icon: '🗓', title: t('Défi hebdomadaire'), text: t('Un long trajet, chaque lundi') },
+    { href: '#/itineraire/usa', icon: '🇺🇸', title: t('États-Unis'), text: t('D’un État à l’autre, chaque jour') },
+    { href: '#/itineraire/libre', icon: '🎲', title: t('Entraînement'), text: t('Trajets aléatoires ou sur mesure') },
+    { href: '#/itineraire/archive', icon: '📚', title: t('Archive'), text: t('Rejoue les jours précédents') },
   ]
   return (
     <div className="itin-page">
-      <h2>Modes de jeu</h2>
+      <h2>{t('Modes de jeu')}</h2>
       <div className="maps-grid">
         {cards.map((c) => (
           <a key={c.href} href={c.href} className="maps-card">
