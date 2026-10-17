@@ -9,7 +9,7 @@ import DrawingPaths from './DrawingPaths'
 import { MgNav } from './MgShell'
 import { drawingBox } from './silhouette'
 import './mg.css'
-import { locale } from '../../lib/i18n'
+import { locale, msg, t } from '../../lib/i18n'
 
 interface Card {
   href: string
@@ -46,8 +46,8 @@ export default function MgHome() {
     {
       href: '#/echelle',
       title: 'Size It Up',
-      text: 'L’échelle des objets réels.',
-      badge: 'QUOTIDIEN',
+      text: t('L’échelle des objets réels.'),
+      badge: t('QUOTIDIEN'),
       dailyId: 'echelle-objets',
       art: (
         <>
@@ -60,8 +60,8 @@ export default function MgHome() {
     {
       href: '#/echelle/pop',
       title: 'Pop Culture',
-      text: 'L’échelle des héros de fiction.',
-      badge: 'QUOTIDIEN',
+      text: t('L’échelle des héros de fiction.'),
+      badge: t('QUOTIDIEN'),
       dailyId: 'echelle-pop',
       art: (
         <>
@@ -73,9 +73,9 @@ export default function MgHome() {
     },
     {
       href: '#/echelle/geo',
-      title: 'Géographie',
-      text: 'L’échelle des territoires.',
-      badge: 'QUOTIDIEN',
+      title: t('Géographie'),
+      text: t('L’échelle des territoires.'),
+      badge: t('QUOTIDIEN'),
       dailyId: 'echelle-geo',
       art: (
         <svg viewBox="0 0 140 70" width="150" height="75" aria-hidden>
@@ -92,16 +92,16 @@ export default function MgHome() {
     {
       href: '#/echelle/1000',
       title: 'The Weekly 1K',
-      text: `Dix manches · ${weeklyTheme().name.toLowerCase()}.`,
-      badge: 'HEBDO',
+      text: t('Dix manches · {theme}.', { theme: t(weeklyTheme().name) }),
+      badge: t('HEBDO'),
       dailyId: 'echelle-1000',
       day: weekKey(),
       art: <GameIcon icon="weekly-1k" size={56} />,
     },
-    { href: '#/balance', title: 'Weigh It Up', text: 'Équilibre le poids réel.', badge: 'QUOTIDIEN', dailyId: 'balance', art: <GameIcon icon="weigh-it-up" size={56} /> },
-    { href: '#/question', title: 'Daily Question', text: 'Une question. Une estimation.', badge: 'QUOTIDIEN', dailyId: 'question', art: <GameIcon icon="daily-question" size={56} /> },
-    { href: '#/survie', title: 'Survival Mode', text: 'Estime vite. Reste en vie.', badge: 'DÉFI', art: <GameIcon icon="survival" size={56} /> },
-    { href: '#/estimation/archive', title: 'Archive', text: 'Rejoue tous les puzzles passés.', badge: 'TOUS LES PUZZLES', art: <span className="mgh-glyph">≋</span> },
+    { href: '#/balance', title: 'Weigh It Up', text: t('Équilibre le poids réel.'), badge: t('QUOTIDIEN'), dailyId: 'balance', art: <GameIcon icon="weigh-it-up" size={56} /> },
+    { href: '#/question', title: 'Daily Question', text: t('Une question. Une estimation.'), badge: t('QUOTIDIEN'), dailyId: 'question', art: <GameIcon icon="daily-question" size={56} /> },
+    { href: '#/survie', title: 'Survival Mode', text: t('Estime vite. Reste en vie.'), badge: t('DÉFI'), art: <GameIcon icon="survival" size={56} /> },
+    { href: '#/estimation/archive', title: t('Archive'), text: t('Rejoue tous les puzzles passés.'), badge: t('TOUS LES PUZZLES'), art: <span className="mgh-glyph">≋</span> },
   ]
   const isDone = (c: Card) => (c.dailyId ? dailyResult(c.dailyId, c.day ?? todayKey()) !== null : false)
 
@@ -115,37 +115,37 @@ export default function MgHome() {
         <div className="mgh-brand">
           <div>
             <h1>Magnitudle</h1>
-            <p>Le jeu des échelles et des estimations</p>
+            <p>{t('Le jeu des échelles et des estimations')}</p>
           </div>
         </div>
         <div className="mgh-stats">
           <div>
-            <small>🔥 SÉRIE</small>
+            <small>🔥 {t('SÉRIE')}</small>
             <b>{streak}</b>
           </div>
           <div>
-            <small>🏆 RECORD</small>
+            <small>🏆 {t('RECORD')}</small>
             <b>{best || '—'}</b>
           </div>
         </div>
       </header>
-      <h2 className="mgh-section red">À L’ÉCHELLE</h2>
+      <h2 className="mgh-section red">{t('À L’ÉCHELLE')}</h2>
       <div className="mgh-big">
         {big.map((c) => (
           <a key={c.href} href={c.href} className="mgh-card">
-            <span className={isDone(c) ? 'mgh-badge done' : 'mgh-badge'}>{isDone(c) ? '✓ FAIT' : c.badge}</span>
+            <span className={isDone(c) ? 'mgh-badge done' : 'mgh-badge'}>{isDone(c) ? `✓ ${t('FAIT')}` : c.badge}</span>
             <div className="mgh-art">{c.art}</div>
             <div className="mgh-foot">
               <div>
                 <h3>{c.title}</h3>
                 <p>{c.text}</p>
               </div>
-              <span className="mgh-play">Jouer →</span>
+              <span className="mgh-play">{t('Jouer →')}</span>
             </div>
           </a>
         ))}
       </div>
-      <h2 className="mgh-section">AUTRES FAÇONS DE JOUER</h2>
+      <h2 className="mgh-section">{t('AUTRES FAÇONS DE JOUER')}</h2>
       <div className="mgh-small">
         {more.map((c) => (
           <a key={c.href} href={c.href} className="mgh-card small">
@@ -153,7 +153,7 @@ export default function MgHome() {
             <h3>{c.title}</h3>
             <p>{c.text}</p>
             <div className="mgh-foot-s">
-              <span className={isDone(c) ? 'mgh-badge done' : 'mgh-badge'}>{isDone(c) ? '✓ FAIT' : c.badge}</span>
+              <span className={isDone(c) ? 'mgh-badge done' : 'mgh-badge'}>{isDone(c) ? `✓ ${t('FAIT')}` : c.badge}</span>
               <span className="mgh-round">→</span>
             </div>
           </a>
@@ -167,7 +167,7 @@ export default function MgHome() {
 const ARCHIVE_GAMES = [
   { id: 'echelle-objets', label: 'Size It Up', href: '#/echelle' },
   { id: 'echelle-pop', label: 'Pop Culture', href: '#/echelle/pop' },
-  { id: 'echelle-geo', label: 'Géographie', href: '#/echelle/geo' },
+  { id: 'echelle-geo', label: msg('Géographie'), href: '#/echelle/geo' },
   { id: 'balance', label: 'Weigh It Up', href: '#/balance' },
   { id: 'question', label: 'Daily Question', href: '#/question' },
 ]
@@ -191,16 +191,16 @@ export function MgArchive() {
       <header className="mgh-head">
         <div className="mgh-brand">
           <div>
-            <h1>Archive</h1>
-            <p>Rejoue tous les puzzles passés</p>
+            <h1>{t('Archive')}</h1>
+            <p>{t('Rejoue tous les puzzles passés')}</p>
           </div>
         </div>
       </header>
       <div className="mga-table">
         <div className="mga-row mga-headrow">
-          <span>DATE</span>
+          <span>{t('DATE')}</span>
           {ARCHIVE_GAMES.map((g) => (
-            <span key={g.id}>{g.label}</span>
+            <span key={g.id}>{t(g.label)}</span>
           ))}
         </div>
         {days.map((day) => (
@@ -211,7 +211,7 @@ export function MgArchive() {
               const score = res?.scores ? res.scores.reduce((a, b) => a + b, 0) : res?.score
               return (
                 <a key={g.id} href={`${g.href}?date=${day}`} className={res ? 'mga-cell done' : 'mga-cell'}>
-                  {res ? `✓ ${score ?? ''}` : 'Jouer'}
+                  {res ? `✓ ${score ?? ''}` : t('Jouer')}
                 </a>
               )
             })}
