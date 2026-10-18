@@ -13,3 +13,20 @@
 .globe canvas:active {
   cursor: grabbing;
 }
+
+.globe {
+  position: relative;
+}
+
+/* nom du pays survolé, juste au-dessus du curseur */
+.globe-label {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
