@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { readChallenge } from '../../lib/challenge'
 import { go } from '../../lib/router'
 import { dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, todayKey, weekKey } from '../../lib/util'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
 import GhBar from './GhBar'
 import ClassementHome from './ClassementHome'
 import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
-import { MODE_LABEL, rankMatrix, setupFor, type Mode } from './setup'
+import { MODE_LABEL, rankMatrix, setupFor, setupFromSeed, setupSeed, type Mode } from './setup'
 import './classement.css'
-import { getLang, t } from '../../lib/i18n'
+import { ordinal, t } from '../../lib/i18n'
 
 function rankColor(r: number): string {
   if (r <= 5) return 'var(--good)'
@@ -20,13 +22,6 @@ function rankColor(r: number): string {
 
 const rankText = (r: number) => (r >= MISSING_RANK ? '100+' : String(r))
 // 1er, 1st, 1.º… selon la langue du site
-function ordinal(r: number): string {
-  const lang = getLang()
-  if (lang === 'fr') return r === 1 ? '1er' : `${r}e`
-  if (lang === 'en') return `${r}${{ one: 'st', two: 'nd', few: 'rd' }[new Intl.PluralRules('en', { type: 'ordinal' }).select(r) as string] ?? 'th'}`
-  return lang === 'de' ? `${r}.` : `${r}º`
-}
-
 interface Toast {
   title: string
   text: string
@@ -41,9 +36,10 @@ export default function Classement({ mode: raw, params }: { mode?: string; param
 }
 
 function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
+  const [challenge] = useState(readChallenge)
   const [seed, setSeed] = useState(0)
   // seed : chaque « Recommencer » relance un tirage
-  const setup = useMemo(() => setupFor(mode, easy), [mode, easy, seed])
+  const setup = useMemo(() => (challenge && !seed ? setupFromSeed(mode, challenge.seed) : null) ?? setupFor(mode, easy), [mode, easy, seed, challenge])
   const { entities, categories } = setup
   const matrix = useMemo(() => rankMatrix(setup), [setup])
   const perfect = useMemo(() => optimalAssignment(matrix), [matrix])
@@ -51,7 +47,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
 
   const dailyId = mode === 'jour' ? 'classement-jour' : mode === 'hebdo' ? 'classement-hebdo' : null
   const dayKey = mode === 'hebdo' ? weekKey() : todayKey()
-  const done = dailyId ? dailyResult<{ picks: number[] }>(dailyId, dayKey) : null
+  const done = dailyId && !challenge ? dailyResult<{ picks: number[] }>(dailyId, dayKey) : null
   const [picks, setPicks] = useState<number[]>(done?.picks ?? [])
   const [between, setBetween] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
@@ -61,6 +57,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   const [copied, setCopied] = useState(false)
   const toastTimer = useRef(0)
   const elapsed = useStopwatch()
+  const [ms, setMs] = useState<number>()
 
   const current = picks.length
   const finished = current >= entities.length
@@ -69,10 +66,12 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
 
   useEffect(() => {
     if (!finished || done) return
-    recordPlay('classement-' + mode, { pts: (100 * perfect.total) / Math.max(total, 1), s: total, ms: elapsed(), sub: easy ? 'facile' : undefined })
+    const time = elapsed()
+    setMs(time)
+    recordPlay('classement-' + mode, { pts: (100 * perfect.total) / Math.max(total, 1), s: total, ms: time, sub: challenge && !seed ? 'defi' : easy ? 'facile' : undefined })
     submitBest(`classement-${mode}${easy ? '-facile' : ''}`, total, true)
-    if (dailyId) saveDailyResult(dailyId, { picks, total }, dayKey)
-  }, [finished, done, mode, easy, picks, total, dailyId, dayKey, perfect.total, elapsed])
+    if (dailyId && !challenge) saveDailyResult(dailyId, { picks, total }, dayKey)
+  }, [finished, done, mode, easy, picks, total, dailyId, dayKey, perfect.total, elapsed, challenge, seed])
 
   function choose(ci: number) {
     if (finished || between || usedCats.has(ci)) return
@@ -101,6 +100,7 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   }
 
   function restart() {
+    if (challenge && !seed && dailyId) return go('/classement/classique')
     if (dailyId) {
       go('/classement/classique')
       return
@@ -244,6 +244,12 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
               {t('{n} sur 8 correctes ({pct} %)', { n: correct, pct: Math.round((correct / 8) * 100) })} ·{' '}
               <button onClick={() => setShowPerfect(!showPerfect)}>{showPerfect ? t('Voir mes choix') : t('Voir parfait')}</button>
             </p>
+            <ChallengeBox
+              game={'classement-' + mode}
+              path={`/classement/${mode}${easy ? '?facile=1' : ''}`}
+              seed={setupSeed(mode, setup)}
+              result={{ pts: (100 * perfect.total) / Math.max(total, 1), s: total, ms }}
+            />
           </section>
           <nav className="gh-bottom">
             <a href="#/classement" className="gh-b">
