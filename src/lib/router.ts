@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 export interface Route {
   segments: string[]
@@ -14,8 +15,13 @@ export function useRoute(): Route {
   const [hash, setHash] = useState(window.location.hash)
   useEffect(() => {
     const onChange = () => {
-      setHash(window.location.hash)
-      window.scrollTo(0, 0)
+      const update = () => {
+        flushSync(() => setHash(window.location.hash))
+        window.scrollTo(0, 0)
+      }
+      // d'une page à l'autre, un fondu enchaîné là où le navigateur sait le faire
+      if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(update)
+      else update()
     }
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
