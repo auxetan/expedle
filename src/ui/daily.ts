@@ -15,6 +15,8 @@ interface AnyResult {
   total?: number
   score?: number
   good?: number
+  tries?: number
+  placed?: number
 }
 
 // Parties commencées mais pas terminées (Travle, Worldle et Globle gardent la partie en cours).
@@ -27,6 +29,8 @@ const IN_PROGRESS: Record<string, () => string> = {
   countryle: () => `countryle:${todayKey()}`,
   flagle: () => `flagle:${todayKey()}`,
   geogrid: () => `geogrid:${todayKey()}`,
+  statele: () => `statele:${todayKey()}`,
+  dailygeo: () => `dailygeo:${todayKey()}`,
 }
 
 function resultLabel(id: string, r: AnyResult): string {
@@ -40,6 +44,12 @@ function resultLabel(id: string, r: AnyResult): string {
   if (id === 'countryle') return r.won ? `${r.guesses}/8` : t('perdu')
   if (id === 'flagle') return r.won ? `${r.guesses}/6` : t('perdu')
   if (id === 'geogrid') return `${r.score}/9`
+  if (id === 'statele') return r.won ? `${r.guesses}/6` : t('perdu')
+  if (id === 'dailygeo') return `${r.score}/100`
+  if (id === 'factle') return r.won ? `${r.tries}/5` : t('perdu')
+  if (id === 'wikitrivia') return `${r.placed}/15`
+  if (id === 'tightrope') return `${r.good}/9`
+  if (id.endsWith('guessr-jour')) return t('{n} pts', { n: r.total ?? 0 })
   return t('joué')
 }
 
