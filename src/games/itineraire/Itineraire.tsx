@@ -6,7 +6,7 @@ import AppBar, { SubLink } from '../../ui/AppBar'
 import { useTheme } from '../../ui/theme'
 import { loadSettings, saveSettings, type ItinSettings } from './history'
 import ItinGame, { type GameSlot } from './ItinGame'
-import { Archive, dailyPuzzle, Maps, playUrl, Practice, Stats } from './ItinPages'
+import { Archive, dailyPuzzle, Maps, playUrl, Practice, Stats, travleSeed } from './ItinPages'
 import { makePuzzle, puzzleFor, type Extra, type Puzzle } from './puzzle'
 import './itineraire.css'
 import { locale, t, tx } from '../../lib/i18n'
@@ -34,8 +34,11 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
   const [settings, setSettings] = useState<ItinSettings>(loadSettings)
   const [help, setHelp] = useState(false)
   const theme = useTheme()
-  const playing = view === 'jour' || view === 'hebdo' || view === 'usa' || (view === 'libre' && params.has('de'))
-  const atlasId: AtlasId = view === 'usa' || params.get('carte') === 'usa' ? 'usa' : 'monde'
+  // un lien de défi décrit le trajet dans sa graine : atlas.départ.arrivée.région.pays-évité.bonus
+  const defi = view === 'libre' ? params.get('defi') : null
+  const fromSeed = defi && !params.has('de') ? defi.split('.') : null
+  const playing = view === 'jour' || view === 'hebdo' || view === 'usa' || (view === 'libre' && (params.has('de') || !!fromSeed))
+  const atlasId: AtlasId = view === 'usa' || (fromSeed ? fromSeed[0] : params.get('carte')) === 'usa' ? 'usa' : 'monde'
   const atlas = useAtlas(atlasId)
 
   function update(patch: Partial<ItinSettings>) {
@@ -72,16 +75,15 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
       }
       return { puzzle: makePuzzle(atlas, seededRng('itin-hebdo-' + week), 7, 11)!, slot, hard: settings.hard }
     }
-    const rules = {
-      region: params.get('region'),
-      avoid: params.get('sans'),
-      extra: (params.get('bonus') as Extra | null) ?? 'defaut',
-    }
-    const puzzle: Puzzle | null = puzzleFor(atlas, params.get('de')!, params.get('a')!, rules)
+    const [, start, end, region, avoid, extra] = fromSeed ?? []
+    const rules = fromSeed
+      ? { region: region ? (atlas.regions[Number(region)] ?? null) : null, avoid: avoid || null, extra: (extra || 'defaut') as Extra }
+      : { region: params.get('region'), avoid: params.get('sans'), extra: (params.get('bonus') as Extra | null) ?? 'defaut' }
+    const puzzle: Puzzle | null = puzzleFor(atlas, fromSeed ? start : params.get('de')!, fromSeed ? end : params.get('a')!, rules)
     if (!puzzle) return null
     const slot: GameSlot = { kind: 'libre', storageKey: null, dailyId: null, dayKey: todayKey(), label: t('entraînement'), intro: t('En route') }
     return { puzzle, slot, hard: settings.hard || params.get('mode') === 'difficile' }
-  }, [atlas, playing, view, params, settings.hard])
+  }, [atlas, playing, view, params, settings.hard, fromSeed])
 
   function another() {
     if (!atlas) return
@@ -142,7 +144,7 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
         {view === 'archive' && <Archive />}
         {view === 'stats' && <Stats />}
         {view === 'cartes' && <Maps />}
-        {view === 'libre' && !params.has('de') && <Practice />}
+        {view === 'libre' && !playing && <Practice />}
         {playing && !atlas && <p className="itin-muted">{t('Chargement de la carte…')}</p>}
         {playing && atlas && !game && (
           <p className="itin-msg">
@@ -160,6 +162,7 @@ export default function Itineraire({ mode, params }: { mode?: string; params: UR
             shareUrl={`${location.origin}${location.pathname}#${playUrl({ ...game.puzzle, hard: game.hard })}`}
             onAnother={another}
             onHelp={() => setHelp(true)}
+            challenge={{ seed: travleSeed(atlas, game.puzzle), active: !!defi }}
           />
         )}
       </main>
