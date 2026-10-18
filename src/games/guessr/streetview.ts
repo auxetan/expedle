@@ -42,8 +42,11 @@ export const saveKey = (key: string) => save('gg-key', key.trim())
 const META = 'https://maps.googleapis.com/maps/api/streetview/metadata'
 
 // Les métadonnées sont gratuites et sans quota : on cherche les lieux avec elles, on ne paie qu'à l'affichage.
-async function metadata(key: string, lat: number, lng: number, radius: number, signal?: AbortSignal): Promise<Meta> {
-  const q = new URLSearchParams({ location: `${lat},${lng}`, radius: String(radius), source: 'outdoor', key })
+function metadata(key: string, lat: number, lng: number, radius: number, signal?: AbortSignal): Promise<Meta> {
+  return query(new URLSearchParams({ location: `${lat},${lng}`, radius: String(radius), source: 'outdoor', key }), signal)
+}
+
+async function query(q: URLSearchParams, signal?: AbortSignal): Promise<Meta> {
   const res = await fetch(`${META}?${q}`, { signal })
   const data = (await res.json()) as Meta
   if (data.status === 'REQUEST_DENIED') throw new KeyError(data.error_message || t('Google a refusé la clé.'))
@@ -76,6 +79,14 @@ export async function findPano(world: World, key: string, mode: Mode, rng: () =>
     }
   }
   throw new Error(t('Aucun panorama trouvé cette fois.'))
+}
+
+// Un panorama précis et son cap de départ, quand un défi les désigne.
+export async function panoById(world: World, key: string, pano: string, heading: number, signal: AbortSignal): Promise<Pano> {
+  const m = await query(new URLSearchParams({ pano, key }), signal)
+  if (m.status !== 'OK' || !m.location) throw new Error(t('Ce panorama n’est plus disponible.'))
+  const { lat, lng } = m.location
+  return { id: pano, lat, lng, country: countryAt(world, [lng, lat]), heading, date: m.date ?? '' }
 }
 
 // L'API JavaScript ne se charge qu'une fois par page ; Google appelle gm_authFailure si la clé est refusée.
