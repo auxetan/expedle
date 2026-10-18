@@ -15,6 +15,7 @@ import GlobeView from '../globle/GlobeView'
 import { evaluate, MAX_GUESSES, pickTarget, squares, stateBonus, targets, worldBonus, type BonusRound } from './game'
 import './worldle.css'
 import { locale, msg, t } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
 
 interface Saved {
   guesses: string[]
@@ -129,6 +130,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
     const ms = elapsed()
     update({ ...state, guesses: [...state.guesses, code], ...(done ? { ms } : {}) })
     if (!done) return
+    if (win && variant === 'worldle') stamp(target, 'worldle')
     if (!practice && !dailyResult(variant, day)) saveDailyResult(variant, { won: win, guesses: n }, day)
     recordPlay(variant, { pts: points(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
