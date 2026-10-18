@@ -77,6 +77,10 @@ export default function Hub() {
             ·{' '}
             <a href="#/classements" className="home-stats-link">
               {t('Classements →')}
+            </a>{' '}
+            ·{' '}
+            <a href="#/defis" className="home-stats-link">
+              {t('Défis →')}
             </a>
           </p>
         </section>
