@@ -20,7 +20,8 @@ export function useRoute(): Route {
         window.scrollTo(0, 0)
       }
       // d'une page à l'autre, un fondu enchaîné là où le navigateur sait le faire
-      if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(update)
+      // un onglet caché saute l'animation : la page change quand même, l'erreur annoncée n'en est pas une
+      if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(update).ready.catch(() => {})
       else update()
     }
     window.addEventListener('hashchange', onChange)
