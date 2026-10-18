@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { useSyncExternalStore } from 'react'
 import { t } from './i18n'
+import { mergePassports, passport, PASSPORT_CHANGED, savePassport, type Passport } from './passport'
 import { plays, PLAYED, type Play } from './stats'
 import { load, save, todayKey } from './util'
 
@@ -167,6 +168,44 @@ async function download(sb: SupabaseClient) {
   }
 }
 
+/* Passeport */
+
+export interface StampRow {
+  code: string
+  n: number
+  first_at: string
+  last_at: string
+  games: string[]
+}
+
+export const toStampRows = (book: Passport): StampRow[] =>
+  Object.entries(book).map(([code, s]) => ({ code, n: s.n, first_at: new Date(s.first).toISOString(), last_at: new Date(s.last).toISOString(), games: s.games }))
+
+export const fromStampRows = (rows: StampRow[]): Passport =>
+  Object.fromEntries(rows.map((r) => [r.code, { n: r.n, first: new Date(r.first_at).getTime(), last: new Date(r.last_at).getTime(), games: r.games }]))
+
+export const PASSPORT_SYNCED = 'cg:passport-synced'
+
+// À la connexion, le passeport du compte rejoint celui de l'appareil ; ensuite chaque tampon part au serveur,
+// qui fusionne lui-même pour ne jamais revenir en arrière.
+async function syncPassport(sb: SupabaseClient, full: boolean) {
+  let book = passport()
+  if (full) {
+    const { data, error } = await sb.from('passport_stamps').select('code, n, first_at, last_at, games')
+    if (error) throw error
+    const merged = mergePassports(book, fromStampRows(data as StampRow[]))
+    if (JSON.stringify(merged) !== JSON.stringify(book)) {
+      savePassport(merged)
+      window.dispatchEvent(new Event(PASSPORT_SYNCED))
+    }
+    book = merged
+  }
+  const rows = toStampRows(book)
+  if (!rows.length) return
+  const { error } = await sb.rpc('merge_passport', { p_rows: rows })
+  if (error) throw error
+}
+
 // Les synchronisations passent l'une après l'autre : une partie finie pendant la première n'est pas envoyée deux fois.
 let queue = Promise.resolve()
 
@@ -179,6 +218,7 @@ function sync(full: boolean) {
       if (full) await ensureProfile(sb, account.userId)
       await upload(sb)
       if (full) await download(sb)
+      await syncPassport(sb, full)
       set({ syncing: false })
     } catch (e) {
       set({ syncing: false, error: e instanceof Error ? e.message : t('Synchronisation impossible.') })
@@ -201,6 +241,12 @@ export function startCloud() {
     }),
   )
   window.addEventListener(PLAYED, () => void sync(false))
+  // les tampons arrivent en rafale (une route de Travle, une série de Seterra) : un envoi groupé suffit
+  let stamps = 0
+  window.addEventListener(PASSPORT_CHANGED, () => {
+    clearTimeout(stamps)
+    stamps = window.setTimeout(() => void sync(false), 1500)
+  })
 }
 
 /* Connexion par email : un lien (modèle par défaut de Supabase) ou un code à 6 chiffres (modèle personnalisé) */
