@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
 import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
-import NextUp from './ui/NextUp'
 import OfflineBadge from './ui/OfflineBadge'
 import { t, useLang } from './lib/i18n'
 import { useRoute } from './lib/router'
@@ -137,7 +136,6 @@ export default function App() {
         </div>
       </Suspense>
       <Celebrations />
-      <NextUp />
       <OfflineBadge />
       <CloudSync />
     </>
