@@ -28,11 +28,13 @@ export interface Account {
   state: 'off' | 'loading' | 'out' | 'in'
   email: string
   userId: string
+  // code ami, à donner pour être ajouté
+  code: string
   syncing: boolean
   error: string
 }
 
-let account: Account = { state: cloudEnabled ? 'loading' : 'off', email: '', userId: '', syncing: false, error: '' }
+let account: Account = { state: cloudEnabled ? 'loading' : 'off', email: '', userId: '', code: '', syncing: false, error: '' }
 const listeners = new Set<() => void>()
 
 function set(patch: Partial<Account>) {
@@ -108,16 +110,18 @@ function defaultName() {
 // Un nouvel appareil reprend le profil du compte ; un nouveau compte reprend le profil de l'appareil.
 async function ensureProfile(sb: SupabaseClient, userId: string) {
   const local = load<PublicProfile>('profile', { name: '', avatar: '🧭' })
-  const { data, error } = await sb.from('profiles').select('name, avatar').eq('id', userId).maybeSingle()
+  const { data, error } = await sb.from('profiles').select('name, avatar, code').eq('id', userId).maybeSingle()
   if (error) throw error
   if (data) {
     save('profile', { name: data.name, avatar: data.avatar })
+    set({ code: data.code ?? '' })
     window.dispatchEvent(new Event(PROFILE_CHANGED))
     return
   }
   const profile = { name: validName(local.name) ? local.name.trim() : defaultName(), avatar: local.avatar }
-  const { error: insertError } = await sb.from('profiles').insert({ id: userId, ...profile })
+  const { data: created, error: insertError } = await sb.from('profiles').insert({ id: userId, ...profile }).select('code').single()
   if (insertError) throw insertError
+  set({ code: created.code ?? '' })
   save('profile', profile)
   window.dispatchEvent(new Event(PROFILE_CHANGED))
 }
@@ -191,7 +195,7 @@ export function startCloud() {
   started = true
   void cloud().then((sb) =>
     sb.auth.onAuthStateChange((event, session) => {
-      set({ state: session ? 'in' : 'out', email: session?.user.email ?? '', userId: session?.user.id ?? '' })
+      set({ state: session ? 'in' : 'out', email: session?.user.email ?? '', userId: session?.user.id ?? '', ...(session ? {} : { code: '' }) })
       // pas d'appel à Supabase dans ce rappel : la bibliothèque attend qu'il se termine
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) setTimeout(() => void sync(true))
     }),
@@ -249,14 +253,101 @@ export interface PointsRow {
   me: boolean
 }
 
-export async function dailyBoard(game: string, day: string): Promise<DailyRow[]> {
-  const { data, error } = await (await cloud()).rpc('daily_board', { p_game: game, p_day: day })
+export async function dailyBoard(game: string, day: string, friends = false): Promise<DailyRow[]> {
+  const { data, error } = await (await cloud()).rpc('daily_board', { p_game: game, p_day: day, p_friends: friends })
   if (error) throw new Error(error.message)
   return data as DailyRow[]
 }
 
-export async function pointsBoard(since: Date | null): Promise<PointsRow[]> {
-  const { data, error } = await (await cloud()).rpc('points_board', { p_since: (since ?? new Date(0)).toISOString() })
+export async function pointsBoard(since: Date | null, friends = false): Promise<PointsRow[]> {
+  const { data, error } = await (await cloud()).rpc('points_board', { p_since: (since ?? new Date(0)).toISOString(), p_friends: friends })
   if (error) throw new Error(error.message)
   return data as PointsRow[]
+}
+
+/* Défis et amis */
+
+export interface ChallengeRow extends DailyRow {
+  code: string
+  friend: boolean
+}
+
+export interface ChallengeItem {
+  game: string
+  seed: string
+  at: string
+  // qui a envoyé le défi, quand il a été reçu plutôt que joué de sa propre initiative
+  from_name: string | null
+  from_avatar: string | null
+  played: boolean
+  players: number
+  my_rank: number | null
+  leader_name: string | null
+  leader_pts: number | null
+}
+
+export interface Friend {
+  name: string
+  avatar: string
+  code: string
+  mutual: boolean
+  week_points: number
+}
+
+// Seul le premier essai compte : un deuxième envoi pour le même défi est ignoré.
+export async function submitChallenge(game: string, seed: string, r: { pts: number; s?: number; ms?: number; win?: boolean }): Promise<void> {
+  if (account.state !== 'in') return
+  // le score pointe vers le profil, créé par la synchronisation en cours à la première connexion
+  await queue
+  const { error } = await (await cloud()).from('challenge_scores').upsert(
+    {
+      game,
+      seed,
+      pts: Math.round(Math.max(0, Math.min(100, r.pts))),
+      score: r.s ?? null,
+      ms: r.ms === undefined ? null : Math.min(86400000, Math.round(r.ms)),
+      win: r.win ?? null,
+    },
+    { onConflict: 'game,seed,user_id', ignoreDuplicates: true },
+  )
+  if (error) throw new Error(error.message)
+}
+
+export async function challengeBoard(game: string, seed: string): Promise<ChallengeRow[]> {
+  const { data, error } = await (await cloud()).rpc('challenge_board', { p_game: game, p_seed: seed })
+  if (error) throw new Error(error.message)
+  return data as ChallengeRow[]
+}
+
+export async function myChallenges(): Promise<ChallengeItem[]> {
+  const { data, error } = await (await cloud()).rpc('my_challenges')
+  if (error) throw new Error(error.message)
+  return data as ChallengeItem[]
+}
+
+export async function sendChallenge(game: string, seed: string, codes: string[]): Promise<number> {
+  const { data, error } = await (await cloud()).rpc('send_challenge', { p_game: game, p_seed: seed, p_codes: codes })
+  if (error) throw new Error(error.message)
+  return data as number
+}
+
+export async function myFriends(): Promise<Friend[]> {
+  const { data, error } = await (await cloud()).rpc('my_friends')
+  if (error) throw new Error(error.message)
+  return data as Friend[]
+}
+
+export async function addFriend(code: string): Promise<Friend> {
+  const { data, error } = await (await cloud()).rpc('add_friend', { p_code: code })
+  if (error) {
+    if (error.message.includes('unknown_code')) throw new Error(t('Aucun joueur n’a ce code.'))
+    if (error.message.includes('own_code')) throw new Error(t('C’est ton propre code.'))
+    throw new Error(error.message)
+  }
+  return { ...(data as Friend[])[0], mutual: false, week_points: 0 }
+}
+
+export async function removeFriend(code: string): Promise<void> {
+  const { error } = await (await cloud()).rpc('remove_friend', { p_code: code })
+  if (error) throw new Error(error.message)
 }
