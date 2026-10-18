@@ -1,0 +1,162 @@
+.cf-main {
+  max-width: 760px;
+  padding-bottom: 80px;
+}
+
+.cf-intro h1 {
+  margin: 28px 0 6px;
+  font-weight: 500;
+}
+
+.cf-intro p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cf-section {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cf-section h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cf-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.cf-code small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cf-code b {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-add {
+  display: flex;
+  gap: 8px;
+}
+
+.cf-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--fg);
+  font: 15px var(--font);
+  letter-spacing: 0.1em;
+}
+
+.cf-friends,
+.cf-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cf-friends li,
+.cf-items li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.cf-friend-name,
+.cf-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cf-friend-name small,
+.cf-item-text small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cf-remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 4px 6px;
+}
+
+.cf-items li.cf-played {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+.cf-item-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.cf-rank {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cf-rank.first {
+  color: var(--good);
+  font-weight: 500;
+}
+
+.cf-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.cf-board .ui-btn {
+  align-self: flex-start;
+}
+
+.cf-glyph {
+  width: 36px;
+  text-align: center;
+  font-size: 22px;
+}
