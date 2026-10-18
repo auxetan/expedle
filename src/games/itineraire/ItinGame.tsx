@@ -6,6 +6,8 @@ import { copyText, load, save, todayKey } from '../../lib/util'
 import { addRecord, computeStats, type GameRecord, type ItinSettings } from './history'
 import { exactMatch, matchSuggestions, routeGraph, type Puzzle } from './puzzle'
 import RouteMap, { type Layer } from './RouteMap'
+import type { Result } from '../../lib/challenge'
+import ChallengeBox from '../../ui/ChallengeBox'
 import { useTheme } from '../../ui/theme'
 import { plural, t, tx } from '../../lib/i18n'
 
@@ -37,6 +39,8 @@ interface Props {
   shareUrl: string
   onAnother: () => void
   onHelp: () => void
+  // graine du trajet ; active quand la partie vient d'un lien de défi
+  challenge: { seed: string; active: boolean }
 }
 
 function Highlight({ label, at, len }: { label: string; at: number; len: number }) {
@@ -50,7 +54,7 @@ function Highlight({ label, at, len }: { label: string; at: number; len: number 
   )
 }
 
-export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl, onAnother, onHelp }: Props) {
+export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl, onAnother, onHelp, challenge }: Props) {
   const saved = slot.storageKey ? load<Saved>(slot.storageKey, { guesses: [], hints: 0 }) : { guesses: [], hints: 0 }
   const [guesses, setGuesses] = useState<string[]>(saved.guesses)
   const [hints, setHints] = useState(saved.hints)
@@ -61,6 +65,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   const [message, setMessage] = useState('')
   const [shake, setShake] = useState(false)
   const [results, setResults] = useState(false)
+  const [result, setResult] = useState<Result | null>(null)
   const [toast, setToast] = useState('')
 
   const g = useMemo(() => routeGraph(atlas, puzzle), [atlas, puzzle])
@@ -97,7 +102,11 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   useEffect(() => {
     if (!over || recorded.current) return
     recorded.current = true
-    if (slot.dailyId && dailyResult(slot.dailyId, slot.dayKey)) return
+    const pts = won ? Math.max(10, 100 - 15 * (guesses.length - shortest) - 10 * hints) : 0
+    const ms = elapsed()
+    // une partie du jour déjà jouée revient sans chrono : elle peut quand même lancer un défi
+    if (slot.dailyId && dailyResult(slot.dailyId, slot.dayKey)) return setResult({ pts, s: guesses.length, win: won })
+    setResult({ pts, s: guesses.length, win: won, ms })
     if (slot.dailyId) saveDailyResult(slot.dailyId, { won, guesses: guesses.length }, slot.dayKey)
     addRecord({
       id: slot.storageKey ?? `libre:${Date.now()}`,
@@ -109,15 +118,15 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
       hints,
     })
     recordPlay(slot.kind === 'jour' ? 'itineraire' : `itineraire-${slot.kind}`, {
-      pts: won ? Math.max(10, 100 - 15 * (guesses.length - shortest) - 10 * hints) : 0,
+      pts,
       s: guesses.length,
-      ms: elapsed(),
+      ms,
       win: won,
       // une archive rejouée ne compte pas pour le classement du jour
-      sub: (slot.kind === 'jour' || slot.kind === 'usa') && slot.dayKey !== todayKey() ? 'archive' : undefined,
+      sub: challenge.active ? 'defi' : (slot.kind === 'jour' || slot.kind === 'usa') && slot.dayKey !== todayKey() ? 'archive' : undefined,
     })
     setTimeout(() => setResults(true), 900)
-  }, [over, won, slot, guesses.length, shortest, hints, elapsed])
+  }, [over, won, slot, guesses.length, shortest, hints, elapsed, challenge.active])
 
   const suggestions = useMemo(() => matchSuggestions(atlas, query), [atlas, query])
   const listRef = useRef<HTMLUListElement>(null)
@@ -295,6 +304,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
               </button>
             </div>
           </div>
+          {result && <ChallengeBox game="itineraire-libre" path="/itineraire/libre" seed={challenge.seed} result={result} />}
           <p className="itin-more">
             <a href="#/classement">{t('Jouez à GeoHunter !')}</a> · <a href="#/echelle/geo">{t('Essayez Size It Up : Géographie')}</a> ·{' '}
             <a href="#/cartographe">Seterra</a> · <a href="#/itineraire/stats">{t('Statistiques')}</a>
