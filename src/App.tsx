@@ -17,12 +17,17 @@ const Quiz = lazy(() => import('./games/quiz/Quiz'))
 const Stats = lazy(() => import('./hub/Stats'))
 const Achievements = lazy(() => import('./hub/Achievements'))
 const Leaderboards = lazy(() => import('./hub/Leaderboards'))
+const Challenges = lazy(() => import('./hub/Challenges'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
 const Countryle = lazy(() => import('./games/countryle/Countryle'))
 const Flagle = lazy(() => import('./games/flagle/Flagle'))
 const GeoGrid = lazy(() => import('./games/geogrid/GeoGrid'))
+const DailyGeo = lazy(() => import('./games/dailygeo/DailyGeo'))
+const Factle = lazy(() => import('./games/factle/Factle'))
+const Wikitrivia = lazy(() => import('./games/wikitrivia/Wikitrivia'))
+const Tightrope = lazy(() => import('./games/tightrope/Tightrope'))
 const PhotoGuessr = lazy(() => import('./games/guessr/PhotoGuessr'))
 const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
 
@@ -72,11 +77,17 @@ export default function App() {
     case 'classements':
       content = <Leaderboards key={key} tab={sub} />
       break
+    case 'defis':
+      content = <Challenges key={key} params={route.params} />
+      break
     case 'jetpunk':
       content = <JetPunk key={key} segments={route.segments} params={route.params} />
       break
     case 'worldle':
       content = <Worldle key={key} mode={sub} />
+      break
+    case 'statele':
+      content = <Worldle key={key} mode={sub} variant="statele" />
       break
     case 'globle':
       content = <Globle key={key} mode={sub} />
@@ -90,11 +101,23 @@ export default function App() {
     case 'geogrid':
       content = <GeoGrid key={key} mode={sub} />
       break
+    case 'dailygeo':
+      content = <DailyGeo key={key} mode={sub} />
+      break
+    case 'factle':
+      content = <Factle key={key} mode={sub} />
+      break
+    case 'wikitrivia':
+      content = <Wikitrivia key={key} mode={sub} />
+      break
+    case 'tightrope':
+      content = <Tightrope key={key} mode={sub} />
+      break
     case 'photoguessr':
-      content = <PhotoGuessr key={key} />
+      content = <PhotoGuessr key={key} daily={sub === 'jour'} />
       break
     case 'geoguessr':
-      content = <GeoGuessr key={key} />
+      content = <GeoGuessr key={key} daily={sub === 'jour'} />
       break
     default:
       content = <Hub />
