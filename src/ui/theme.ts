@@ -20,7 +20,7 @@ export function setTheme(t: Theme): void {
     listeners.forEach((f) => f())
   }
   // le changement de thème se fait en fondu plutôt que d'un coup
-  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(swap)
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(swap).ready.catch(() => {})
   else swap()
 }
 
