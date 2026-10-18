@@ -16,6 +16,8 @@ import { Icon } from '../../ui/Panels'
 import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
 import './cartographe.css'
 import { locale, msg, plural, t, tx } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
 
@@ -240,6 +242,8 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   }
 
   function resolve(status: Target['status']) {
+    feedback(status === 'fail' ? 'bad' : 'good')
+    if (status !== 'fail') stamp(current, 'cartographe')
     const t = targets.get(current)!
     const next = new Map(targets)
     next.set(current, { ...t, status })
@@ -251,6 +255,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   }
 
   function miss(code?: string) {
+    feedback('tap')
     const t = targets.get(current)!
     const tries = t.tries + 1
     const next = new Map(targets)
