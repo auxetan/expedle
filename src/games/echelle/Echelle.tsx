@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
+import { readChallenge, type Result } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { hashString, load, save, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
+import ChallengeBox from '../../ui/ChallengeBox'
 import { loadGeoShapes, type GeoShape } from './geoItems'
 import { OBJECTS, POP_ITEMS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -124,28 +127,50 @@ export function weeklyTheme(week = weekKey()) {
   return WEEKLY_THEMES[hashString(week) % WEEKLY_THEMES.length]
 }
 
+// Graine d'un défi : les paires d'objets elles-mêmes (rangs dans la liste du jeu), précédées du thème pour The Weekly 1K.
+// Le tirage d'une partie libre écarte les objets déjà vus : il ne se refait pas à partir d'une simple graine.
+function roundsSeed(things: Thing[], rounds: [Thing, Thing][], theme: number | null): string {
+  const pairs = rounds.map(([a, b]) => `${things.indexOf(a)}-${things.indexOf(b)}`).join('.')
+  return theme === null ? pairs : `${theme}:${pairs}`
+}
+
+function roundsFromSeed(things: Thing[], seed: string): [Thing, Thing][] {
+  return seed
+    .split(':')
+    .at(-1)!
+    .split('.')
+    .flatMap((pair) => {
+      const [a, b] = pair.split('-').map(Number)
+      return things[a] && things[b] ? [[things[a], things[b]] as [Thing, Thing]] : []
+    })
+}
+
 export default function Echelle({ variant, date }: { variant: Variant; date?: string | null }) {
   const dailyId = `echelle-${variant}`
   const dayKey = variant === '1000' ? weekKey() : (date ?? todayKey())
   const count = variant === '1000' ? 10 : 5
+  const [challenge] = useState(readChallenge)
   const [things, setThings] = useState<Thing[] | null>(null)
-  const [daily, setDaily] = useState(() => dailyResult(dailyId, dayKey) === null)
+  const [daily, setDaily] = useState(() => !challenge && dailyResult(dailyId, dayKey) === null)
+  const theme = variant === '1000' ? (challenge ? Number(challenge.seed.split(':')[0]) : WEEKLY_THEMES.indexOf(weeklyTheme())) : null
 
   useEffect(() => {
     if (variant === 'geo') loadGeoShapes().then((s) => setThings(s.filter((x) => x.h > 0).map(geoThing)))
-    else setThings((variant === '1000' ? weeklyTheme().items : variant === 'pop' ? POP_ITEMS : OBJECTS).map(objectThing))
-  }, [variant])
+    else setThings((variant === '1000' ? (WEEKLY_THEMES[theme!] ?? weeklyTheme()).items : variant === 'pop' ? POP_ITEMS : OBJECTS).map(objectThing))
+  }, [variant, theme])
 
   const [seed, setSeed] = useState(0)
   const rounds = useMemo(
     () =>
-      things
-        ? daily
-          ? makeRounds(things, seededRng(`${dailyId}-${dayKey}`), count)
-          : makeRounds(things, Math.random, count, new Set(load<string[]>(`mg-seen:${variant}`, [])))
-        : [],
+      !things
+        ? []
+        : challenge && !seed
+          ? roundsFromSeed(things, challenge.seed)
+          : daily
+            ? makeRounds(things, seededRng(`${dailyId}-${dayKey}`), count)
+            : makeRounds(things, Math.random, count, new Set(load<string[]>(`mg-seen:${variant}`, []))),
     // seed : « Rejouer » relance un tirage aléatoire
-    [things, daily, seed, dailyId, dayKey, count, variant],
+    [things, daily, seed, dailyId, dayKey, count, variant, challenge],
   )
 
   const title = t(TITLES[variant])
@@ -177,6 +202,7 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
       rounds={rounds}
       daily={daily}
       dayKey={dayKey}
+      challenge={{ game: dailyId, path: variant === 'objets' ? '/echelle' : `/echelle/${variant}`, seed: things ? roundsSeed(things, rounds, theme) : '' }}
       onFinish={(scores, ms) => {
         if (things) {
           const names = rounds.flatMap(([a, b]) => [a.name, b.name])
@@ -184,11 +210,12 @@ export default function Echelle({ variant, date }: { variant: Variant; date?: st
           save(`mg-seen:${variant}`, seen.slice(-Math.floor(things.length * 0.7)))
         }
         const total = scores.reduce((a, b) => a + b, 0)
-        recordPlay(dailyId, { pts: total / scores.length, s: total, ms, sub: !daily ? 'libre' : date && date !== todayKey() ? 'archive' : undefined })
+        recordPlay(dailyId, { pts: total / scores.length, s: total, ms, sub: challenge && !seed ? 'defi' : !daily ? 'libre' : date && date !== todayKey() ? 'archive' : undefined })
         recordTotal(dailyId, total)
         if (daily) saveDailyResult(dailyId, { scores }, dayKey)
       }}
       onReplay={() => {
+        if (challenge) return go(variant === 'objets' ? '/echelle' : `/echelle/${variant}`)
         setDaily(false)
         setSeed((s) => s + 1)
       }}
@@ -222,11 +249,12 @@ interface GameProps {
   rounds: [Thing, Thing][]
   daily: boolean
   dayKey: string
+  challenge: { game: string; path: string; seed: string }
   onFinish: (scores: number[], ms: number) => void
   onReplay: () => void
 }
 
-function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onReplay }: GameProps) {
+function Game({ title, subtitle, variant, rounds, daily, dayKey, challenge, onFinish, onReplay }: GameProps) {
   const theme = useTheme()
   const [BLUE, RED, GHOST] = useMemo(() => [cssColor('--ref'), cssColor('--target'), cssColor('--muted')], [theme])
   const ROUNDS = rounds.length
@@ -235,6 +263,7 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
   const [answers, setAnswers] = useState<number[]>([])
   const [revealed, setRevealed] = useState(false)
   const [summary, setSummary] = useState(false)
+  const [result, setResult] = useState<Result | null>(null)
   const [ref, tgt] = rounds[index]
   const elapsed = useStopwatch(rounds)
 
@@ -381,8 +410,11 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
 
   function nextRound() {
     if (index + 1 >= rounds.length) {
+      const ms = elapsed()
+      const total = scores.reduce((a, b) => a + b, 0)
       setSummary(true)
-      onFinish(scores, elapsed())
+      setResult({ pts: total / scores.length, s: total, ms })
+      onFinish(scores, ms)
       return
     }
     setRevealed(false)
@@ -432,7 +464,9 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, onFinish, onRep
           archiveHref="#/estimation/archive"
           onReplay={onReplay}
         />
-      ) : (
+      ) : null}
+      {summary && result && <ChallengeBox game={challenge.game} path={challenge.path} seed={challenge.seed} result={result} />}
+      {summary ? null : (
         <>
       <div className="mg-counter">
         <span>{tx('MANCHE {n} / {total}', { n: <b>{index + 1}</b>, total: ROUNDS })}</span>
