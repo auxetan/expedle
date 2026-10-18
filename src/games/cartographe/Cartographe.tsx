@@ -7,7 +7,9 @@ import { COUNTRY_BY_CODE, countryName, flagEmoji, foreignNames } from '../../geo
 import { getWorld } from '../../geo/world'
 import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
-import { formatTime, normalize, shuffle } from '../../lib/util'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { formatTime, normalize, seededRng, shuffle } from '../../lib/util'
+import ChallengeBox from '../../ui/ChallengeBox'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import CountUp from '../../ui/CountUp'
 import { Icon } from '../../ui/Panels'
@@ -122,7 +124,11 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const world = getWorld()
   const members = useMemo(() => quizMembers(region), [region])
   const memberSet = useMemo(() => new Set(members), [members])
-  const [order, setOrder] = useState(() => shuffle(members))
+  const [challenge] = useState(readChallenge)
+  // l'ordre des questions vient d'une graine : un lien de défi pose les mêmes, dans le même ordre
+  const [seed, setSeed] = useState(() => challenge?.seed ?? newSeed())
+  const order = useMemo(() => shuffle(members, seededRng('seterra-' + seed)), [members, seed])
+  const pagePath = `/cartographe/${quizId(region.id, ask)}${mode === 'epingler' ? '' : `?mode=${mode}`}`
   const [targets, setTargets] = useState<Map<string, Target>>(() => new Map(members.map((c) => [c, { code: c, tries: 0, status: 'pending' }])))
   const [index, setIndex] = useState(0)
   const [clicks, setClicks] = useState(0)
@@ -311,7 +317,8 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   }
 
   function restart() {
-    setOrder(shuffle(members))
+    if (challenge) return go(pagePath)
+    setSeed(newSeed())
     setTargets(new Map(members.map((c) => [c, { code: c, tries: 0, status: 'pending' }])))
     setIndex(0)
     setClicks(0)
@@ -502,6 +509,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   {t('Autres quiz')}
                 </button>
               </div>
+              {!learning && <ChallengeBox game="cartographe" path={pagePath} seed={seed} result={{ pts: pct, s: pct, ms: elapsed }} />}
             </div>
           )}
         </div>
