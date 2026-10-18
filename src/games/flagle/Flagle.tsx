@@ -12,6 +12,7 @@ import '../worldle/worldle.css'
 import { dailyTarget, flagUrl, MAX_GUESSES, revealOrder, score, TILES, visibleTiles } from './game'
 import './flagle.css'
 import { locale, plural, t } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
 
 const tilesLabel = (n: number) => plural(n, '{n} tuile', '{n} tuiles')
 
@@ -70,6 +71,7 @@ export default function Flagle({ mode }: { mode?: string }) {
     setState(next)
     if (storageKey) save(storageKey, next)
     if (!over) return
+    if (win) stamp(target, 'flagle')
     if (!practice && !dailyResult('flagle', day)) saveDailyResult('flagle', { won: win, guesses: n }, day)
     recordPlay('flagle', { pts: score(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
