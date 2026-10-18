@@ -1,307 +1,588 @@
+.pp-page {
+  overflow-x: hidden;
+}
+
 .pp-main {
-  max-width: 980px;
-  padding-bottom: 90px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px 12px 90px;
+}
+
+/* ---------- le livret ---------- */
+
+.pb-stage {
+  perspective: 2600px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  align-items: center;
+  gap: 26px;
 }
 
-/* couverture : le passeport lui-même, couleur de cuir, lettrage crème */
-.pp-cover {
-  margin-top: 22px;
+.pb-book {
+  position: relative;
+  width: calc(var(--pw) * 2);
+  height: var(--ph);
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.35, 0.1, 0.25, 1);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.pb-book.single {
+  width: var(--pw);
+}
+
+/* fermé, on ne voit que la couverture (ou le dos) : le livret se recentre */
+.pb-book.spread.closed-front {
+  transform: translateX(calc(var(--pw) * -0.5));
+}
+
+.pb-book.spread.closed-back {
+  transform: translateX(calc(var(--pw) * 0.5));
+}
+
+.pb-leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.35, 0.1, 0.25, 1);
+}
+
+.pb-book.single .pb-leaf {
+  left: 0;
+  width: 100%;
+}
+
+/* fermé, la couverture s'entrouvre au survol : on devine qu'elle s'ouvre */
+@media (hover: hover) {
+  .pb-book.closed-front:hover .pb-leaf:first-child {
+    transform: translateZ(8px) rotateY(-14deg) !important;
+  }
+}
+
+.pb-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  container-type: size;
+  border-radius: 3px 12px 12px 3px;
+  box-shadow: 0 22px 40px -22px rgba(0, 0, 0, 0.6);
+}
+
+.pb-face.back {
+  transform: rotateY(180deg);
+  border-radius: 12px 3px 3px 12px;
+}
+
+/* l'ombre du pli, au creux du livret */
+.pb-face.front:not(.cover)::after,
+.pb-face.back:not(.cover)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(70, 48, 14, 0.24), rgba(70, 48, 14, 0.06) 7%, transparent 16%);
+}
+
+.pb-face.back:not(.cover)::after {
+  background: linear-gradient(270deg, rgba(70, 48, 14, 0.24), rgba(70, 48, 14, 0.06) 7%, transparent 16%);
+}
+
+/* une page qui tourne s'assombrit au passage, comme sous la lumière */
+.pb-leaf.moving .pb-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.04) 70%);
+  animation: pb-shade 0.9s ease both;
+}
+
+@keyframes pb-shade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pb-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 28px;
-  border-radius: 28px;
-  background:
-    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--fg) 10%, transparent), transparent 60%),
-    linear-gradient(135deg, #3a2f26, #241d17);
-  color: #ece6da;
-  box-shadow: 0 18px 50px -24px rgba(0, 0, 0, 0.6);
-  animation: rise-in 0.5s ease-out;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
-.pp-kicker {
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.pp-cover h1 {
-  margin: 6px 0 2px;
-  font-size: 56px;
-  font-weight: 500;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.pp-cover h1 small {
+.pb-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
   font-size: 22px;
-  opacity: 0.6;
+  line-height: 1;
 }
 
-.pp-cover p {
-  margin: 0;
-  opacity: 0.8;
+.pb-controls button:disabled {
+  opacity: 0.35;
 }
 
-.pp-cover .pp-recent {
-  margin-top: 8px;
-  color: #a8d4a8;
-  opacity: 1;
-  font-weight: 500;
+.pb-controls .pb-close {
+  width: auto;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
 }
 
-.pp-ring-wrap {
+/* ---------- cuir ---------- */
+
+.pp-leather {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12cqh 8cqw 10cqh;
+  background:
+    radial-gradient(120% 80% at 30% 18%, rgba(255, 255, 255, 0.08), transparent 55%),
+    radial-gradient(140% 120% at 70% 100%, rgba(0, 0, 0, 0.35), transparent 60%),
+    #5c1824;
+  box-shadow:
+    inset 5cqw 0 5cqw -4cqw rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* grain du cuir */
+.pp-leather::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.pp-leather.back {
+  justify-content: center;
+  box-shadow:
+    inset -5cqw 0 5cqw -4cqw rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* le dos porte des armoiries gaufrées, sans dorure */
+.pp-leather.back .pp-emblem {
+  opacity: 0.35;
+  filter: grayscale(1) brightness(0.6);
+}
+
+.pp-gold {
   position: relative;
-  flex: none;
-  width: 124px;
-  height: 124px;
+  text-align: center;
+  text-transform: uppercase;
+  font-family: 'Times New Roman', Georgia, serif;
+  background: linear-gradient(180deg, #f8e7b0, #c99a3e 52%, #f0d58c 68%, #a87a2b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+
+.pp-cover-country {
+  font-size: 5.4cqw;
+  letter-spacing: 0.16em;
+}
+
+.pp-cover-title {
+  font-size: 10.5cqw;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  margin-top: 2cqh;
+}
+
+.pp-cover-sub {
+  margin-top: -6cqh;
+  font-size: 3.4cqw;
+  letter-spacing: 0.16em;
+}
+
+.pp-emblem {
+  position: relative;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+
+.pp-chip {
+  position: relative;
+  width: 15cqw;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+
+/* ---------- papier de sécurité ---------- */
+
+.pp-paper {
+  position: absolute;
+  inset: 0;
+  padding: 8cqw 7cqw 10cqw;
+  color: #3b3326;
+  font-family: 'Times New Roman', Georgia, serif;
+  background-color: #f4efe1;
+  /* guillochis : de fines ondes entrelacées, comme sur les pages d'un vrai passeport */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='48'%3E%3Cg fill='none' stroke-width='0.6'%3E%3Cpath d='M0 24 Q12 6 24 24 T48 24 T72 24 T96 24' stroke='%23d9cdaf'/%3E%3Cpath d='M0 30 Q12 12 24 30 T48 30 T72 30 T96 30' stroke='%23e2d6ba'/%3E%3Cpath d='M0 18 Q12 36 24 18 T48 18 T72 18 T96 18' stroke='%23ddd0b4'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(90% 70% at 50% 45%, rgba(214, 200, 168, 0.35), transparent 70%);
+  background-size: 22cqw 11cqw, auto;
+  box-shadow:
+    inset -2px 0 0 #e6ddc8,
+    inset -3px 0 0 #d6c9ad;
+}
+
+.pb-face.back .pp-paper {
+  box-shadow:
+    inset 2px 0 0 #e6ddc8,
+    inset 3px 0 0 #d6c9ad;
+}
+
+/* le globe en filigrane au centre de chaque page */
+.pp-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62cqw;
+  height: 62cqw;
+  transform: translate(-50%, -50%);
+  opacity: 0.07;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%233b3326' stroke-width='1'%3E%3Ccircle cx='16' cy='16' r='14'/%3E%3Cellipse cx='16' cy='16' rx='7' ry='14'/%3E%3Cpath d='M16 2v28M3 11h26M3 21h26'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.pp-page-number {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3.6cqw;
+  text-align: center;
+  font-size: 3cqw;
+  color: #8a7d63;
+}
+
+.pp-paper h3 {
+  position: relative;
+  margin: 0 0 4cqw;
+  text-align: center;
+  font-weight: 400;
+  font-size: 3.6cqw;
+  letter-spacing: 0.22em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  color: #6b5d43;
+}
+
+/* ---------- garde et renseignements ---------- */
+
+.pp-notice {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4cqw;
+  text-align: center;
 }
 
-.pp-ring {
+.pp-notice .pp-emblem {
+  filter: sepia(1) saturate(0.6) brightness(0.55);
+}
+
+.pp-notice p {
+  position: relative;
+  margin: 0;
+  font-size: 4.2cqw;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.pp-notice .pp-notice-title {
+  font-style: normal;
+  font-size: 4.4cqw;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.pp-notice .pp-notice-small {
+  font-size: 3.2cqw;
+  color: #8a7d63;
+}
+
+.pp-notice-games {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 6cqw;
+  font-size: 3.4cqw;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* ---------- page d'identité ---------- */
+
+.pp-data-head {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1cqw 3cqw;
+  margin-bottom: 4cqw;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 3.2cqw;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #2c2a26;
+}
+
+.pp-data-head small,
+.pp-field small,
+.pp-signature small {
+  display: block;
+  font-weight: 400;
+  font-size: 2.3cqw;
+  color: #7a6c52;
+  letter-spacing: 0.02em;
+}
+
+.pp-data-body {
+  position: relative;
+  display: flex;
+  gap: 5cqw;
+}
+
+.pp-photo {
+  position: relative;
+  flex: none;
+  width: 32cqw;
+  height: 42cqw;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 1.5cqw;
+  background: linear-gradient(160deg, #dfe6ea, #b9c4cb);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.pp-photo span {
+  font-size: 20cqw;
+  filter: saturate(0.85);
+}
+
+/* hologramme irisé qui glisse sur la photo */
+.pp-holo {
   position: absolute;
-  inset: 0;
-  transform: rotate(-90deg);
+  inset: -40%;
+  background: conic-gradient(from 0deg, rgba(255, 120, 200, 0.35), rgba(120, 220, 255, 0.35), rgba(170, 255, 140, 0.35), rgba(255, 230, 120, 0.35), rgba(255, 120, 200, 0.35));
+  mix-blend-mode: soft-light;
+  animation: pp-holo 9s linear infinite;
 }
 
-.pp-ring circle {
-  fill: none;
-  stroke: rgba(236, 230, 218, 0.15);
-  stroke-width: 9;
-}
-
-.pp-ring .pp-ring-fill {
-  stroke: #ece6da;
-  stroke-linecap: round;
-  transition: stroke-dasharray 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: pp-ring 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@keyframes pp-ring {
-  from {
-    stroke-dasharray: 0 400;
+@keyframes pp-holo {
+  to {
+    transform: rotate(1turn);
   }
 }
 
-.pp-ring-wrap b {
-  font-size: 24px;
-  font-weight: 500;
+.pp-fields {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.4cqw 3cqw;
+  align-content: start;
 }
 
-.pp-ring-wrap small {
-  font-size: 11px;
-  opacity: 0.7;
+.pp-field.wide {
+  grid-column: span 2;
 }
 
-.pp-map {
-  border-radius: 24px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  padding: 10px;
+.pp-field b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 3.6cqw;
+  color: #1f1d1a;
 }
 
-.pp-map svg {
+.pp-signature {
+  position: relative;
+  margin-top: 4cqw;
+}
+
+.pp-signature span {
+  display: block;
+  font-family: 'Snell Roundhand', 'Segoe Script', 'Brush Script MT', 'Apple Chancery', cursive;
+  font-size: 7cqw;
+  line-height: 1.1;
+  color: #23305e;
+  transform: rotate(-3deg);
+  transform-origin: left;
+}
+
+.pp-mrz {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6cqw;
+  padding: 2.4cqw 0;
+  background: rgba(255, 255, 255, 0.35);
+  font-family: 'OCR B', 'OCR-B', 'Courier New', Courier, monospace;
+  font-size: 3.15cqw;
+  letter-spacing: 0.02em;
+  white-space: pre;
+  color: #151413;
+}
+
+/* ---------- observations ---------- */
+
+.pp-inkmap {
+  position: relative;
   display: block;
   width: 100%;
   height: auto;
 }
 
-.pp-ocean {
-  fill: var(--bg2);
+.pp-inkmap .sea {
+  fill: none;
+  stroke: #b9ab8a;
+  stroke-width: 0.8;
 }
 
-.pp-land {
-  fill: color-mix(in srgb, var(--fg) 16%, var(--card));
-  stroke: var(--bg2);
-  stroke-width: 0.5;
-  transition: fill 0.2s;
+.pp-inkmap path:not(.sea) {
+  fill: #dccfb2;
+  stroke: #f4efe1;
+  stroke-width: 0.35;
 }
 
-.pp-land:hover {
-  fill: color-mix(in srgb, var(--fg) 34%, var(--card));
+.pp-inkmap path.on {
+  fill: #9b3b31;
 }
 
-.pp-land.on {
-  fill: var(--good);
-}
-
-.pp-map-label {
-  margin: 6px 8px 2px;
-  font-size: 14px;
-  color: var(--muted);
-  min-height: 1.4em;
-}
-
-.pp-continents {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.pp-continent {
+.pp-notes-total {
   position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px 18px;
-  border-radius: 18px;
-  background: var(--card);
-  border: 1px solid var(--line);
+  margin: 3cqw 0 2cqw;
+  text-align: center;
+  font-size: 3.8cqw;
+  font-style: italic;
 }
 
-.pp-continent span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.pp-continent b {
-  font-size: 22px;
-  font-weight: 500;
-}
-
-.pp-continent b small {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.pp-continent i {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 5px;
-  background: var(--good);
-  border-radius: 0 3px 3px 0;
-  transition: width 1s ease;
-}
-
-.pp-continent.done {
-  border-color: var(--good);
-}
-
-.pp-stamps-wrap h2,
-.pp-empty h2 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.pp-stamps {
-  list-style: none;
+.pp-notes-list {
+  position: relative;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 14px;
-}
-
-/* un tampon : cercle à l'encre, un peu de travers comme posé à la main */
-.pp-stamp {
-  position: relative;
-  aspect-ratio: 1;
+  list-style: none;
   display: flex;
   flex-direction: column;
+  gap: 1.8cqw;
+  font-size: 3.4cqw;
+}
+
+.pp-notes-list li {
+  display: grid;
+  grid-template-columns: 34cqw 1fr 12cqw;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 10px;
-  border-radius: 50%;
-  border: 2px dashed color-mix(in srgb, var(--fg) 45%, transparent);
-  box-shadow: inset 0 0 0 5px var(--bg), inset 0 0 0 6.5px color-mix(in srgb, var(--fg) 25%, transparent);
-  transform: rotate(var(--tilt));
-  text-align: center;
-  transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.6, 1);
+  gap: 2cqw;
 }
 
-.pp-stamp:hover {
-  transform: rotate(0deg) scale(1.06);
+.pp-notes-list li span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.pp-stamp-flag {
-  font-size: 30px;
-  line-height: 1;
-}
-
-.pp-stamp b {
-  max-width: 100%;
+.pp-notes-list i {
+  height: 1.4cqw;
+  border-radius: 1cqw;
+  background: #e2d8c0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 500;
 }
 
-.pp-stamp small {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.pp-notes-list b {
+  display: block;
+  height: 100%;
+  background: #9b3b31;
 }
 
-.pp-stamp-n {
+/* ---------- visas et tampons ---------- */
+
+.pp-stamp {
   position: absolute;
-  top: 6px;
-  right: 10px;
-  font-size: 11px;
-  color: var(--muted);
+  width: 40cqw;
+  mix-blend-mode: multiply;
+  opacity: 0.86;
 }
 
-.pp-empty {
-  padding: 22px;
-  border-radius: 22px;
-  background: var(--card);
-  border: 1px solid var(--line);
+.pp-stamp.shape-0 {
+  width: 35cqw;
 }
 
-.pp-empty p {
-  margin: 0 0 14px;
-  line-height: 1.5;
+.pp-stamp svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
 }
 
-.pp-fillers {
+.pp-stamp-count {
+  position: absolute;
+  right: -2cqw;
+  bottom: -1cqw;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 3.4cqw;
+}
+
+.pp-visas h3 {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-holo {
+    animation: none;
+  }
+}
+
+.pb-dots {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.pp-fillers a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--fg);
-  text-decoration: none;
-  font-size: 14px;
+.pb-controls .pb-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 0.2s, transform 0.2s;
 }
 
-.pp-fillers a:hover {
-  border-color: var(--fg);
-}
-
-@media (max-width: 560px) {
-  .pp-cover {
-    padding: 22px;
-  }
-
-  .pp-cover h1 {
-    font-size: 44px;
-  }
-
-  .pp-ring-wrap {
-    width: 96px;
-    height: 96px;
-  }
+.pb-controls .pb-dots button.on {
+  background: var(--fg);
+  transform: scale(1.3);
 }
