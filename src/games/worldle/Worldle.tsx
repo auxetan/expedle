@@ -1,28 +1,58 @@
 import { geoAzimuthalEqualArea, geoPath } from 'd3-geo'
-import { useMemo, useState } from 'react'
-import { worldAtlas } from '../../geo/atlas'
-import { COUNTRY_BY_CODE, flagEmoji } from '../../geo/countries'
+import { useEffect, useMemo, useState } from 'react'
+import { loadAtlas, type Atlas, type AtlasId } from '../../geo/atlas'
+import { flagEmoji } from '../../geo/countries'
 import { countryCenter } from '../../geo/measure'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, seededRng, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
 import { cssColor, useTheme } from '../../ui/theme'
 import GlobeView from '../globle/GlobeView'
-import { bonusChoices, dailyTarget, evaluate, MAX_GUESSES, squares, targets } from './game'
+import { evaluate, MAX_GUESSES, pickTarget, squares, stateBonus, targets, worldBonus, type BonusRound } from './game'
 import './worldle.css'
-import { locale, t } from '../../lib/i18n'
+import { locale, msg, t } from '../../lib/i18n'
 
 interface Saved {
   guesses: string[]
+  ms?: number
+  // réponses aux manches bonus ; flag et capital seuls dans les parties enregistrées avant leur liste
+  bonus?: Record<string, string>
   flag?: string
   capital?: string
 }
 
+// Worldle sur la carte du monde, Statele sur celle des États-Unis : même jeu, autre atlas.
+const VARIANTS = {
+  worldle: {
+    title: 'Worldle',
+    map: 'monde' as AtlasId,
+    maxKm: 20000,
+    daily: msg('Pays du jour'),
+    ask: msg('Quel est ce pays ?'),
+    another: msg('Un autre pays ↻'),
+    shape: msg('Silhouette du pays à trouver'),
+  },
+  statele: {
+    title: 'Statele',
+    map: 'usa' as AtlasId,
+    maxKm: 5000,
+    daily: msg('État du jour'),
+    ask: msg('Quel est cet État ?'),
+    another: msg('Un autre État ↻'),
+    shape: msg('Silhouette de l’État à trouver'),
+  },
+}
+type Variant = keyof typeof VARIANTS
+
 const SIZE = 300
 
-function Silhouette({ code, color }: { code: string; color: string }) {
-  const atlas = worldAtlas()
+const points = (win: boolean, n: number) => (win ? Math.round((100 * (MAX_GUESSES + 1 - n)) / MAX_GUESSES) : 0)
+
+function Silhouette({ atlas, code, color, label }: { atlas: Atlas; code: string; color: string; label: string }) {
   const d = useMemo(() => {
     const [lon, lat] = countryCenter(atlas, code)
     const feature = atlas.features.get(code)!
@@ -38,18 +68,35 @@ function Silhouette({ code, color }: { code: string; color: string }) {
     return geoPath(projection)(feature) ?? ''
   }, [atlas, code])
   return (
-    <svg className="wd-shape" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-label={t('Silhouette du pays à trouver')}>
+    <svg className="wd-shape" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-label={label}>
       <path d={d} fill={color} />
     </svg>
   )
 }
 
-export default function Worldle({ mode }: { mode?: string }) {
-  const practice = mode === 'libre'
-  const atlas = worldAtlas()
+export default function Worldle({ mode, variant = 'worldle' }: { mode?: string; variant?: Variant }) {
+  const [atlas, setAtlas] = useState<Atlas | null>(null)
+  useEffect(() => {
+    let alive = true
+    loadAtlas(VARIANTS[variant].map).then((a) => alive && setAtlas(a))
+    return () => {
+      alive = false
+    }
+  }, [variant])
+  if (!atlas) return <div className="page-loading">{t('Chargement de la carte…')}</div>
+  return <Game atlas={atlas} mode={mode} variant={variant} />
+}
+
+function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: Variant }) {
+  const v = VARIANTS[variant]
+  const [challenge] = useState(readChallenge)
+  const practice = mode === 'libre' || !!challenge
   const day = todayKey()
-  const storageKey = practice ? null : `worldle:${day}`
-  const [target, setTarget] = useState(() => (practice ? targets(atlas)[Math.floor(Math.random() * targets(atlas).length)] : dailyTarget(atlas, day)))
+  const storageKey = practice ? null : `${variant}:${day}`
+  // le lieu du jour vient de la date, la partie libre et le défi d'une graine : un lien de défi rejoue le même lieu
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (practice ? newSeed() : day))
+  const pool = useMemo(() => (variant === 'worldle' ? targets(atlas) : atlas.codes.filter((c) => c !== '11')), [atlas, variant])
+  const target = useMemo(() => pickTarget(pool, `${variant}-${seed}`), [pool, variant, seed])
   const [state, setState] = useState<Saved>(() => (storageKey ? load<Saved>(storageKey, { guesses: [] }) : { guesses: [] }))
   const [bonus, setBonus] = useState(false)
   const [toast, setToast] = useState('')
@@ -58,12 +105,17 @@ export default function Worldle({ mode }: { mode?: string }) {
   useTheme()
   const colors = { fg: cssColor('--fg'), good: cssColor('--good'), bad: cssColor('--bad') }
 
-  const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c)), [state.guesses, atlas, target])
+  const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c, v.maxKm)), [state.guesses, atlas, target, v.maxKm])
   const won = state.guesses.includes(target)
   const lost = !won && state.guesses.length >= MAX_GUESSES
   const over = won || lost
-  const meta = COUNTRY_BY_CODE.get(target)!
-  const choices = useMemo(() => bonusChoices(target, practice ? Math.random : seededRng('worldle-bonus-' + day)), [target, practice, day])
+  const rounds = useMemo<BonusRound[]>(() => {
+    const rng = seededRng(`${variant}-bonus-${seed}`)
+    return variant === 'worldle' ? worldBonus(atlas, target, rng) : stateBonus(atlas, target, atlas.aliases(target)[0] ?? '', rng)
+  }, [atlas, target, variant, seed])
+  const picks: Record<string, string | undefined> = { flag: state.flag, capital: state.capital, ...state.bonus }
+  const answered = rounds.filter((r) => picks[r.id] !== undefined)
+  const good = answered.filter((r) => picks[r.id] === r.answer).length
 
   function update(next: Saved) {
     setState(next)
@@ -71,25 +123,26 @@ export default function Worldle({ mode }: { mode?: string }) {
   }
 
   function guess(code: string) {
-    const next = { ...state, guesses: [...state.guesses, code] }
-    update(next)
-    const n = next.guesses.length
     const win = code === target
-    if (!win && n < MAX_GUESSES) return
-    if (!practice && !dailyResult('worldle', day)) saveDailyResult('worldle', { won: win, guesses: n }, day)
-    recordPlay('worldle', { pts: win ? Math.round((100 * (MAX_GUESSES + 1 - n)) / MAX_GUESSES) : 0, s: n, win, ms: elapsed(), sub: practice ? 'libre' : undefined })
+    const n = state.guesses.length + 1
+    const done = win || n >= MAX_GUESSES
+    const ms = elapsed()
+    update({ ...state, guesses: [...state.guesses, code], ...(done ? { ms } : {}) })
+    if (!done) return
+    if (!practice && !dailyResult(variant, day)) saveDailyResult(variant, { won: win, guesses: n }, day)
+    recordPlay(variant, { pts: points(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
 
   function another() {
-    const list = targets(atlas)
-    setTarget(list[Math.floor(Math.random() * list.length)])
+    if (challenge) return go(`/${variant}/libre`)
+    setSeed(newSeed())
     setState({ guesses: [] })
     setBonus(false)
   }
 
   async function share() {
-    const stars = (state.flag === target ? '⭐' : '') + (state.capital === meta.capital ? '⭐' : '')
-    const text = `Worldle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
+    const stars = '⭐'.repeat(good)
+    const text = `${v.title} Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
@@ -98,20 +151,21 @@ export default function Worldle({ mode }: { mode?: string }) {
 
   const answerColor = won ? colors.good : colors.bad
   const fills = useMemo(() => new Map([[target, answerColor]]), [target, answerColor])
+  const label = (r: BonusRound, option: string) => (r.id === 'flag' || r.id === 'neighbor' ? atlas.name(option) : option)
 
   return (
     <div className="wd">
-      <AppBar title="Worldle">
-        <SubLink href="#/worldle" active={!practice}>
-          {t('Pays du jour')}
+      <AppBar title={v.title}>
+        <SubLink href={`#/${variant}`} active={!practice}>
+          {t(v.daily)}
         </SubLink>
-        <SubLink href="#/worldle/libre" active={practice}>
+        <SubLink href={`#/${variant}/libre`} active={practice && !challenge}>
           {t('Partie libre')}
         </SubLink>
       </AppBar>
       <main className="wd-main">
         <div className={over ? 'wd-stage over' : 'wd-stage'}>
-          <Silhouette code={target} color={over ? (won ? colors.good : colors.bad) : colors.fg} />
+          <Silhouette atlas={atlas} code={target} color={over ? (won ? colors.good : colors.bad) : colors.fg} label={t(v.shape)} />
         </div>
 
         <ol className="wd-rows">
@@ -130,69 +184,77 @@ export default function Worldle({ mode }: { mode?: string }) {
           })}
         </ol>
 
-        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('Quel est ce pays ?')} button={`🌍 ${t('Deviner')}`} />}
+        {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t(v.ask)} button={`🌍 ${t('Deviner')}`} />}
 
         {over && !bonus && (
           <section className="wd-end">
             <b>{won ? t('Bravo ! Réponse : {name}', { name: atlas.name(target) }) : t('Perdu. Réponse : {name}', { name: atlas.name(target) })}</b>
             <span className="muted">{won ? t('Trouvé en {n}/{max}.', { n: state.guesses.length, max: MAX_GUESSES }) : t('Six essais, pas un de plus.')}</span>
             <div className="wd-actions">
-              <button className="ui-btn" onClick={() => setBonus(true)}>
-                {t('Manches bonus ★')}
-              </button>
+              {rounds.length > 0 && (
+                <button className="ui-btn" onClick={() => setBonus(true)}>
+                  {t('Manches bonus ★')}
+                </button>
+              )}
               <button className="ui-btn line" onClick={share}>
                 {t('Partager')}
               </button>
               {practice ? (
                 <button className="ui-btn line" onClick={another}>
-                  {t('Un autre pays ↻')}
+                  {t(v.another)}
                 </button>
               ) : (
-                <a className="ui-btn line" href="#/worldle/libre">
+                <a className="ui-btn line" href={`#/${variant}/libre`}>
                   {t('Partie libre')}
                 </a>
               )}
             </div>
-            <GlobeView fills={fills} focus={target} highlight={target} maxSize={300} initialZoom={2.2} />
+            {variant === 'worldle' && <GlobeView fills={fills} focus={target} highlight={target} maxSize={300} initialZoom={2.2} />}
+            <ChallengeBox
+              game={variant}
+              path={`/${variant}`}
+              seed={seed}
+              result={{ pts: points(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+            />
           </section>
         )}
 
         {over && bonus && (
           <section className="wd-bonus">
-            <h2>{t('Bonus 1 · Quel est le drapeau de ce pays ?')}</h2>
-            <div className="wd-flags">
-              {choices.flags.map((c) => {
-                const picked = state.flag
-                const cls = !picked ? '' : c === target ? 'right' : c === picked ? 'wrong' : 'dim'
-                return (
-                  <button key={c} className={cls} disabled={!!picked} onClick={() => update({ ...state, flag: c })} aria-label={picked ? atlas.name(c) : t('Drapeau')}>
-                    <span>{flagEmoji(c)}</span>
-                    {picked && <small>{atlas.name(c)}</small>}
-                  </button>
-                )
-              })}
-            </div>
-            {state.flag && (
-              <>
-                <h2>{t('Bonus 2 · Quelle est sa capitale ?')}</h2>
-                <div className="wd-caps">
-                  {choices.capitals.map((cap) => {
-                    const picked = state.capital
-                    const cls = !picked ? '' : cap === meta.capital ? 'right' : cap === picked ? 'wrong' : 'dim'
-                    return (
-                      <button key={cap} className={cls} disabled={!!picked} onClick={() => update({ ...state, capital: cap })}>
-                        {cap}
-                      </button>
-                    )
-                  })}
+            {rounds.slice(0, answered.length + 1).map((r, i) => {
+              const picked = picks[r.id]
+              return (
+                <div key={r.id} className="wd-bonus-round">
+                  <h2>{t('Bonus {n} · {question}', { n: i + 1, question: t(r.question) })}</h2>
+                  <div className={r.id === 'flag' ? 'wd-flags' : 'wd-caps'}>
+                    {r.options.map((o) => {
+                      const cls = !picked ? '' : o === r.answer ? 'right' : o === picked ? 'wrong' : 'dim'
+                      return (
+                        <button
+                          key={o}
+                          className={cls}
+                          disabled={!!picked}
+                          onClick={() => update({ ...state, bonus: { ...state.bonus, [r.id]: o } })}
+                          aria-label={r.id === 'flag' && !picked ? t('Drapeau') : undefined}
+                        >
+                          {r.id === 'flag' ? (
+                            <>
+                              <span>{flagEmoji(o)}</span>
+                              {picked && <small>{label(r, o)}</small>}
+                            </>
+                          ) : (
+                            label(r, o)
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </>
-            )}
-            {state.capital && (
+              )
+            })}
+            {answered.length === rounds.length && (
               <div className="wd-actions">
-                <b className="wd-stars">
-                  {t('{n} / 2 bonus', { n: (state.flag === target ? 1 : 0) + (state.capital === meta.capital ? 1 : 0) })}
-                </b>
+                <b className="wd-stars">{t('{n} / {total} bonus', { n: good, total: rounds.length })}</b>
                 <button className="ui-btn" onClick={share}>
                   {t('Partager')}
                 </button>
