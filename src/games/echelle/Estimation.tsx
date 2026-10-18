@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
+import { readChallenge, type Result as Outcome } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
+import ChallengeBox from '../../ui/ChallengeBox'
 import type { EstimateQuestion } from './estimates'
 import { estimationBank } from './estimationBank'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -75,14 +78,18 @@ function DailyHelp() {
   )
 }
 
+// Les défis désignent les questions par leur rang dans la banque : certains identifiants contiennent des noms de ville.
 function Daily({ date: day }: { date: string }) {
-  const done = dailyResult<{ guess: number }>('question', day)
+  const [challenge] = useState(readChallenge)
+  const done = challenge ? null : dailyResult<{ guess: number }>('question', day)
   const [practice, setPractice] = useState(0)
   const question = useMemo(() => {
-    const rng = practice ? Math.random : seededRng('question-' + day)
     const bank = estimationBank()
+    if (challenge && !practice) return bank[Number(challenge.seed)] ?? bank[0]
+    const rng = practice ? Math.random : seededRng('question-' + day)
     return bank[Math.floor(rng() * bank.length)]
-  }, [practice, day])
+  }, [practice, day, challenge])
+  const [ms, setMs] = useState<number>()
   const [value, setValue] = useState('')
   const [guess, setGuess] = useState<number | null>(!practice && done ? done.guess : null)
   const [copied, setCopied] = useState(false)
@@ -96,8 +103,15 @@ function Daily({ date: day }: { date: string }) {
     if (!valid) return
     setGuess(parsed)
     const score = dailyScore(parsed, question.a)
-    recordPlay('question', { pts: score, s: score, ms: elapsed(), sub: practice ? 'entrainement' : day !== todayKey() ? 'archive' : undefined })
-    if (!practice) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
+    const time = elapsed()
+    setMs(time)
+    recordPlay('question', {
+      pts: score,
+      s: score,
+      ms: time,
+      sub: practice ? 'entrainement' : challenge ? 'defi' : day !== todayKey() ? 'archive' : undefined,
+    })
+    if (!practice && !challenge) saveDailyResult('question', { guess: parsed, score: dailyScore(parsed, question.a) }, day)
   }
 
   const date = new Date(day + 'T12:00:00').toLocaleDateString(locale(), { day: '2-digit', month: 'short' }).toUpperCase()
@@ -127,7 +141,9 @@ function Daily({ date: day }: { date: string }) {
               )
             }
             copied={copied}
+            challenge={{ seed: String(estimationBank().indexOf(question)), result: { pts: dailyScore(guess, question.a), s: dailyScore(guess, question.a), ms } }}
             onAgain={() => {
+              if (challenge && !practice) return go('/question')
               setPractice((p) => p + 1)
               setGuess(null)
               setValue('')
@@ -145,12 +161,14 @@ function Result({
   guess,
   onShare,
   copied,
+  challenge,
   onAgain,
 }: {
   question: EstimateQuestion
   guess: number
   onShare: () => void
   copied: boolean
+  challenge: { seed: string; result: Outcome }
   onAgain: () => void
 }) {
   const score = dailyScore(guess, question.a)
@@ -183,6 +201,7 @@ function Result({
           {t('Une autre question ↻')}
         </button>
       </div>
+      <ChallengeBox game="question" path="/question" seed={challenge.seed} result={challenge.result} />
     </div>
   )
 }
@@ -211,6 +230,7 @@ function SurvivalHelp() {
 const TIME = 15000
 
 function Survival() {
+  const [challenge] = useState(readChallenge)
   const [phase, setPhase] = useState<'idle' | 'play' | 'feedback' | 'over'>('idle')
   const [deck, setDeck] = useState<ReturnType<typeof estimationBank>>([])
   const [i, setI] = useState(0)
@@ -219,6 +239,7 @@ function Survival() {
   const [left, setLeft] = useState(TIME)
   const [last, setLast] = useState<{ guess: number; loss: number } | null>(null)
   const [record, setRecord] = useState(false)
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const valueRef = useRef(value)
   valueRef.current = value
@@ -230,7 +251,15 @@ function Survival() {
   function start() {
     const seen = new Set(load<string[]>('survie-seen', []))
     const bank = estimationBank()
-    setDeck([...shuffle(bank.filter((q) => !seen.has(q.id))), ...shuffle(bank.filter((q) => seen.has(q.id)))])
+    // un défi reprend d'abord les questions du créateur, dans son ordre, puis un paquet mélangé d'après la graine
+    const first = challenge && run === 0 ? challenge.seed.split('.').flatMap((n) => (bank[Number(n)] ? [bank[Number(n)]] : [])) : []
+    const rest = bank.filter((q) => !first.includes(q))
+    setDeck(
+      first.length
+        ? [...first, ...shuffle(rest, seededRng('survie-' + challenge!.seed))]
+        : [...shuffle(rest.filter((q) => !seen.has(q.id))), ...shuffle(rest.filter((q) => seen.has(q.id)))],
+    )
+    setOutcome(null)
     setI(0)
     setLife(10)
     setValue('')
@@ -253,7 +282,9 @@ function Survival() {
       if (newLife <= 0) {
         setPhase('over')
         save('survie-seen', [...load<string[]>('survie-seen', []), ...deck.slice(0, i + 1).map((d) => d.id)].slice(-1200))
-        recordPlay('survie', { pts: 5 * (i + 1), s: i + 1, ms: elapsed() })
+        const ms = elapsed()
+        recordPlay('survie', { pts: 5 * (i + 1), s: i + 1, ms, sub: challenge && run === 1 ? 'defi' : undefined })
+        setOutcome({ pts: 5 * (i + 1), s: i + 1, ms })
         setRecord(submitBest('survie', i + 1))
         return
       }
@@ -341,9 +372,24 @@ function Survival() {
             <h2 className="dq-q">{t('Partie terminée')}</h2>
             <p>{plural(i + 1, 'Tu as survécu à {n} question.', 'Tu as survécu à {n} questions.')}</p>
             {record && <p className="red">{t('Nouveau record !')}</p>}
-            <button className="mg-cta" onClick={start}>
+            <button className="mg-cta" onClick={() => (challenge ? go('/survie') : start())}>
               {t('Rejouer ↻')}
             </button>
+            {outcome && (
+              <ChallengeBox
+                game="survie"
+                path="/survie"
+                seed={
+                  challenge && run === 1
+                    ? challenge.seed
+                    : deck
+                        .slice(0, Math.min(i + 1, 60))
+                        .map((d) => estimationBank().indexOf(d))
+                        .join('.')
+                }
+                result={outcome}
+              />
+            )}
           </div>
         )}
       </section>
