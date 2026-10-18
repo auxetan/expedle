@@ -2,16 +2,20 @@ import { useMemo, useState } from 'react'
 import { worldAtlas } from '../../geo/atlas'
 import { COUNTRY_BY_CODE, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { copyText, load, save, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
 import { COUNTRY_STATS } from '../classement/data'
-import { dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, targets, type Clue, type Row } from './game'
+import { dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, type Clue, type Row } from './game'
 import './countryle.css'
 import { locale, plural, t } from '../../lib/i18n'
 
 interface Saved {
   guesses: string[]
+  ms?: number
 }
 
 const STATS = new Map(COUNTRY_STATS.map((s) => [s.code, s]))
@@ -51,12 +55,13 @@ function Guess({ row, name }: { row: Row; name: string }) {
 }
 
 export default function Countryle({ mode }: { mode?: string }) {
-  const practice = mode === 'libre'
+  const [challenge] = useState(readChallenge)
+  const practice = mode === 'libre' || !!challenge
   const atlas = worldAtlas()
   const day = todayKey()
   const storageKey = practice ? null : `countryle:${day}`
-  const random = () => targets(atlas)[Math.floor(Math.random() * targets(atlas).length)]
-  const [target, setTarget] = useState(() => (practice ? random() : dailyTarget(atlas, day)))
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (practice ? newSeed() : day))
+  const target = useMemo(() => dailyTarget(atlas, seed), [atlas, seed])
   const [state, setState] = useState<Saved>(() => (storageKey ? load<Saved>(storageKey, { guesses: [] }) : { guesses: [] }))
   const [toast, setToast] = useState('')
   const elapsed = useStopwatch(target)
@@ -67,14 +72,16 @@ export default function Countryle({ mode }: { mode?: string }) {
   const facts = STATS.get(target)!
 
   function guess(code: string) {
-    const next = { guesses: [...state.guesses, code] }
+    const win = code === target
+    const n = state.guesses.length + 1
+    const over = win || n >= MAX_GUESSES
+    const ms = elapsed()
+    const next = { guesses: [...state.guesses, code], ...(over ? { ms } : {}) }
     setState(next)
     if (storageKey) save(storageKey, next)
-    const n = next.guesses.length
-    const win = code === target
-    if (!win && n < MAX_GUESSES) return
+    if (!over) return
     if (!practice && !dailyResult('countryle', day)) saveDailyResult('countryle', { won: win, guesses: n }, day)
-    recordPlay('countryle', { pts: score(win, n), s: n, win, ms: elapsed(), sub: practice ? 'libre' : undefined })
+    recordPlay('countryle', { pts: score(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
 
   async function share() {
@@ -89,7 +96,7 @@ export default function Countryle({ mode }: { mode?: string }) {
         <SubLink href="#/countryle" active={!practice}>
           {t('Pays du jour')}
         </SubLink>
-        <SubLink href="#/countryle/libre" active={practice}>
+        <SubLink href="#/countryle/libre" active={practice && !challenge}>
           {t('Partie libre')}
         </SubLink>
       </AppBar>
@@ -126,7 +133,8 @@ export default function Countryle({ mode }: { mode?: string }) {
                 <button
                   className="ui-btn line"
                   onClick={() => {
-                    setTarget(random())
+                    if (challenge) return go('/countryle/libre')
+                    setSeed(newSeed())
                     setState({ guesses: [] })
                   }}
                 >
@@ -138,6 +146,12 @@ export default function Countryle({ mode }: { mode?: string }) {
                 </a>
               )}
             </div>
+            <ChallengeBox
+              game="countryle"
+              path="/countryle"
+              seed={seed}
+              result={{ pts: score(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+            />
           </section>
         )}
 
