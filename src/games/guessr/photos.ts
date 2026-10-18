@@ -104,20 +104,16 @@ const sleep = (ms: number, signal: AbortSignal) =>
     signal.addEventListener('abort', () => (clearTimeout(id), reject(signal.reason)), { once: true })
   })
 
-async function photosAround(lat: number, lng: number, signal: AbortSignal): Promise<CommonsPage[]> {
+async function commons(params: Record<string, string>, signal: AbortSignal): Promise<CommonsPage[]> {
   const q = new URLSearchParams({
     action: 'query',
     format: 'json',
     origin: '*',
-    generator: 'geosearch',
-    ggscoord: `${lat}|${lng}`,
-    ggsradius: '10000',
-    ggslimit: '50',
-    ggsnamespace: '6',
     prop: 'imageinfo|coordinates',
     iiprop: 'url|size|mime|extmetadata',
     iiurlwidth: '1280',
     iiextmetadatafilter: 'Artist|LicenseShortName|LicenseUrl|Categories|ObjectName',
+    ...params,
   })
   // Wikimedia demande aux outils de se présenter ; ce nom passe par un en-tête autorisé en CORS.
   const res = await fetch(`${API}?${q}`, { signal, headers: { 'Api-User-Agent': 'Meridien/1.0 (jeu de géographie personnel)' } })
@@ -125,6 +121,17 @@ async function photosAround(lat: number, lng: number, signal: AbortSignal): Prom
   if (!res.ok) throw new Error(`Commons ${res.status}`)
   const data = (await res.json()) as { query?: { pages?: Record<string, CommonsPage> } }
   return Object.values(data.query?.pages ?? {})
+}
+
+function photosAround(lat: number, lng: number, signal: AbortSignal): Promise<CommonsPage[]> {
+  return commons({ generator: 'geosearch', ggscoord: `${lat}|${lng}`, ggsradius: '10000', ggslimit: '50', ggsnamespace: '6' }, signal)
+}
+
+// Une photo précise, quand un défi la désigne par son numéro de page.
+export async function placeById(world: World, id: string, signal: AbortSignal): Promise<Place> {
+  const [page] = await commons({ pageids: id }, signal)
+  if (!page?.imageinfo?.[0]?.thumburl || !page.coordinates?.length) throw new Error(t('Cette photo n’est plus disponible.'))
+  return toPlace(world, page)
 }
 
 // Par vagues de cinq points tirés dans des pays au sort, interrogées en parallèle : la première photo
