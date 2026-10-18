@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { challengeUrl, compare, readChallenge, rememberChallenge, type Result } from '../lib/challenge'
-import { addFriend, challengeBoard, cloudEnabled, myFriends, sendChallenge, submitChallenge, useAccount, type ChallengeRow, type Friend } from '../lib/cloud'
+import { addFriend, challengeBoard, myFriends, sendChallenge, submitChallenge, useAccount, type ChallengeRow, type Friend } from '../lib/cloud'
 import { plural, t } from '../lib/i18n'
 import { copyText } from '../lib/util'
 import { gameInfo } from './gameInfo'
@@ -106,8 +106,10 @@ export default function ChallengeBox({ game, path, seed, result }: Props) {
   const rival = challenge?.by
   const versus = rival && !board ? compare(result, rival.r) : null
 
+  // sans comparaison à montrer, juste un bouton : la fin de partie reste légère
+  const bare = !(board && board.length > 0) && !(rival && !board) && !friends
   return (
-    <section className="ch-box">
+    <section className={bare ? 'ch-box bare' : 'ch-box'}>
       {board && board.length > 0 && (
         <>
           <h3>{t('Les joueurs de ce défi')}</h3>
@@ -171,15 +173,10 @@ export default function ChallengeBox({ game, path, seed, result }: Props) {
         </>
       )}
 
-      {challenge && cloudEnabled && account.state === 'out' && (
-        <p className="ch-note">{t('Connecte-toi depuis ton profil pour voir tous les joueurs de ce défi.')}</p>
-      )}
-
       <div className="ch-actions">
-        <button className="ui-btn" onClick={() => void invite()}>
+        <button className="ui-btn line" onClick={() => void invite()} title={t('Le lien fait jouer exactement la même partie.')}>
           ⚔️ {challenge ? t('Défier un autre ami') : t('Défier un ami')}
         </button>
-        <span className="ch-note">{t('Le lien fait jouer exactement la même partie.')}</span>
       </div>
 
       {friends && friends.length > 0 && (
