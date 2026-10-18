@@ -1,6 +1,7 @@
 import { geoCentroid, geoDistance, geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { countryCenter, simplifiedFeatures } from '../../geo/measure'
+import { countryName } from '../../geo/countries'
+import { countryAt, countryCenter, simplifiedFeatures } from '../../geo/measure'
 import { getWorld } from '../../geo/world'
 import { cssColor, useTheme } from '../../ui/theme'
 import './globe.css'
@@ -48,6 +49,10 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
   const theme = useTheme()
   const props = useRef({ fills, highlight })
   const world = getWorld()
+  // le nom du pays sous la souris, ou sous le doigt après un simple toucher
+  const [label, setLabel] = useState<{ name: string; x: number; y: number } | null>(null)
+  const sizeRef = useRef(size)
+  sizeRef.current = size
 
   useLayoutEffect(() => {
     const ro = new ResizeObserver(([e]) => setSize(Math.min(maxSize, Math.round(e.contentRect.width))))
@@ -171,9 +176,31 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     const pointers = new Map<number, { x: number; y: number }>()
     let pinch = 0
     const redraw = () => movingRef.current()
+    let tap: { x: number; y: number } | null = null
+    let hideLabel = 0
+    const name = (e: PointerEvent) => {
+      const r = c.getBoundingClientRect()
+      const x = e.clientX - r.left
+      const y = e.clientY - r.top
+      const s = sizeRef.current
+      const projection = geoOrthographic()
+        .rotate(rot.current)
+        .translate([s / 2, s / 2])
+        .scale((s / 2 - 4) * zoom.current)
+        .clipAngle(90)
+      const p = projection.invert?.([x, y])
+      // hors du disque, invert renvoie un point de la face cachée : on vérifie qu'il revient au même endroit
+      const back = p && projection(p)
+      const code = p && back && Math.hypot(back[0] - x, back[1] - y) < 1 ? countryAt(world, p) : null
+      // le globe est centré dans son cadre : l'étiquette se place par rapport au cadre
+      const w = wrap.current!.getBoundingClientRect()
+      setLabel(code ? { name: countryName(code), x: e.clientX - w.left, y: e.clientY - w.top } : null)
+    }
     const down = (e: PointerEvent) => {
       c.setPointerCapture(e.pointerId)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      tap = { x: e.clientX, y: e.clientY }
+      setLabel(null)
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()]
         pinch = Math.hypot(a.x - b.x, a.y - b.y)
@@ -181,7 +208,11 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     }
     const move = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId)
-      if (!prev) return
+      if (!prev) {
+        if (e.pointerType === 'mouse') name(e)
+        return
+      }
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 4) tap = null
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()]
@@ -198,7 +229,14 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     const up = (e: PointerEvent) => {
       pointers.delete(e.pointerId)
       pinch = 0
+      if (tap && e.pointerType !== 'mouse') {
+        name(e)
+        clearTimeout(hideLabel)
+        hideLabel = window.setTimeout(() => setLabel(null), 2000)
+      }
+      tap = null
     }
+    const leave = () => setLabel(null)
     const wheel = (e: WheelEvent) => {
       e.preventDefault()
       zoom.current = Math.min(6, Math.max(0.9, zoom.current * Math.exp(-e.deltaY * 0.0015)))
@@ -208,9 +246,12 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
     c.addEventListener('pointermove', move)
     c.addEventListener('pointerup', up)
     c.addEventListener('pointercancel', up)
+    c.addEventListener('pointerleave', leave)
     c.addEventListener('wheel', wheel, { passive: false })
     return () => {
       clearTimeout(idle.current)
+      clearTimeout(hideLabel)
+      c.removeEventListener('pointerleave', leave)
       c.removeEventListener('pointerdown', down)
       c.removeEventListener('pointermove', move)
       c.removeEventListener('pointerup', up)
@@ -222,6 +263,11 @@ export default function GlobeView({ fills, focus, highlight, maxSize = 560, init
   return (
     <div className="globe" ref={wrap}>
       <canvas ref={canvas} style={{ width: size, height: size }} aria-label={t('Globe : fais-le tourner pour explorer')} />
+      {label && (
+        <span className="globe-label" style={{ left: label.x, top: label.y }}>
+          {label.name}
+        </span>
+      )}
     </div>
   )
 }
