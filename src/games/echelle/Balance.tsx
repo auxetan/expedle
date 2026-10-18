@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { seededRng, shuffle, todayKey } from '../../lib/util'
+import ChallengeBox from '../../ui/ChallengeBox'
 import { WEIGHTS, type WeightItem } from './estimates'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
@@ -46,9 +49,12 @@ function Pan({ x, y, item, color, size }: { x: number; y: number; item: WeightIt
 
 export default function Balance({ date }: { date?: string | null }) {
   const day = date ?? todayKey()
-  const [daily, setDaily] = useState(() => dailyResult('balance', day) === null)
-  const [seed, setSeed] = useState(0)
-  const rounds = useMemo(() => makeRounds(daily ? seededRng('balance-' + day) : Math.random), [daily, day, seed])
+  const [challenge] = useState(readChallenge)
+  const [daily, setDaily] = useState(() => !challenge && dailyResult('balance', day) === null)
+  // la balance du jour vient de la date ; une partie libre ou un défi, d'une graine
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (daily ? day : newSeed()))
+  const rounds = useMemo(() => makeRounds(seededRng('balance-' + seed)), [seed])
+  const [ms, setMs] = useState<number>()
   const [index, setIndex] = useState(0)
   const [value, setValue] = useState('')
   const [scores, setScores] = useState<number[]>([])
@@ -96,7 +102,9 @@ export default function Balance({ date }: { date?: string | null }) {
     if (index + 1 >= ROUNDS) {
       setSummary(true)
       const total = scores.reduce((a, b) => a + b, 0)
-      recordPlay('balance', { pts: total / ROUNDS, s: total, ms: elapsed(), sub: !daily ? 'libre' : day !== todayKey() ? 'archive' : undefined })
+      const ms = elapsed()
+      setMs(ms)
+      recordPlay('balance', { pts: total / ROUNDS, s: total, ms, sub: challenge ? 'defi' : !daily ? 'libre' : day !== todayKey() ? 'archive' : undefined })
       recordTotal('balance', total)
       if (daily) saveDailyResult('balance', { scores }, day)
       return
@@ -215,8 +223,9 @@ export default function Balance({ date }: { date?: string | null }) {
               shareText={`Weigh It Up ${daily ? day : ''}\n${total}/${ROUNDS * 100}`}
               archiveHref="#/estimation/archive"
               onReplay={() => {
+                if (challenge) return go('/balance')
                 setDaily(false)
-                setSeed(seed + 1)
+                setSeed(newSeed())
                 setIndex(0)
                 setScores([])
                 setAnswers([])
@@ -225,6 +234,7 @@ export default function Balance({ date }: { date?: string | null }) {
                 setSummary(false)
               }}
             />
+            <ChallengeBox game="balance" path="/balance" seed={seed} result={{ pts: total / ROUNDS, s: total, ms }} />
           </div>
         </div>
       )}
