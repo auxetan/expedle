@@ -89,11 +89,11 @@ function Board<T extends { rank: number; name: string; avatar: string; me: boole
   )
 }
 
-function DailyTab() {
+function DailyTab({ friends }: { friends: boolean }) {
   const [game, setGame] = useState(() => load<string>('board-game', DAILIES[0].dailyId!))
   const [day, setDay] = useState(todayKey)
   const account = useAccount()
-  const state = useBoard<DailyRow>(() => dailyBoard(game, day), [game, day, account.state])
+  const state = useBoard<DailyRow>(() => dailyBoard(game, day, friends), [game, day, account.state, friends])
   const info = gameInfo(game)
 
   return (
@@ -137,9 +137,9 @@ function DailyTab() {
   )
 }
 
-function PointsTab({ since }: { since: Date | null }) {
+function PointsTab({ since, friends }: { since: Date | null; friends: boolean }) {
   const account = useAccount()
-  const state = useBoard<PointsRow>(() => pointsBoard(since), [since?.getTime(), account.state])
+  const state = useBoard<PointsRow>(() => pointsBoard(since, friends), [since?.getTime(), account.state, friends])
   return (
     <>
       <Board
@@ -161,6 +161,8 @@ export default function Leaderboards({ tab }: { tab?: string }) {
   const current: Tab = tab === 'semaine' || tab === 'toujours' ? tab : 'jour'
   const account = useAccount()
   const [monday] = useState(weekStart)
+  const [friends, setFriends] = useState(() => load<boolean>('board-friends', false))
+  const onlyFriends = friends && account.state === 'in'
 
   return (
     <div className="home">
@@ -188,9 +190,28 @@ export default function Leaderboards({ tab }: { tab?: string }) {
                 {t('Connecte-toi depuis ton profil (en haut à droite) pour apparaître dans les classements : une adresse email suffit, sans mot de passe.')}
               </p>
             )}
-            {current === 'jour' && <DailyTab />}
-            {current === 'semaine' && <PointsTab since={monday} />}
-            {current === 'toujours' && <PointsTab since={null} />}
+            {account.state === 'in' && (
+              <div className="lb-scope">
+                <div className="ui-seg">
+                  {[false, true].map((f) => (
+                    <button
+                      key={String(f)}
+                      className={onlyFriends === f ? 'on' : ''}
+                      onClick={() => {
+                        setFriends(f)
+                        save('board-friends', f)
+                      }}
+                    >
+                      {f ? t('Entre amis') : t('Tout le monde')}
+                    </button>
+                  ))}
+                </div>
+                <a href="#/defis">{t('Gérer mes amis →')}</a>
+              </div>
+            )}
+            {current === 'jour' && <DailyTab friends={onlyFriends} />}
+            {current === 'semaine' && <PointsTab since={monday} friends={onlyFriends} />}
+            {current === 'toujours' && <PointsTab since={null} friends={onlyFriends} />}
           </>
         )}
       </main>
