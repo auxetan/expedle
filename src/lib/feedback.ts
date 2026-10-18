@@ -1,7 +1,7 @@
 import { load, save } from './util'
 
 // Sons et vibrations des jeux. Les sons sont synthétisés à la volée (Web Audio) : aucun fichier à charger.
-export type Cue = 'good' | 'bad' | 'tap' | 'win' | 'lose' | 'stamp' | 'page'
+export type Cue = 'good' | 'bad' | 'tap' | 'win' | 'lose' | 'page'
 
 export interface FeedbackSettings {
   sound: boolean
@@ -18,7 +18,6 @@ const SOUNDS: Record<Exclude<Cue, 'page'>, { notes: number[]; step: number; wave
   tap: { notes: [880], step: 0.03, wave: 'sine', gain: 0.035 },
   win: { notes: [523, 659, 784, 1047], step: 0.09, wave: 'triangle', gain: 0.06 },
   lose: { notes: [392, 330, 262], step: 0.12, wave: 'sine', gain: 0.05 },
-  stamp: { notes: [140, 90], step: 0.05, wave: 'square', gain: 0.03 },
 }
 
 const VIBRATIONS: Record<Cue, number[]> = {
@@ -27,7 +26,6 @@ const VIBRATIONS: Record<Cue, number[]> = {
   tap: [6],
   win: [20, 50, 20, 50, 40],
   lose: [60],
-  stamp: [25],
   page: [5],
 }
 
