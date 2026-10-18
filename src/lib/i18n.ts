@@ -72,6 +72,13 @@ export function plural(n: number, one: string, other: string, vars?: Record<stri
 
 export const fmt = (n: number, options?: Intl.NumberFormatOptions) => n.toLocaleString(locale(), options)
 
+// Rang écrit comme dans chaque langue : 1er, 2e · 1st, 2nd · 1., 2. · 1º, 2º.
+export function ordinal(r: number): string {
+  if (lang === 'fr') return r === 1 ? '1er' : `${r}e`
+  if (lang === 'en') return `${r}${{ one: 'st', two: 'nd', few: 'rd' }[new Intl.PluralRules('en', { type: 'ordinal' }).select(r) as string] ?? 'th'}`
+  return lang === 'de' ? `${r}.` : `${r}º`
+}
+
 // Marque un texte déclaré hors d'un composant, traduit plus tard à l'affichage avec t() : ne fait rien,
 // mais le test des traductions le repère.
 export const msg = (fr: string) => fr
