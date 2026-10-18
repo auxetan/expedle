@@ -10,11 +10,15 @@ import CountUp from '../../ui/CountUp'
 import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
 
 interface Item {
   id?: string
+  // le pays de la question, pour le passeport
+  code?: string
   cat: string
   q: string
   big?: string
@@ -53,6 +57,7 @@ function buildItems(kind: Kind, rng: () => number, category: string | null): Ite
         const wrong = wrongOptions(pool, c, (o) => o.continent === c.continent, rng)
         return kind === 'drapeaux'
           ? {
+              code: c.code,
               cat: 'Drapeaux',
               q: t('À quel pays appartient ce drapeau ?'),
               big: flagEmoji(c.code),
@@ -60,6 +65,7 @@ function buildItems(kind: Kind, rng: () => number, category: string | null): Ite
               options: shuffle([c.code, ...wrong.map((w) => w.code)], rng).map(countryName),
             }
           : {
+              code: c.code,
               cat: 'Capitales',
               q: t('Quelle est la capitale de ce pays ?'),
               big: countryName(c.code),
@@ -134,6 +140,8 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
     if (picked !== null) return
     const remaining = Math.max(0, TIME - (performance.now() - t0.current))
     const ok = opt === item.answer
+    feedback(ok ? 'good' : 'bad')
+    if (ok && item.code) stamp(item.code, 'quiz-' + kind)
     const pts = ok ? 100 + Math.round((remaining / TIME) * 100) : 0
     setPicked(opt)
     setGain(pts)
