@@ -2,8 +2,6 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  /* d'une page à l'autre, la barre glisse vers sa nouvelle forme au lieu de disparaître */
-  view-transition-name: app-bar;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -630,6 +628,13 @@
   text-align: left;
 }
 
+.ch-box.bare {
+  padding: 0;
+  border: none;
+  background: none;
+  align-items: center;
+}
+
 .ch-box h3 {
   margin: 0;
   font-size: 15px;
@@ -759,98 +764,6 @@
   background: var(--fg);
   color: var(--bg);
   border-color: var(--fg);
-}
-
-/* « Et maintenant ? » : la partie suivante, proposée en bas d'écran après chaque partie */
-.nextup {
-  position: fixed;
-  left: 50%;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  z-index: 60;
-  width: min(560px, calc(100vw - 24px));
-  display: flex;
-  align-items: center;
-  border-radius: 22px;
-  background: var(--fg);
-  color: var(--bg);
-  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.55);
-  transform: translateX(-50%);
-  animation: nextup-in 0.5s cubic-bezier(0.2, 1.2, 0.4, 1);
-}
-
-@keyframes nextup-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 30px) scale(0.96);
-  }
-}
-
-.nextup-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 6px 12px 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.nextup-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.nextup-text small {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.65;
-}
-
-.nextup-text b {
-  font-size: 17px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nextup-text span {
-  font-size: 12px;
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nextup-go {
-  flex: none;
-  padding: 9px 16px;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.nextup-close {
-  flex: none;
-  align-self: stretch;
-  padding: 0 14px;
-  border: none;
-  background: none;
-  color: inherit;
-  opacity: 0.6;
-}
-
-/* l'icône est dessinée pour le thème de la page : sur le fond inversé, on la garde lisible */
-.nextup .game-icon {
-  border-radius: 10px;
-  background: var(--bg);
-  padding: 3px;
 }
 
 .offline-badge {
