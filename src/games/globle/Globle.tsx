@@ -13,6 +13,7 @@ import GlobeView from './GlobeView'
 import { dailyTarget, heat } from './game'
 import './globle.css'
 import { locale, plural, t } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
 
 interface Saved {
   guesses: string[]
@@ -63,6 +64,7 @@ export default function Globle({ mode }: { mode?: string }) {
     if (code !== target) return update({ ...state, guesses })
     const ms = elapsed()
     update({ ...state, guesses, ms })
+    stamp(target, 'globle')
     finish(guesses.length, true, ms)
   }
 
