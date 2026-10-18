@@ -11,24 +11,27 @@ const RAD = Math.PI / 180
 
 // Le panorama est tourné pour que le lacet 0 vise le nord : les flèches vers les vues voisines se placent
 // alors d'après leurs coordonnées GPS, et le cap de départ est un vrai cap.
-function tourNode(n: SphereNode): VirtualTourNode {
+// still : la partie interdit d'avancer, les flèches vers les vues voisines disparaissent.
+function tourNode(n: SphereNode, still: boolean): VirtualTourNode {
   return {
     id: n.id,
     panorama: n.panorama,
     gps: [n.lng, n.lat],
     sphereCorrection: { pan: -n.azimuth * RAD },
-    links: n.links.map((l) => ({ nodeId: l.id, gps: [l.lng, l.lat] })),
+    links: still ? [] : n.links.map((l) => ({ nodeId: l.id, gps: [l.lng, l.lat] })),
   }
 }
 
 // Une seule visionneuse pour toute la partie, comme pour Street View : chaque manche y charge un autre nœud.
-export default function SphereView({ spot, load }: { spot: SphereSpot; load: (id: string) => Promise<SphereNode> }) {
+export default function SphereView({ spot, load, still = false }: { spot: SphereSpot; load: (id: string) => Promise<SphereNode>; still?: boolean }) {
   const el = useRef<HTMLDivElement>(null)
   const tour = useRef<VirtualTourPlugin | null>(null)
   const loadRef = useRef(load)
+  const stillRef = useRef(still)
 
   useEffect(() => {
     loadRef.current = load
+    stillRef.current = still
   })
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function SphereView({ spot, load }: { spot: SphereSpot; load: (id
           renderMode: '3d',
           preload: true,
           showLinkTooltip: false,
-          getNode: async (id) => tourNode(await loadRef.current(id)),
+          getNode: async (id) => tourNode(await loadRef.current(id), stillRef.current),
         }),
       ],
     })
@@ -73,9 +76,11 @@ export default function SphereView({ spot, load }: { spot: SphereSpot; load: (id
   return (
     <div className="gg-pano-wrap">
       <div className="gg-pano" ref={el} />
-      <button className="gg-return" onClick={() => goStart('fade')}>
-        ⟲ {t('Retour au départ')}
-      </button>
+      {!still && (
+        <button className="gg-return" onClick={() => goStart('fade')}>
+          ⟲ {t('Retour au départ')}
+        </button>
+      )}
     </div>
   )
 }
