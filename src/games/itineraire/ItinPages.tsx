@@ -4,7 +4,7 @@ import { go } from '../../lib/router'
 import { dailyResult } from '../../lib/stats'
 import { copyText, load, seededRng, todayKey } from '../../lib/util'
 import { computeStats } from './history'
-import { makePuzzle, type Extra } from './puzzle'
+import { makePuzzle, type Extra, type Puzzle } from './puzzle'
 import { locale, plural, t, tx } from '../../lib/i18n'
 
 export function playUrl(p: {
@@ -22,6 +22,11 @@ export function playUrl(p: {
   if (p.extra && p.extra !== 'defaut') q.set('bonus', p.extra)
   if (p.hard) q.set('mode', 'difficile')
   return `/itineraire/libre?${q}`
+}
+
+// Graine d'un défi Travle : le trajet lui-même, la région désignée par son rang dans la liste de l'atlas.
+export function travleSeed(atlas: Atlas, p: Puzzle): string {
+  return [p.atlas, p.start, p.end, p.region ? atlas.regions.indexOf(p.region) : '', p.avoid ?? '', p.extra ?? 'defaut'].join('.')
 }
 
 export function dailyPuzzle(atlas: Atlas, date: string) {
