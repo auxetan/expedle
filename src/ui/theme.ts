@@ -15,8 +15,13 @@ export function applyTheme(t: Theme = currentTheme()): void {
 
 export function setTheme(t: Theme): void {
   save('theme', t)
-  applyTheme(t)
-  listeners.forEach((f) => f())
+  const swap = () => {
+    applyTheme(t)
+    listeners.forEach((f) => f())
+  }
+  // le changement de thème se fait en fondu plutôt que d'un coup
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(swap)
+  else swap()
 }
 
 export function useTheme(): Theme {
