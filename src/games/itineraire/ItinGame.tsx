@@ -10,6 +10,7 @@ import type { Result } from '../../lib/challenge'
 import ChallengeBox from '../../ui/ChallengeBox'
 import { useTheme } from '../../ui/theme'
 import { plural, t, tx } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
 
 const PALETTES = {
   sombre: { start: '#c9899a', end: '#88afa2', connected: '#d7c7a2', loose: '#4f4a45', solution: '#7d7464' },
@@ -104,6 +105,8 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
     recorded.current = true
     const pts = won ? Math.max(10, 100 - 15 * (guesses.length - shortest) - 10 * hints) : 0
     const ms = elapsed()
+    // les États américains ne vont pas dans le passeport, qui est celui du monde
+    if (won && atlas.id === 'monde') stamp([start, end, ...guesses], 'itineraire')
     // une partie du jour déjà jouée revient sans chrono : elle peut quand même lancer un défi
     if (slot.dailyId && dailyResult(slot.dailyId, slot.dayKey)) return setResult({ pts, s: guesses.length, win: won })
     setResult({ pts, s: guesses.length, win: won, ms })
@@ -126,7 +129,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
       sub: challenge.active ? 'defi' : (slot.kind === 'jour' || slot.kind === 'usa') && slot.dayKey !== todayKey() ? 'archive' : undefined,
     })
     setTimeout(() => setResults(true), 900)
-  }, [over, won, slot, guesses.length, shortest, hints, elapsed, challenge.active])
+  }, [over, won, slot, guesses, shortest, hints, elapsed, challenge.active, atlas.id, start, end])
 
   const suggestions = useMemo(() => matchSuggestions(atlas, query), [atlas, query])
   const listRef = useRef<HTMLUListElement>(null)
