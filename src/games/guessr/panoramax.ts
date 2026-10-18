@@ -106,20 +106,33 @@ export async function findPanoramax(world: World, rng: () => number, seen: Set<s
     const fresh = pages.flat().filter((i) => !seen.has(i.id) && i.links.some((l) => l.rel === 'prev' || l.rel === 'next'))
     if (!fresh.length) continue
     const item = fresh[Math.floor(rng() * fresh.length)]
-    const start = toNode(item)
-    nodes.set(start.id, Promise.resolve(start))
-    return {
-      id: item.id,
-      lat: start.lat,
-      lng: start.lng,
-      country: countryAt(world, [start.lng, start.lat]),
-      start,
-      heading: Math.round(rng() * 360),
-      date: item.properties.datetime,
-      credit: item.providers?.find((p) => p.roles.includes('producer'))?.name ?? '',
-      license: item.properties.license ?? '',
-      page: `https://api.panoramax.xyz/#focus=pic&pic=${item.id}`,
-    }
+    return spotOf(world, item, Math.round(rng() * 360))
   }
   throw new Error(t('Aucune vue 360° trouvée cette fois.'))
+}
+
+function spotOf(world: World, item: Item, heading: number): SphereSpot {
+  const start = toNode(item)
+  nodes.set(start.id, Promise.resolve(start))
+  return {
+    id: item.id,
+    lat: start.lat,
+    lng: start.lng,
+    country: countryAt(world, [start.lng, start.lat]),
+    start,
+    heading,
+    date: item.properties.datetime,
+    credit: item.providers?.find((p) => p.roles.includes('producer'))?.name ?? '',
+    license: item.properties.license ?? '',
+    page: `https://api.panoramax.xyz/#focus=pic&pic=${item.id}`,
+  }
+}
+
+// Une vue précise et son cap de départ, quand un défi les désigne.
+export async function panoramaxSpot(world: World, id: string, heading: number, signal: AbortSignal): Promise<SphereSpot> {
+  const res = await fetch(`${API}/search?${new URLSearchParams({ ids: id })}`, { signal })
+  if (!res.ok) throw new Error(`Panoramax ${res.status}`)
+  const [item] = ((await res.json()) as { features: Item[] }).features
+  if (!item) throw new Error(t('Cette vue n’est plus disponible.'))
+  return spotOf(world, item, heading)
 }
