@@ -39,6 +39,7 @@ export const ICONS = {
   chart: 'M4 20h16M7 16v-4M12 16V7M17 16v-7',
   trophy: 'M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9.5 17h5',
   podium: 'M3 20h18M5 20v-6h4v6M10 20V9h4v11M15 20v-8h4v8',
+  swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M5 13l6 6M8 16l-4 4M3 19l2 2',
 }
 
 export function isDoneToday(g: { dailyId?: string; weekly?: boolean }): boolean {
@@ -131,6 +132,10 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
       <a href="#/classements" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.podium} />
         {t('Classements')}
+      </a>
+      <a href="#/defis" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.swords} />
+        {t('Défis entre amis')}
       </a>
       <a href="#/succes" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.trophy} />
