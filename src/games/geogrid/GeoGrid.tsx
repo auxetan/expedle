@@ -2,8 +2,11 @@ import { useMemo, useState } from 'react'
 import { worldAtlas } from '../../geo/atlas'
 import { flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { copyText, load, save, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
 import { check, makeGrid, MAX_GUESSES, score } from './game'
 import './geogrid.css'
@@ -12,17 +15,19 @@ import { plural, t } from '../../lib/i18n'
 interface Saved {
   cells: (string | null)[]
   guesses: number
+  ms?: number
 }
 
 const EMPTY: Saved = { cells: Array(9).fill(null), guesses: 0 }
 const MESSAGES = { wrong: () => t('Ce pays ne remplit pas les deux critères.'), used: () => t('Ce pays est déjà dans la grille.') }
 
 export default function GeoGrid({ mode }: { mode?: string }) {
-  const practice = mode === 'libre'
+  const [challenge] = useState(readChallenge)
+  const practice = mode === 'libre' || !!challenge
   const atlas = worldAtlas()
   const day = todayKey()
   const storageKey = practice ? null : `geogrid:${day}`
-  const [seed, setSeed] = useState(() => (practice ? String(Math.random()) : day))
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (practice ? newSeed() : day))
   const grid = useMemo(() => makeGrid(atlas, seed), [atlas, seed])
   const [state, setState] = useState<Saved>(() => (storageKey ? load<Saved>(storageKey, EMPTY) : EMPTY))
   const [active, setActive] = useState<number | null>(null)
@@ -35,11 +40,14 @@ export default function GeoGrid({ mode }: { mode?: string }) {
   const over = filled === 9 || state.guesses >= MAX_GUESSES
 
   function update(next: Saved) {
+    const done = next.cells.filter(Boolean).length === 9 || next.guesses >= MAX_GUESSES
+    const ms = elapsed()
+    if (done) next = { ...next, ms }
     setState(next)
     if (storageKey) save(storageKey, next)
-    if (next.cells.filter(Boolean).length < 9 && next.guesses < MAX_GUESSES) return
+    if (!done) return
     if (!practice && !dailyResult('geogrid', day)) saveDailyResult('geogrid', { score: next.cells.filter(Boolean).length }, day)
-    recordPlay('geogrid', { pts: score(next.cells), s: next.cells.filter(Boolean).length, ms: elapsed(), sub: practice ? 'libre' : undefined })
+    recordPlay('geogrid', { pts: score(next.cells), s: next.cells.filter(Boolean).length, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
 
   function guess(code: string) {
@@ -75,7 +83,7 @@ export default function GeoGrid({ mode }: { mode?: string }) {
         <SubLink href="#/geogrid" active={!practice}>
           {t('Grille du jour')}
         </SubLink>
-        <SubLink href="#/geogrid/libre" active={practice}>
+        <SubLink href="#/geogrid/libre" active={practice && !challenge}>
           {t('Partie libre')}
         </SubLink>
       </AppBar>
@@ -154,7 +162,8 @@ export default function GeoGrid({ mode }: { mode?: string }) {
                 <button
                   className="ui-btn line"
                   onClick={() => {
-                    setSeed(String(Math.random()))
+                    if (challenge) return go('/geogrid/libre')
+                    setSeed(newSeed())
                     setState(EMPTY)
                     setActive(null)
                   }}
@@ -167,6 +176,7 @@ export default function GeoGrid({ mode }: { mode?: string }) {
                 </a>
               )}
             </div>
+            <ChallengeBox game="geogrid" path="/geogrid" seed={seed} result={{ pts: score(state.cells), s: filled, ms: state.ms }} />
             <details className="gr-solutions">
               <summary>{t('Voir toutes les réponses possibles')}</summary>
               {grid.answers.map((list, i) => (
