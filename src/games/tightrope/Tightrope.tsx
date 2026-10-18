@@ -8,6 +8,7 @@ import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import { pickQuestions } from '../quiz/bank'
 import './tightrope.css'
+import { feedback } from '../../lib/feedback'
 
 // Neuf questions sur la corde ; trois faux pas et c'est la chute.
 const STEPS = 9
@@ -45,6 +46,7 @@ export default function Tightrope({ mode }: { mode?: string }) {
   function answer(option: string) {
     if (picked !== undefined || over) return
     const answers = [...state.answers, option]
+    feedback(option === items[state.answers.length].a ? 'good' : 'bad')
     const right = answers.filter((a, i) => a === items[i].a).length
     const done = answers.length - right >= LIVES || answers.length >= STEPS
     const ms = elapsed()
