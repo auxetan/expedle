@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COUNTRIES, countryName, flagEmoji } from '../../geo/countries'
 import { dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
-import { CATEGORIES, questionBank, type BankQuestion } from './bank'
+import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
 
@@ -65,44 +68,38 @@ function buildItems(kind: Kind, rng: () => number, category: string | null): Ite
             }
       })
   }
-  return pickFromBank(rng, category, kind === 'jour' ? new Set() : new Set(load<string[]>('quiz-seen', []))).map((q) => ({
-    id: q.id,
-    cat: q.cat,
-    q: q.q,
-    big: q.big,
-    answer: q.a,
-    options: shuffle([q.a, ...q.w], rng),
-  }))
+  return pickQuestions(rng, COUNT, category, kind === 'jour' ? new Set() : new Set(load<string[]>('quiz-seen', []))).map((q) => bankItem(q, rng))
 }
 
-// Une catégorie au hasard puis une question : la géographie, très nombreuse, n'écrase pas le reste.
-function pickFromBank(rng: () => number, category: string | null, seen: Set<string>): BankQuestion[] {
-  const bank = questionBank().filter((q) => !category || q.cat === category)
-  const fresh = bank.filter((q) => !seen.has(q.id))
-  const pool = fresh.length >= COUNT ? fresh : bank
-  const byCat = new Map<string, BankQuestion[]>()
-  for (const q of shuffle(pool, rng)) byCat.set(q.cat, [...(byCat.get(q.cat) ?? []), q])
-  const out: BankQuestion[] = []
-  while (out.length < COUNT && byCat.size) {
-    const cats = [...byCat.keys()]
-    const cat = cats[Math.floor(rng() * cats.length)]
-    const list = byCat.get(cat)!
-    out.push(list.pop()!)
-    if (!list.length) byCat.delete(cat)
-  }
-  return out
+const bankItem = (q: BankQuestion, rng: () => number): Item => ({ id: q.id, cat: q.cat, q: q.q, big: q.big, answer: q.a, options: shuffle([q.a, ...q.w], rng) })
+
+// Un défi de culture G emporte ses questions elles-mêmes : le tirage du créateur dépend de ce qu'il a déjà vu.
+function itemsFromIds(ids: string[], rng: () => number): Item[] {
+  const byId = new Map(questionBank().map((q) => [q.id, q]))
+  return ids.flatMap((id) => {
+    const q = byId.get(id)
+    return q ? [bankItem(q, rng)] : []
+  })
 }
+
 
 export default function Quiz({ kind: raw }: { kind?: string }) {
   const kind: Kind = raw === 'jour' || raw === 'drapeaux' || raw === 'capitales' ? raw : 'culture'
   const day = todayKey()
   const done = kind === 'jour' ? dailyResult<{ score: number; good: number }>('quiz-jour', day) : null
+  const [challenge] = useState(readChallenge)
   const [run, setRun] = useState(0)
   const [category, setCategory] = useState<string | null>(null)
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (kind === 'jour' ? day : newSeed()))
   const items = useMemo(
-    () => buildItems(kind, kind === 'jour' && run === 0 ? seededRng('quiz-' + day) : Math.random, kind === 'culture' ? category : null),
-    [kind, run, day, category],
+    () =>
+      kind === 'culture' && challenge?.seed === seed
+        ? itemsFromIds(seed.split('.'), seededRng('quiz-' + seed))
+        : buildItems(kind, seededRng('quiz-' + seed), kind === 'culture' ? category : null),
+    [kind, seed, category, challenge],
   )
+  const challengeSeed = kind === 'culture' ? items.map((it) => it.id).join('.') : seed
+  const [ms, setMs] = useState<number>()
   const [i, setI] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
   const [score, setScore] = useState(0)
@@ -116,7 +113,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   const t0 = useRef(performance.now())
   const elapsed = useStopwatch(run)
   const item = items[i]
-  const alreadyPlayed = !!done && run === 0
+  const alreadyPlayed = !challenge && !!done && run === 0
 
   useEffect(() => {
     if (over || picked !== null || alreadyPlayed) return
@@ -168,9 +165,11 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
 
   function next() {
     if (i + 1 >= items.length) {
+      const ms = elapsed()
       setOver(true)
-      recordPlay('quiz-' + kind, { pts: (100 * good) / items.length, s: score, ms: elapsed(), sub: category ?? undefined })
-      if (kind === 'jour' && run === 0 && !done) saveDailyResult('quiz-jour', { score, good }, day)
+      setMs(ms)
+      recordPlay('quiz-' + kind, { pts: (100 * good) / items.length, s: score, ms, sub: challenge ? 'defi' : (category ?? undefined) })
+      if (kind === 'jour' && run === 0 && !done && !challenge) saveDailyResult('quiz-jour', { score, good }, day)
       setRecord(submitBest('quiz-' + kind, score))
       const ids = items.map((it) => it.id).filter((x): x is string => !!x)
       if (ids.length) save('quiz-seen', [...load<string[]>('quiz-seen', []), ...ids].slice(-3000))
@@ -181,6 +180,8 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   }
 
   function replay() {
+    if (challenge) return go(`/quiz/${kind === 'culture' ? '' : kind}`)
+    setSeed(newSeed())
     setRun(run + 1)
     setI(0)
     setPicked(null)
@@ -265,6 +266,12 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
               {t('Rejouer ↻')}
             </button>
           </div>
+          <ChallengeBox
+            game={'quiz-' + kind}
+            path={kind === 'culture' ? '/quiz' : `/quiz/${kind}`}
+            seed={challengeSeed}
+            result={{ pts: (100 * good) / items.length, s: score, ms }}
+          />
         </main>
       ) : (
         <main className="qz-card" key={i + '-' + run}>
