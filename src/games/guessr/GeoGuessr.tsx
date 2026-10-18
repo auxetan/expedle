@@ -1,14 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { flagEmoji } from '../../geo/countries'
 import { getWorld } from '../../geo/world'
+import { readChallenge } from '../../lib/challenge'
 import { load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import GuessGame, { type GuessSource, type Spot } from './GuessGame'
 import { MODES } from './guess'
-import { checkToken, findMapillary, mapillaryLoader, saveToken, storedToken, TokenError, tokenFromEnv } from './mapillary'
-import { findPanoramax, panoramaxNode } from './panoramax'
+import { checkToken, findMapillary, mapillaryLoader, mapillarySpot, saveToken, storedToken, TokenError, tokenFromEnv } from './mapillary'
+import { findPanoramax, panoramaxNode, panoramaxSpot } from './panoramax'
 import type { SphereSpot } from './sphere'
-import { checkKey, findPano, KeyError, keyFromEnv, loadStreetView, mapsRequested, onAuthFailure, saveKey, storedKey, type Pano } from './streetview'
+import { checkKey, findPano, KeyError, panoById, keyFromEnv, loadStreetView, mapsRequested, onAuthFailure, saveKey, storedKey, type Pano } from './streetview'
 import { locale, msg, t, tx } from '../../lib/i18n'
 
 // la visionneuse 360° (three.js) ne se charge qu'en jouant avec Panoramax ou Mapillary
@@ -132,6 +133,13 @@ function ResetSetting({ label, fromEnv, value, onReset }: { label: string; fromE
   )
 }
 
+// Dans un lien de défi, chaque lieu est « identifiant:cap de départ ».
+const sphereKey = (spot: { id: string; heading: number }) => `${spot.id}:${spot.heading}`
+const splitKey = (key: string): [string, number] => {
+  const [id, heading] = key.split(':')
+  return [id, Number(heading) || 0]
+}
+
 function sphereDetails(name: string) {
   return function Details({ spot }: { spot: SphereSpot }) {
     return (
@@ -155,10 +163,14 @@ const panoramax: GuessSource<SphereSpot> = {
   question: QUESTION,
   intro: INTRO,
   note: msg('Vues 360° libres de Panoramax (IGN, OpenStreetMap France et leurs contributeurs) ; fond de carte OpenStreetMap.'),
-  find: (_mode, seen, signal) => findPanoramax(world, Math.random, seen, signal),
-  View: ({ spot }) => (
+  find: (_mode, seen, signal, rng = Math.random) => findPanoramax(world, rng, seen, signal),
+  dailyMode: 'france',
+  imagery: 'panoramax',
+  keyOf: sphereKey,
+  load: (key, signal) => panoramaxSpot(world, ...splitKey(key), signal),
+  View: ({ spot, still }) => (
     <Suspense fallback={null}>
-      <SphereView spot={spot} load={panoramaxNode} />
+      <SphereView spot={spot} load={panoramaxNode} still={still} />
     </Suspense>
   ),
   Details: sphereDetails('Panoramax'),
@@ -177,10 +189,14 @@ function mapillary(token: string): GuessSource<SphereSpot> {
     question: QUESTION,
     intro: INTRO,
     note: msg('Vues 360° partagées par les contributeurs de Mapillary ; fond de carte OpenStreetMap.'),
-    find: (mode, seen, signal) => findMapillary(world, token, mode, Math.random, seen, signal),
-    View: ({ spot }) => (
+    find: (mode, seen, signal, rng) => findMapillary(world, token, mode, rng ?? Math.random, seen, signal, !!rng),
+    dailyMode: 'monde',
+    imagery: 'mapillary',
+    keyOf: sphereKey,
+    load: (key, signal) => mapillarySpot(world, token, ...splitKey(key), signal),
+    View: ({ spot, still }) => (
       <Suspense fallback={null}>
-        <SphereView spot={spot} load={load} />
+        <SphereView spot={spot} load={load} still={still} />
       </Suspense>
     ),
     Details: sphereDetails('Mapillary'),
@@ -196,7 +212,7 @@ function mapillary(token: string): GuessSource<SphereSpot> {
   }
 }
 
-function MapillaryGame({ picker }: { picker: ReactNode }) {
+function MapillaryGame({ picker, daily }: { picker: ReactNode; daily: boolean }) {
   const [token, setToken] = useState(storedToken)
   const [ready, setReady] = useState(false)
   const [problem, setProblem] = useState('')
@@ -258,6 +274,7 @@ function MapillaryGame({ picker }: { picker: ReactNode }) {
   return (
     <GuessGame
       source={source}
+      daily={daily}
       menuTop={picker}
       settings={
         <ResetSetting
@@ -278,7 +295,7 @@ function MapillaryGame({ picker }: { picker: ReactNode }) {
 /* Google Street View : l'imagerie de référence, avec la clé Google de l'utilisateur */
 
 // Un seul panorama pour toute la partie : chaque manche le déplace avec setPano au lieu d'en recréer un.
-function StreetViewPane({ spot, Panorama }: { spot: Pano; Panorama: Panorama }) {
+function StreetViewPane({ spot, Panorama, still }: { spot: Pano; Panorama: Panorama; still: boolean }) {
   const el = useRef<HTMLDivElement>(null)
   const pano = useRef<google.maps.StreetViewPanorama | null>(null)
 
@@ -302,12 +319,14 @@ function StreetViewPane({ spot, Panorama }: { spot: Pano; Panorama: Panorama }) 
       motionTracking: false,
       motionTrackingControl: false,
       enableCloseButton: false,
-      clickToGo: true,
-      linksControl: true,
+      clickToGo: !still,
+      linksControl: !still,
       panControlOptions: { position: google.maps.ControlPosition.LEFT_TOP },
       zoomControlOptions: { position: google.maps.ControlPosition.LEFT_TOP },
     })
-  }, [spot, Panorama])
+  }, [spot, Panorama, still])
+
+  useEffect(() => pano.current?.setOptions({ clickToGo: !still, linksControl: !still }), [still])
 
   return (
     <div className="gg-pano-wrap">
@@ -332,8 +351,16 @@ function streetView(key: string, Panorama: Panorama): GuessSource<Pano> {
     question: QUESTION,
     intro: INTRO,
     note: msg('Imagerie Google Street View chargée avec ta clé ; fond de carte OpenStreetMap.'),
-    find: (mode, seen, signal) => findPano(world, key, mode, Math.random, seen, signal),
-    View: ({ spot }) => <StreetViewPane spot={spot} Panorama={Panorama} />,
+    find: (mode, seen, signal, rng = Math.random) => findPano(world, key, mode, rng, seen, signal),
+    dailyMode: 'monde',
+    imagery: 'google',
+    // les identifiants Google peuvent contenir « _ », absent des graines de défi : il voyage en « ~ »
+    keyOf: (spot) => sphereKey({ id: spot.id.replace(/_/g, '~'), heading: spot.heading }),
+    load: (k, signal) => {
+      const [id, heading] = splitKey(k)
+      return panoById(world, key, id.replace(/~/g, '_'), heading, signal)
+    },
+    View: ({ spot, still }) => <StreetViewPane spot={spot} Panorama={Panorama} still={still} />,
     Details: ({ spot }) => (
       <p className="wg-credit muted">
         Google Street View{spot.date ? ` · ${monthYear(spot.date)}` : ''} ·{' '}
@@ -352,7 +379,7 @@ function streetView(key: string, Panorama: Panorama): GuessSource<Pano> {
   }
 }
 
-function GoogleGame({ picker }: { picker: ReactNode }) {
+function GoogleGame({ picker, daily }: { picker: ReactNode; daily: boolean }) {
   const [key, setKey] = useState(storedKey)
   const [Panorama, setPanorama] = useState<Panorama | null>(null)
   const [problem, setProblem] = useState('')
@@ -429,6 +456,7 @@ function GoogleGame({ picker }: { picker: ReactNode }) {
   return (
     <GuessGame
       source={source}
+      daily={daily}
       menuTop={picker}
       settings={
         <ResetSetting
@@ -445,8 +473,13 @@ function GoogleGame({ picker }: { picker: ReactNode }) {
   )
 }
 
-export default function GeoGuessr() {
-  const [imagery, setImagery] = useState<Imagery>(() => load<Imagery>('geoguessr:imagery', 'panoramax'))
+export default function GeoGuessr({ daily = false }: { daily?: boolean }) {
+  // un défi impose l'imagerie de celui qui l'a lancé, le défi du jour celle du monde entier quand un jeton
+  // Mapillary est là ; le choix enregistré ne change pas
+  const [imagery, setImagery] = useState<Imagery>(() => {
+    const forced = daily ? (storedToken() ? 'mapillary' : 'panoramax') : readChallenge()?.seed.split('.')[0]
+    return IMAGERY.some((i) => i.id === forced) ? (forced as Imagery) : load<Imagery>('geoguessr:imagery', 'panoramax')
+  })
   const picker = (
     <ImageryPicker
       value={imagery}
@@ -456,7 +489,7 @@ export default function GeoGuessr() {
       }}
     />
   )
-  if (imagery === 'mapillary') return <MapillaryGame picker={picker} />
-  if (imagery === 'google') return <GoogleGame picker={picker} />
-  return <GuessGame source={panoramax} menuTop={picker} />
+  if (imagery === 'mapillary') return <MapillaryGame picker={picker} daily={daily} />
+  if (imagery === 'google') return <GoogleGame picker={picker} daily={daily} />
+  return <GuessGame source={panoramax} menuTop={picker} daily={daily} />
 }
