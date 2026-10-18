@@ -41,12 +41,19 @@ export const GAMES: Record<string, GameInfo> = {
   'quiz-capitales': { title: 'Capitales', href: '#/quiz/capitales', unit: pts },
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
   worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
+  statele: { title: 'Statele', href: '#/statele', unit: (s) => `${s}/6`, lower: true },
+  dailygeo: { title: 'DailyGeo', href: '#/dailygeo', unit: (s) => `${s}/100` },
+  factle: { title: 'Factle', href: '#/factle', unit: (s) => `${s}/5`, lower: true },
+  wikitrivia: { title: 'Wikitrivia', href: '#/wikitrivia', unit: (s) => `${s}/15` },
+  tightrope: { title: 'Tightrope', href: '#/tightrope', unit: (s) => `${s}/9` },
   globle: { title: 'Globle', href: '#/globle', unit: essais, lower: true },
   countryle: { title: 'Countryle', href: '#/countryle', unit: (s) => `${s}/8`, lower: true },
   flagle: { title: 'Flagle', href: '#/flagle', unit: (s) => `${s}/6`, lower: true },
   geogrid: { title: 'GeoGrid', href: '#/geogrid', unit: (s) => `${s}/9` },
   photoguessr: { title: 'PhotoGuessr', href: '#/photoguessr', unit: pts },
   geoguessr: { title: 'GeoGuessr', href: '#/geoguessr', unit: pts },
+  'photoguessr-jour': { title: 'PhotoGuessr : défi du jour', href: '#/photoguessr/jour', unit: pts },
+  'geoguessr-jour': { title: 'GeoGuessr : défi du jour', href: '#/geoguessr/jour', unit: pts },
 }
 
 // le titre est traduit à l'affichage : t(gameInfo(g).title)
