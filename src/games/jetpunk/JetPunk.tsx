@@ -3,6 +3,7 @@ import { go } from '../../lib/router'
 import { recordPlay } from '../../lib/stats'
 import { copyText, formatTime, normalize } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
 import { Icon, ICONS, loadProfile } from '../../ui/Panels'
 import { builtInQuizzes, featuredQuiz } from './catalog'
@@ -192,6 +193,7 @@ function QuizPlay({ quiz, shared }: { quiz: TableQuiz; shared?: boolean }) {
   const input = useRef<HTMLInputElement>(null)
   const mine = useMemo(() => loadMine(), [])
   const isMine = mine.some((q) => q.id === quiz.id)
+  const builtIn = !shared && !isMine
   const best = bestResult(quiz.id)
   const limit = quiz.time * 1000
   const left = phase === 'play' ? Math.max(0, limit - (now - startAt)) : phase === 'done' ? limit - (result?.ms ?? 0) : limit
@@ -359,6 +361,13 @@ function QuizPlay({ quiz, shared }: { quiz: TableQuiz; shared?: boolean }) {
                   {t('Autres quiz')}
                 </a>
               </div>
+              {/* un quiz créé ici voyage avec son contenu, un quiz du site par son identifiant */}
+              <ChallengeBox
+                game="jetpunk"
+                path={builtIn ? `/jetpunk/q/${quiz.id}` : `/jetpunk/partage?d=${encodeQuiz(quiz)}`}
+                seed={quiz.id}
+                result={{ pts: (100 * found.size) / total, s: pct, ms: result.ms }}
+              />
             </div>
           )}
         </div>
