@@ -171,7 +171,17 @@ export const isStreet = (frames: Frame[]) =>
 // Un pays du mode tiré comme d'habitude (au prorata de la racine de sa surface), mais parmi ceux où
 // Mapillary a des séquences 360°, puis une séquence de ce pays et une image au hasard dedans. Trois séquences
 // se chargent en même temps et la première qui convient l'emporte : une longue séquence met plusieurs secondes.
-export async function findMapillary(world: World, token: string, mode: Mode, rng: () => number, seen: Set<string>, signal: AbortSignal): Promise<SphereSpot> {
+// ordered : pour un tirage reproductible (défi du jour), on attend les trois séquences et on les examine dans l'ordre,
+// au lieu de garder la première chargée.
+export async function findMapillary(
+  world: World,
+  token: string,
+  mode: Mode,
+  rng: () => number,
+  seen: Set<string>,
+  signal: AbortSignal,
+  ordered = false,
+): Promise<SphereSpot> {
   const allowed = new Set(modeCodes(world, mode))
   const points = (await worldPoints(world, token)).filter((p) => p.country && allowed.has(p.country))
   const covered = new Set(points.map((p) => p.country!))
@@ -190,31 +200,59 @@ export async function findMapillary(world: World, token: string, mode: Mode, rng
       const inCountry = points.filter((p) => p.country === code)
       return inCountry[Math.floor(rng() * inCountry.length)].sequence
     })
-    const hit = await new Promise<{ frame: Frame; country: string; start: Awaited<ReturnType<typeof loader>> } | null>((resolve, reject) => {
-      let left = sequences.length
-      const done = () => --left === 0 && resolve(null)
-      const fail = (e: unknown) => (e instanceof TokenError || signal.aborted ? reject(e) : done())
-      for (const seq of sequences)
-        loadSequence(token, seq, signal).then((street) => {
-          const found = choose(street)
-          if (!found) return done()
-          loader(found.frame.id).then((start) => resolve({ ...found, start }), fail)
-        }, fail)
-    })
+    const fatal = (e: unknown) => e instanceof TokenError || signal.aborted
+    const hit = ordered
+      ? await (async () => {
+          const streets = await Promise.all(sequences.map((seq) => loadSequence(token, seq, signal).catch((e: unknown) => (fatal(e) ? Promise.reject(e) : []))))
+          for (const street of streets) {
+            const found = choose(street)
+            if (!found) continue
+            try {
+              return { ...found, start: await loader(found.frame.id) }
+            } catch (e) {
+              if (fatal(e)) throw e
+            }
+          }
+          return null
+        })()
+      : await new Promise<{ frame: Frame; country: string; start: Awaited<ReturnType<typeof loader>> } | null>((resolve, reject) => {
+          let left = sequences.length
+          const done = () => --left === 0 && resolve(null)
+          const fail = (e: unknown) => (fatal(e) ? reject(e) : done())
+          for (const seq of sequences)
+            loadSequence(token, seq, signal).then((street) => {
+              const found = choose(street)
+              if (!found) return done()
+              loader(found.frame.id).then((start) => resolve({ ...found, start }), fail)
+            }, fail)
+        })
     if (!hit) continue
-    const { frame, country, start } = hit
-    return {
-      id: frame.id,
-      lat: frame.lat,
-      lng: frame.lng,
-      country,
-      start,
-      heading: Math.round(rng() * 360),
-      date: new Date(frame.date).toISOString(),
-      credit: start.creator,
-      license: 'CC BY-SA 4.0',
-      page: `https://www.mapillary.com/app/?pKey=${frame.id}&focus=photo`,
-    }
+    return spotOf(hit.frame, hit.country, hit.start, Math.round(rng() * 360))
   }
   throw new Error(t('Aucune vue 360° trouvée cette fois.'))
+}
+
+function spotOf(frame: Frame, country: string | null, start: SphereNode & { creator: string }, heading: number): SphereSpot {
+  return {
+    id: frame.id,
+    lat: frame.lat,
+    lng: frame.lng,
+    country,
+    start,
+    heading,
+    date: new Date(frame.date).toISOString(),
+    credit: start.creator,
+    license: 'CC BY-SA 4.0',
+    page: `https://www.mapillary.com/app/?pKey=${frame.id}&focus=photo`,
+  }
+}
+
+// Une vue précise et son cap de départ, quand un défi les désigne : sa séquence se charge pour qu'on puisse avancer.
+export async function mapillarySpot(world: World, token: string, id: string, heading: number, signal: AbortSignal): Promise<SphereSpot> {
+  const img = await graph<{ sequence?: string }>(id, { fields: 'sequence' }, token, signal)
+  if (img.sequence) await loadSequence(token, img.sequence, signal)
+  const frame = frames.get(id)
+  if (!frame) throw new Error(t('Cette vue n’est plus disponible.'))
+  const start = await mapillaryLoader(token)(id)
+  return spotOf(frame, countryAt(world, [frame.lng, frame.lat]), start, heading)
 }
