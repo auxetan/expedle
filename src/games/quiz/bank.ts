@@ -196,3 +196,21 @@ export function questionBank(): BankQuestion[] {
   bank = out
   return bank
 }
+
+// Une catégorie au hasard puis une question : la géographie, très nombreuse, n'écrase pas le reste.
+export function pickQuestions(rng: () => number, count: number, category: string | null = null, seen = new Set<string>()): BankQuestion[] {
+  const bank = questionBank().filter((q) => !category || q.cat === category)
+  const fresh = bank.filter((q) => !seen.has(q.id))
+  const pool = fresh.length >= count ? fresh : bank
+  const byCat = new Map<string, BankQuestion[]>()
+  for (const q of shuffle(pool, rng)) byCat.set(q.cat, [...(byCat.get(q.cat) ?? []), q])
+  const out: BankQuestion[] = []
+  while (out.length < count && byCat.size) {
+    const cats = [...byCat.keys()]
+    const cat = cats[Math.floor(rng() * cats.length)]
+    const list = byCat.get(cat)!
+    out.push(list.pop()!)
+    if (!list.length) byCat.delete(cat)
+  }
+  return out
+}
