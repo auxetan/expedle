@@ -8,6 +8,8 @@ import { load, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
 import { ALL_GAMES, GAME_SECTIONS } from './games'
 import { setTheme, useTheme, type Theme } from './theme'
+import { feedback, feedbackSettings, saveFeedbackSettings, type FeedbackSettings } from '../lib/feedback'
+import InstallButton from './InstallButton'
 
 export interface Profile {
   name: string
@@ -39,6 +41,7 @@ export const ICONS = {
   chart: 'M4 20h16M7 16v-4M12 16V7M17 16v-7',
   trophy: 'M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9.5 17h5',
   podium: 'M3 20h18M5 20v-6h4v6M10 20V9h4v11M15 20v-8h4v8',
+  passport: 'M6 3h12v18H6zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 17h6',
   swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M5 13l6 6M8 16l-4 4M3 19l2 2',
 }
 
@@ -133,6 +136,10 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
         <Icon d={ICONS.podium} />
         {t('Classements')}
       </a>
+      <a href="#/passeport" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.passport} />
+        {t('Mon passeport')}
+      </a>
       <a href="#/defis" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.swords} />
         {t('Défis entre amis')}
@@ -153,10 +160,19 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
   const theme = useTheme()
   const lang = useLang()
   const [confirm, setConfirm] = useState(false)
+  const [fx, setFx] = useState(feedbackSettings)
+
+  function setFeedback(patch: Partial<FeedbackSettings>) {
+    const next = { ...fx, ...patch }
+    setFx(next)
+    saveFeedbackSettings(next)
+    // on entend tout de suite ce qu'on vient d'activer
+    if (patch.sound || patch.haptics) feedback('good')
+  }
 
   function reset() {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('cg:') && !['cg:theme', 'cg:profile', 'cg:lang'].includes(k))
+      .filter((k) => k.startsWith('cg:') && !['cg:theme', 'cg:profile', 'cg:lang', 'cg:feedback'].includes(k))
       .forEach((k) => localStorage.removeItem(k))
     setConfirm(false)
     window.location.reload()
@@ -185,6 +201,29 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
           ))}
         </div>
       </div>
+      <div className="ui-field">
+        <span>{t('Sons')}</span>
+        <div className="ui-seg">
+          {[true, false].map((on) => (
+            <button key={String(on)} className={fx.sound === on ? 'on' : ''} onClick={() => setFeedback({ sound: on })}>
+              {on ? t('Activés') : t('Coupés')}
+            </button>
+          ))}
+        </div>
+      </div>
+      {'vibrate' in navigator && (
+        <div className="ui-field">
+          <span>{t('Vibrations')}</span>
+          <div className="ui-seg">
+            {[true, false].map((on) => (
+              <button key={String(on)} className={fx.haptics === on ? 'on' : ''} onClick={() => setFeedback({ haptics: on })}>
+                {on ? t('Activées') : t('Coupées')}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <InstallButton />
       {extra}
       <div className="ui-field">
         <span>{t('Données')}</span>
