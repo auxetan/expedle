@@ -487,3 +487,19 @@ button.cal-day:hover {
     padding: 16px;
   }
 }
+
+.stats-passport {
+  margin-left: auto;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: border-color 0.18s;
+}
+
+.stats-passport:hover {
+  border-color: var(--muted);
+}
