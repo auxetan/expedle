@@ -69,6 +69,23 @@ export function setupFor(mode: Mode, easy = false): Setup {
   return { entities: shuffle(pool, rng).slice(0, 8), categories }
 }
 
+// Graine d'un défi : les rangs des 8 entités puis des 8 catégories dans leurs listes, pour rejouer exactement ce tirage.
+export function setupSeed(mode: Mode, s: Setup): string {
+  const ents = mode === 'villes' ? cityEntities() : countryEntities()
+  const cats = mode === 'villes' ? cityCategories() : countryCategories()
+  const ranks = <T extends { id: string }>(list: T[], picked: T[]) => picked.map((x) => list.findIndex((y) => y.id === x.id)).join('.')
+  return `${ranks(ents, s.entities)}~${ranks(cats, s.categories)}`
+}
+
+export function setupFromSeed(mode: Mode, seed: string): Setup | null {
+  const ents = mode === 'villes' ? cityEntities() : countryEntities()
+  const cats = mode === 'villes' ? cityCategories() : countryCategories()
+  const [e, c] = seed.split('~').map((part) => (part ?? '').split('.').map(Number))
+  const entities = e.flatMap((i) => (ents[i] ? [ents[i]] : []))
+  const categories = (c ?? []).flatMap((i) => (cats[i] ? [cats[i]] : []))
+  return entities.length === 8 && categories.length === 8 ? { entities, categories } : null
+}
+
 export function rankMatrix({ entities, categories }: Setup): number[][] {
   return entities.map((e) => categories.map((c) => Math.min(MISSING_RANK, c.ranks.get(e.id) ?? MISSING_RANK)))
 }
