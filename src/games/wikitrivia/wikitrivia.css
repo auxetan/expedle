@@ -1,0 +1,132 @@
+.wt {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+.wt .muted {
+  color: var(--muted);
+}
+
+.wt-main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 18px 18px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wt-hud {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wt-current {
+  position: sticky;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--fg);
+  color: var(--bg);
+  text-align: center;
+  animation: rise-in 0.3s ease-out;
+}
+
+.wt-current small {
+  opacity: 0.7;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wt-current b {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.wt-line {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wt-card {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.wt-card.ko {
+  border-color: var(--bad);
+}
+
+.wt-card.new {
+  animation: rise-in 0.35s ease-out;
+}
+
+.wt-year {
+  flex: none;
+  min-width: 64px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wt-gap button {
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  background: none;
+  color: var(--muted);
+  font: 13px var(--font);
+}
+
+.wt-gap button:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+.wt-flash {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.wt-flash.ok {
+  color: var(--good);
+}
+
+.wt-flash.ko {
+  color: var(--bad);
+}
+
+.wt-end {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.wt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
