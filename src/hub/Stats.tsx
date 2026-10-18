@@ -193,6 +193,9 @@ export default function Stats() {
             <h1>{profile.name || t('Tes statistiques')}</h1>
             <p className="muted">{first ? t('Première partie le {date}', { date: longDate(todayKey(new Date(first)), true) }) : t('Aucune partie pour l’instant')}</p>
           </div>
+          <a href="#/passeport" className="stats-passport">
+            🛂 {t('Mon passeport')} →
+          </a>
         </section>
 
         {list.length === 0 ? (
