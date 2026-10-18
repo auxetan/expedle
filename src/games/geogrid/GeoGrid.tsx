@@ -11,6 +11,8 @@ import CountryInput from '../../ui/CountryInput'
 import { check, makeGrid, MAX_GUESSES, score } from './game'
 import './geogrid.css'
 import { plural, t } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 interface Saved {
   cells: (string | null)[]
@@ -56,7 +58,9 @@ export default function GeoGrid({ mode }: { mode?: string }) {
     // un pays déjà placé n'use pas d'essai : c'est une étourderie, pas une erreur
     if (result === 'used') return setMessage(MESSAGES.used())
     const cells = [...state.cells]
+    feedback(result === 'ok' ? 'good' : 'bad')
     if (result === 'ok') {
+      stamp(code, 'geogrid')
       cells[active] = code
       setActive(null)
       setMessage('')
