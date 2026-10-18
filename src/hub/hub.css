@@ -1,0 +1,373 @@
+.home {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+.home-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.home-search input {
+  width: min(240px, 46vw);
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-size: 15px;
+}
+
+.home-search button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+
+.home-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 10px 20px 60px;
+}
+
+/* en-tête : salutation, niveau, liens */
+.home-intro {
+  padding: 26px 0 4px;
+}
+
+.home-intro h1 {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.015em;
+}
+
+.home-intro p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.home-intro p a {
+  color: var(--fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.home-intro p a:hover {
+  text-decoration: underline;
+}
+
+.home-level {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 14px 5px 5px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 14px;
+  overflow: hidden;
+  transition: border-color 0.18s;
+}
+
+.home-level:hover {
+  border-color: var(--muted);
+}
+
+.home-level b {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* progression vers le niveau suivant, en filet sous la pastille */
+.home-level i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--fg);
+}
+
+/* « à jouer maintenant » : une carte, un jeu, une raison */
+.home-next {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.home-next:hover {
+  border-color: var(--muted);
+  background: var(--hover);
+}
+
+.home-next-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-next-text small {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-next-text b {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.home-next-text span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.home-next-go {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 18px;
+}
+
+/* programme du jour : cinq jeux, cochés au fil de la journée */
+.home-program {
+  margin-top: 28px;
+}
+
+.home-program-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.home-program-head h2,
+.home-section h2 {
+  margin: 0;
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-program-head span {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-program-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-program-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.home-program-card:hover {
+  border-color: var(--muted);
+  background: var(--hover);
+}
+
+.home-program-card > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.home-program-card b {
+  font-weight: 500;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-program-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.home-program-card.progress small {
+  color: var(--warn);
+}
+
+.home-program-card.done {
+  opacity: 0.6;
+}
+
+.home-program-card.done small {
+  color: var(--good);
+}
+
+.home-empty {
+  color: var(--muted);
+  padding: 30px 0;
+}
+
+.home-section {
+  padding-top: 32px;
+}
+
+.home-section h2 {
+  margin-bottom: 14px;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.home-card {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.home-card:hover {
+  border-color: var(--muted);
+  background: var(--hover);
+}
+
+.home-card-state {
+  align-self: flex-end;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-card-state.done {
+  color: var(--fg);
+}
+
+.home-card-state.new {
+  color: var(--warn);
+}
+
+.home-card-art {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.home-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-card-text b {
+  font-weight: 500;
+  font-size: 17px;
+}
+
+.home-card-text span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+@media (max-width: 760px) {
+  .home-program-list {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 160px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .home-card {
+    padding: 13px;
+    border-radius: 18px;
+  }
+  .home-card-art .game-icon {
+    width: 64px;
+    height: 64px;
+  }
+  .home-card-text b {
+    font-size: 15px;
+  }
+  .home-next {
+    padding: 14px;
+    gap: 12px;
+  }
+  .home-next .game-icon {
+    width: 52px;
+    height: 52px;
+  }
+  .home-next-text b {
+    font-size: 19px;
+  }
+}

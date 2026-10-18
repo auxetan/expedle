@@ -1,0 +1,720 @@
+.wg {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+.wg .muted {
+  color: var(--muted);
+}
+
+.wg-menu,
+.wg-summary {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+.wg-menu h1 {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.015em;
+}
+
+.wg-menu > p {
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.wg-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.wg-modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 96px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  text-align: left;
+  animation: rise-in 0.35s ease-out backwards;
+  transition: border-color 0.18s, transform 0.18s;
+}
+
+.wg-modes button:hover {
+  border-color: var(--muted);
+  transform: translateY(-2px);
+}
+
+.wg-modes button.on {
+  border-color: var(--fg);
+}
+
+.wg-modes b {
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.wg-modes span {
+  margin-top: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.wg-note {
+  font-size: 13px;
+  margin-top: 18px;
+}
+
+.wg-wait {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+}
+
+.wg-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--fg);
+  animation: wg-spin 0.8s linear infinite;
+}
+
+@keyframes wg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wg-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Partie */
+.wg-play {
+  padding: 12px 16px 24px;
+}
+
+.wg-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto 10px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.wg-hud b {
+  color: var(--fg);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wg-stage {
+  position: relative;
+  max-width: 1400px;
+  height: calc(100vh - 150px);
+  min-height: 380px;
+  margin: 0 auto;
+}
+
+.wg-photo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #111;
+  touch-action: none;
+  cursor: zoom-in;
+  display: grid;
+  place-items: center;
+}
+
+.wg-photo.zoomed {
+  cursor: grab;
+}
+
+.wg-photo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  will-change: transform;
+}
+
+.wg-photo img.in {
+  opacity: 1;
+}
+
+.wg-photo .wg-spinner {
+  position: absolute;
+  border-color: #333;
+  border-top-color: #ddd;
+}
+
+.wg-zoom {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wg-zoom button {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(20, 20, 20, 0.6);
+  color: #eee;
+  font-size: 18px;
+  backdrop-filter: blur(6px);
+}
+
+/* Petite carte en bas à droite qui s'agrandit au survol, comme sur GeoGuessr */
+.wg-map {
+  position: absolute;
+  right: 14px;
+  bottom: 34px;
+  width: 320px;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.85;
+  transition: width 0.22s ease, height 0.22s ease, opacity 0.22s;
+  z-index: 3;
+}
+
+.wg-map:hover,
+.wg-map:focus-within {
+  width: min(620px, 60vw);
+  height: min(440px, 62vh);
+  opacity: 1;
+}
+
+.wg-leaflet {
+  flex: 1;
+  min-height: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  cursor: crosshair;
+}
+
+.wg-validate {
+  width: 100%;
+}
+
+/* lisible même posé sur la photo tant qu'aucun repère n'est placé */
+.wg-validate:disabled {
+  opacity: 1;
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.wg-map-toggle {
+  display: none;
+}
+
+/* Attente du lieu suivant : un voile sur la vue, qui reste en place dessous */
+.wg-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  color: var(--muted);
+  animation: fade-in 0.2s;
+}
+
+/* Révélation : un calque par-dessus la vue, qui n'est pas démontée (un seul panorama par partie) */
+.wg-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  background: var(--bg);
+}
+
+.wg-reveal-map {
+  border-radius: 20px;
+  overflow: hidden;
+  animation: fade-in 0.4s;
+}
+
+.wg-reveal-map .wg-leaflet {
+  height: 100%;
+  border-radius: 20px;
+  cursor: grab;
+}
+
+.wg-reveal-map.tall {
+  height: 420px;
+  margin: 18px 0;
+}
+
+.wg-reveal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  animation: rise-in 0.4s ease-out;
+  overflow-y: auto;
+}
+
+.wg-reveal-score b {
+  display: block;
+  font-size: 46px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wg-reveal-score span {
+  color: var(--muted);
+}
+
+.wg-bar {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.wg-bar i {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  border-radius: 6px;
+  transform-origin: left;
+  animation: grow-right 0.9s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes grow-right {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.wg-place {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.wg-credit {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.wg-credit a {
+  color: inherit;
+}
+
+.wg-reveal-card .ui-btn {
+  margin-top: auto;
+}
+
+/* Bilan */
+.wg-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wg-total b {
+  font-size: clamp(40px, 8vw, 60px);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wg-total small {
+  font-size: 0.4em;
+  color: var(--muted);
+}
+
+.wg-record {
+  color: var(--good);
+  font-weight: 500;
+}
+
+.wg-rounds {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wg-rounds li {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.wg-rounds img {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.wg-rounds span {
+  display: flex;
+  flex-direction: column;
+}
+
+.wg-rounds b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding-right: 8px;
+}
+
+.leaflet-container {
+  font-family: var(--font);
+}
+
+/* OpenStreetMap ramené à la palette du site : gris chaud en clair, gris inversé en sombre */
+.wg-tiles {
+  filter: grayscale(1) invert(1) brightness(0.82) contrast(0.92);
+}
+
+:root[data-theme='clair'] .wg-tiles {
+  filter: grayscale(0.85) sepia(0.12) brightness(1.02);
+}
+
+@media (max-width: 760px) {
+  .wg-stage {
+    height: calc(100vh - 190px);
+  }
+  .wg-map {
+    position: fixed;
+    inset: auto 10px 70px 10px;
+    width: auto !important;
+    height: 62vh !important;
+    opacity: 1;
+    transform: translateY(calc(100% + 90px));
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 30;
+  }
+  .wg-map.open {
+    transform: none;
+  }
+  .wg-map-toggle {
+    display: flex;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 31;
+  }
+  .wg-reveal {
+    grid-template-columns: 1fr;
+    grid-template-rows: 46vh auto;
+    overflow-y: auto;
+  }
+  .wg-reveal-map {
+    height: 46vh;
+  }
+}
+
+.wg .leaflet-bar {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.wg .leaflet-bar a {
+  background: var(--card);
+  color: var(--fg);
+  border-bottom-color: var(--line);
+}
+
+.wg .leaflet-bar a:hover {
+  background: var(--hover);
+}
+
+.wg .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  color: var(--muted);
+}
+
+.wg .leaflet-control-attribution a {
+  color: var(--fg);
+}
+
+/* GeoGuessr : panorama 360° ; isolé pour que les calques internes de la visionneuse (flèches, chargement)
+   restent sous la carte et la révélation */
+.gg-pano-wrap {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #111;
+}
+
+.gg-pano {
+  width: 100%;
+  height: 100%;
+}
+
+.gg-return {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(20, 20, 20, 0.7);
+  color: #eee;
+  font: 14px var(--font);
+  backdrop-filter: blur(6px);
+}
+
+/* au-dessus de la bande du bas, où Google affiche son logo et son copyright */
+.gg-return.google {
+  bottom: 38px;
+}
+
+.gg-thumb {
+  width: 72px;
+  height: 48px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--bg2);
+  font-size: 26px;
+}
+
+.gg-setup ol {
+  line-height: 1.6;
+  padding-left: 20px;
+}
+
+.gg-setup li {
+  margin-bottom: 8px;
+}
+
+.gg-setup a {
+  color: var(--fg);
+}
+
+.gg-setup code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg2);
+  font-size: 13px;
+}
+
+.gg-key {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.gg-key input {
+  flex: 1 1 280px;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font: 15px var(--font);
+  outline: none;
+}
+
+.gg-key input:focus {
+  border-color: var(--muted);
+}
+
+.gg-problem {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bad) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* GeoGuessr : choix de l'imagerie, au-dessus des modes */
+.gg-imagery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 22px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--bg2);
+}
+
+.gg-imagery button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.gg-imagery button:hover {
+  color: var(--fg);
+}
+
+.gg-imagery button.on {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--fg);
+}
+
+.gg-imagery b {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.gg-imagery span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gg-setup h2 {
+  margin: 28px 0 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.gg-setup > p {
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.gg-waiting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.gg-waiting .wg-spinner {
+  width: 22px;
+  height: 22px;
+}
+
+/* Défi du jour, règles de la partie, chrono */
+.wg-daily {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--fg);
+  color: var(--bg);
+  text-decoration: none;
+}
+
+.wg-daily b {
+  font-weight: 500;
+  font-size: 17px;
+}
+
+.wg-daily span {
+  opacity: 0.75;
+  font-size: 14px;
+}
+
+.wg-rules {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.wg-rules > span {
+  color: var(--muted);
+}
+
+.wg-rules .ui-seg button {
+  padding: 7px 12px;
+  font: 14px var(--font);
+}
+
+.wg-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.wg-timer.low {
+  color: var(--bad);
+}
+
+/* NMPZ : un voile transparent par-dessus la vue arrête souris et doigts */
+.wg-freeze {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+@media (max-width: 520px) {
+  .wg-rules {
+    grid-template-columns: 1fr;
+  }
+}

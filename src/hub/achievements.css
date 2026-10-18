@@ -1,0 +1,175 @@
+.ach-main {
+  padding-bottom: 80px;
+}
+
+.ach-hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 26px 0 8px;
+}
+
+/* anneau de progression vers le niveau suivant */
+.ach-level {
+  flex: none;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--bg) 84%, transparent 85%),
+    conic-gradient(var(--fg) calc(var(--p) * 100%), var(--line) 0);
+  animation: pop-in 0.5s ease-out backwards;
+}
+
+.ach-level b {
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ach-level span {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ach-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ach-hero h1 {
+  margin: 0 0 10px;
+  font-weight: 400;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.015em;
+}
+
+.ach-hero p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ach-xp,
+.ach-progress {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.ach-xp i,
+.ach-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--fg);
+  transition: width 0.6s ease-out;
+}
+
+.ach-group {
+  padding-top: 30px;
+}
+
+.ach-group h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.ach-group h2 small {
+  margin-left: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.ach-card {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.ach-card > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.ach-card b {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ach-card p {
+  margin: 4px 0 10px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.ach-card.locked .ach-badge {
+  --tier: var(--line);
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.ach-card.unlocked {
+  border-color: color-mix(in srgb, var(--tier) 45%, var(--line));
+}
+
+.ach-tier {
+  font-size: 12.5px;
+  color: var(--tier);
+  font-weight: 500;
+}
+
+.ach-progress {
+  height: 6px;
+  margin-top: 2px;
+  overflow: visible;
+}
+
+.ach-progress i {
+  background: var(--muted);
+}
+
+.ach-progress small {
+  position: absolute;
+  right: 0;
+  top: 9px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ach-card.locked .ach-progress {
+  margin-bottom: 14px;
+}
+
+@media (max-width: 520px) {
+  .ach-hero {
+    gap: 16px;
+  }
+  .ach-level {
+    width: 88px;
+    height: 88px;
+  }
+  .ach-level b {
+    font-size: 32px;
+  }
+}

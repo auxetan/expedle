@@ -1,0 +1,198 @@
+.cy {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+.cy .muted {
+  color: var(--muted);
+}
+
+.cy-main {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 18px 18px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cy-intro {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  line-height: 1.5;
+  font-size: 15px;
+}
+
+.cy-legend {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.cy-guesses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cy-guess {
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  animation: rise-in 0.3s ease-out;
+}
+
+.cy-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cy-flag {
+  font-size: 22px;
+}
+
+.cy-head b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.cy-dist {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.cy-chips {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+/* les cases se retournent l'une après l'autre, comme dans Countryle */
+.cy-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  text-align: center;
+  animation: cy-flip 0.45s ease-out backwards;
+}
+
+.cy-chip:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.cy-chip:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.cy-chip:nth-child(4) {
+  animation-delay: 0.24s;
+}
+.cy-chip:nth-child(5) {
+  animation-delay: 0.32s;
+}
+
+@keyframes cy-flip {
+  from {
+    opacity: 0;
+    transform: rotateX(90deg);
+  }
+}
+
+.cy-chip small {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.cy-chip b {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.cy-chip b i {
+  font-style: normal;
+  margin-left: 3px;
+  font-weight: 700;
+}
+
+.cy-hit {
+  background: color-mix(in srgb, var(--good) 28%, var(--card));
+  color: var(--fg);
+}
+
+.cy-near {
+  background: color-mix(in srgb, var(--warn) 26%, var(--card));
+  color: var(--fg);
+}
+
+.cy-far {
+  background: var(--bg2);
+  color: var(--fg);
+}
+
+.cy-count {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.cy-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  text-align: center;
+  animation: pop-in 0.4s ease-out;
+}
+
+.cy-end-flag {
+  font-size: 54px;
+  line-height: 1;
+}
+
+.cy-end b {
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.cy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 520px) {
+  .cy-chips {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

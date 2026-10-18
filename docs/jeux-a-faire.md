@@ -1,0 +1,37 @@
+# Jeux à ajouter plus tard
+
+Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, Countryle, Flagle, GeoGrid, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
+
+Effort : **petit** = quelques heures avec les données du projet, **moyen** = une nouvelle source de données, **gros** = un serveur ou un service payant.
+
+## Géographie
+
+| Jeu | Principe | Ce qu'on a déjà | Effort |
+|---|---|---|---|
+| **Statele** | Worldle avec les États américains | Contours des États (atlas de Travle USA), moteur de Worldle | petit |
+| **DailyGeo** | Une capitale et un pays mystères par jour, avec indices (monnaie, langue, distance, direction) | Capitales, monnaies, langues (`facts.ts`), distances et caps (`geo/measure.ts`) | petit |
+| **Tradle** | Deviner un pays d'après le graphique de ses exportations | Rien | moyen (jeu de données des exportations par pays, par exemple l'OEC ou l'ONU Comtrade) |
+
+## Culture générale
+
+| Jeu | Principe | Ce qu'on a déjà | Effort |
+|---|---|---|---|
+| **Wikitrivia** | Placer des événements dans l'ordre sur une frise | Table `EVENTS` de `facts.ts` (événements datés) | petit |
+| **Factle** | Ranger cinq réponses dans le bon ordre (« les 5 pays les plus peuplés ») | Tous les classements de GeoHunter et de JetPunk | petit |
+| **Britannica Tightrope** | Neuf questions par jour, trois erreurs et on tombe | Banque de questions du Quiz culture G | petit |
+| **TimeGuessr / Chronophoto** | Dater une photo (et la situer pour TimeGuessr) | Le moteur de PhotoGuessr : Wikimedia Commons fournit souvent la date de prise de vue | moyen (filtrer les photos bien datées) |
+| **HistoryGuesser** | GeoGuessr appliqué à des photos historiques | Même base que TimeGuessr | moyen |
+| **Artle** | Reconnaître un peintre d'après ses tableaux | Table `PAINTINGS` (œuvre → artiste) | moyen (images des œuvres via Wikimedia Commons ou Wikidata) |
+| **Wikipedia Speedrun** | Aller d'une page Wikipédia à une autre par les liens | Rien | moyen (API Wikipédia, accessible sans clé et avec CORS) |
+
+## Plus lourds
+
+| Jeu | Pourquoi c'est gros |
+|---|---|
+| **Kahoot, Trivia Crack (Quiz Crack), QuizDuel** | Ce sont des jeux à plusieurs en direct ou en duel : il faut un serveur (salons, synchronisation, comptes). |
+
+## Petites suites possibles pour les jeux déjà faits
+
+- GeoGuessr et PhotoGuessr : défi du jour identique pour tous, chrono par manche, modes « sans bouger » et « sans zoom » (NMPZ).
+- Worldle : manches bonus supplémentaires (monnaie, langue, pays voisins), comme le jeu d'origine.
+- Globle : afficher les noms des pays au survol du globe.
