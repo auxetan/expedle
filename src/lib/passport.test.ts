@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { coverage, NATIONS, passport, stamp } from './passport'
+import { coverage, mergePassports, NATIONS, passport, stamp } from './passport'
 
 describe('passeport', () => {
   // le localStorage de Node demande un fichier : une mémoire suffit ici
@@ -20,5 +20,14 @@ describe('passeport', () => {
     expect(c.stamped).toBe(3)
     expect(c.total).toBe(NATIONS.length)
     expect(c.byContinent.find((x) => x.continent === 'EU')!.stamped).toBe(2)
+  })
+
+  it('fusionne deux appareils sans compter deux fois', () => {
+    const phone = { JP: { n: 3, first: 10, last: 50, games: ['worldle'] }, FR: { n: 1, first: 5, last: 5, games: ['quiz'] } }
+    const laptop = { JP: { n: 2, first: 4, last: 60, games: ['globle'] }, BR: { n: 1, first: 7, last: 7, games: ['flagle'] } }
+    const merged = mergePassports(phone, laptop)
+    expect(merged.JP).toEqual({ n: 3, first: 4, last: 60, games: ['worldle', 'globle'] })
+    expect(Object.keys(merged).sort()).toEqual(['BR', 'FR', 'JP'])
+    expect(mergePassports(merged, laptop)).toEqual(merged)
   })
 })
