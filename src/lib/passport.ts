@@ -13,6 +13,8 @@ export interface Stamp {
 export type Passport = Record<string, Stamp>
 
 export const STAMPED = 'cg:stamped'
+// tout changement du passeport, pour la synchronisation avec le compte
+export const PASSPORT_CHANGED = 'cg:passport'
 
 export const passport = (): Passport => load<Passport>('passport', {})
 
@@ -31,9 +33,27 @@ export function stamp(codes: string | (string | null | undefined)[], game: strin
       : { n: 1, first: now, last: now, games: [game] }
   }
   save('passport', book)
+  globalThis.dispatchEvent?.(new Event(PASSPORT_CHANGED))
   // un premier tampon s'annonce, comme un succès
   if (fresh.length) globalThis.dispatchEvent?.(new CustomEvent<string[]>(STAMPED, { detail: fresh }))
   return fresh
+}
+
+// Deux passeports du même joueur (deux appareils) : chaque pays garde sa première et sa dernière visite, le plus
+// grand nombre de passages (un nombre ne s'additionne pas : il a peut-être déjà été envoyé) et tous ses jeux.
+export function mergePassports(a: Passport, b: Passport): Passport {
+  const out: Passport = { ...a }
+  for (const [code, s] of Object.entries(b)) {
+    const o = out[code]
+    out[code] = o
+      ? { n: Math.max(o.n, s.n), first: Math.min(o.first, s.first), last: Math.max(o.last, s.last), games: [...new Set([...o.games, ...s.games])] }
+      : s
+  }
+  return out
+}
+
+export function savePassport(book: Passport): void {
+  save('passport', book)
 }
 
 export interface Coverage {
