@@ -655,3 +655,66 @@
   width: 22px;
   height: 22px;
 }
+
+/* Défi du jour, règles de la partie, chrono */
+.wg-daily {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--fg);
+  color: var(--bg);
+  text-decoration: none;
+}
+
+.wg-daily b {
+  font-weight: 500;
+  font-size: 17px;
+}
+
+.wg-daily span {
+  opacity: 0.75;
+  font-size: 14px;
+}
+
+.wg-rules {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.wg-rules > span {
+  color: var(--muted);
+}
+
+.wg-rules .ui-seg button {
+  padding: 7px 12px;
+  font: 14px var(--font);
+}
+
+.wg-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.wg-timer.low {
+  color: var(--bad);
+}
+
+/* NMPZ : un voile transparent par-dessus la vue arrête souris et doigts */
+.wg-freeze {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+@media (max-width: 520px) {
+  .wg-rules {
+    grid-template-columns: 1fr;
+  }
+}
