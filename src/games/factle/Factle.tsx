@@ -11,6 +11,7 @@ import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
 import { mark, MAX_TRIES, question, score, SIZE, type Mark } from './game'
 import './factle.css'
+import { stamp } from '../../lib/passport'
 
 interface Saved {
   tries: string[][]
@@ -58,6 +59,7 @@ export default function Factle({ mode }: { mode?: string }) {
     const done = win || tries.length >= MAX_TRIES
     const ms = elapsed()
     update({ tries, ...(done ? { ms } : {}) })
+    stamp(attempt.filter((code, i) => mark(q, i, code) === 'exact'), 'factle')
     // les bonnes places restent, le reste se rejoue
     setSlots(attempt.map((code, i) => (mark(q, i, code) === 'exact' ? code : null)))
     if (!done) return
