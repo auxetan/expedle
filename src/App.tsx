@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
 import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
+import NextUp from './ui/NextUp'
+import OfflineBadge from './ui/OfflineBadge'
 import { t, useLang } from './lib/i18n'
 import { useRoute } from './lib/router'
 
@@ -18,6 +20,7 @@ const Stats = lazy(() => import('./hub/Stats'))
 const Achievements = lazy(() => import('./hub/Achievements'))
 const Leaderboards = lazy(() => import('./hub/Leaderboards'))
 const Challenges = lazy(() => import('./hub/Challenges'))
+const Passport = lazy(() => import('./hub/Passport'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
@@ -77,6 +80,9 @@ export default function App() {
     case 'classements':
       content = <Leaderboards key={key} tab={sub} />
       break
+    case 'passeport':
+      content = <Passport />
+      break
     case 'defis':
       content = <Challenges key={key} params={route.params} />
       break
@@ -131,6 +137,8 @@ export default function App() {
         </div>
       </Suspense>
       <Celebrations />
+      <NextUp />
+      <OfflineBadge />
       <CloudSync />
     </>
   )
