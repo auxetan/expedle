@@ -13,6 +13,7 @@ import { evaluate, squares } from '../worldle/game'
 import '../worldle/worldle.css'
 import { capitalChoices, clues, MAX_GUESSES, score, target as pickTarget } from './game'
 import './dailygeo.css'
+import { stamp } from '../../lib/passport'
 
 interface Saved {
   guesses: string[]
@@ -50,6 +51,7 @@ export default function DailyGeo({ mode }: { mode?: string }) {
 
   function guess(code: string) {
     update({ ...state, guesses: [...state.guesses, code] })
+    if (code === target) stamp(target, 'dailygeo')
   }
 
   function answer(capital: string) {
