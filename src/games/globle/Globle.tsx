@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import { worldAtlas } from '../../geo/atlas'
 import { borderDistanceKm } from '../../geo/measure'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
+import { newSeed, readChallenge } from '../../lib/challenge'
+import { go } from '../../lib/router'
 import { copyText, load, save, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
+import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
 import { cssColor, useTheme } from '../../ui/theme'
-import { targets } from '../worldle/game'
 import GlobeView from './GlobeView'
 import { dailyTarget, heat } from './game'
 import './globle.css'
@@ -15,18 +17,20 @@ import { locale, plural, t } from '../../lib/i18n'
 interface Saved {
   guesses: string[]
   gaveUp?: boolean
+  ms?: number
 }
 
 const fmtKm = (km: number) => `${Math.round(km).toLocaleString(locale())} km`
+const points = (win: boolean, n: number) => (win ? Math.max(10, 100 - 5 * (n - 1)) : 0)
 
 export default function Globle({ mode }: { mode?: string }) {
-  const practice = mode === 'libre'
+  const [challenge] = useState(readChallenge)
+  const practice = mode === 'libre' || !!challenge
   const atlas = worldAtlas()
   const day = todayKey()
   const storageKey = practice ? null : `globle:${day}`
-  const [target, setTarget] = useState(() =>
-    practice ? targets(atlas)[Math.floor(Math.random() * targets(atlas).length)] : dailyTarget(atlas, day),
-  )
+  const [seed, setSeed] = useState(() => challenge?.seed ?? (practice ? newSeed() : day))
+  const target = useMemo(() => dailyTarget(atlas, seed), [atlas, seed])
   const [state, setState] = useState<Saved>(() => (storageKey ? load<Saved>(storageKey, { guesses: [] }) : { guesses: [] }))
   const [toast, setToast] = useState('')
   const elapsed = useStopwatch(target)
@@ -55,24 +59,27 @@ export default function Globle({ mode }: { mode?: string }) {
   }
 
   function guess(code: string) {
-    const next = { guesses: [...state.guesses, code] }
-    update(next)
-    if (code === target) finish(next.guesses.length, true)
+    const guesses = [...state.guesses, code]
+    if (code !== target) return update({ ...state, guesses })
+    const ms = elapsed()
+    update({ ...state, guesses, ms })
+    finish(guesses.length, true, ms)
   }
 
-  function finish(n: number, win: boolean) {
+  function finish(n: number, win: boolean, ms: number) {
     if (!practice && !dailyResult('globle', day)) saveDailyResult('globle', { won: win, guesses: n }, day)
-    recordPlay('globle', { pts: win ? Math.max(10, 100 - 5 * (n - 1)) : 0, s: n, win, ms: elapsed(), sub: practice ? 'libre' : undefined })
+    recordPlay('globle', { pts: points(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
 
   function giveUp() {
-    update({ ...state, gaveUp: true })
-    finish(state.guesses.length, false)
+    const ms = elapsed()
+    update({ ...state, gaveUp: true, ms })
+    finish(state.guesses.length, false, ms)
   }
 
   function another() {
-    const list = targets(atlas)
-    setTarget(list[Math.floor(Math.random() * list.length)])
+    if (challenge) return go('/globle/libre')
+    setSeed(newSeed())
     setState({ guesses: [] })
   }
 
@@ -91,7 +98,7 @@ export default function Globle({ mode }: { mode?: string }) {
         <SubLink href="#/globle" active={!practice}>
           {t('Pays du jour')}
         </SubLink>
-        <SubLink href="#/globle/libre" active={practice}>
+        <SubLink href="#/globle/libre" active={practice && !challenge}>
           {t('Partie libre')}
         </SubLink>
       </AppBar>
@@ -102,7 +109,7 @@ export default function Globle({ mode }: { mode?: string }) {
         </section>
         <section className="gl-side">
           <header>
-            <h1>{practice ? t('Partie libre') : t('Le pays mystère du jour')}</h1>
+            <h1>{challenge ? t('Défi') : practice ? t('Partie libre') : t('Le pays mystère du jour')}</h1>
             <p className="muted">{t('Propose des pays : plus tu chauffes, plus ils rougissent. La couleur dit la distance entre les frontières.')}</p>
           </header>
 
@@ -126,6 +133,12 @@ export default function Globle({ mode }: { mode?: string }) {
                   </a>
                 )}
               </div>
+              <ChallengeBox
+                game="globle"
+                path="/globle"
+                seed={seed}
+                result={{ pts: points(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+              />
             </div>
           ) : (
             <>
