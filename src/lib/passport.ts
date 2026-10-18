@@ -12,7 +12,6 @@ export interface Stamp {
 
 export type Passport = Record<string, Stamp>
 
-export const STAMPED = 'cg:stamped'
 // tout changement du passeport, pour la synchronisation avec le compte
 export const PASSPORT_CHANGED = 'cg:passport'
 
@@ -34,8 +33,6 @@ export function stamp(codes: string | (string | null | undefined)[], game: strin
   }
   save('passport', book)
   globalThis.dispatchEvent?.(new Event(PASSPORT_CHANGED))
-  // un premier tampon s'annonce, comme un succès
-  if (fresh.length) globalThis.dispatchEvent?.(new CustomEvent<string[]>(STAMPED, { detail: fresh }))
   return fresh
 }
 
