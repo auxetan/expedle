@@ -12,6 +12,7 @@ import { COUNTRY_STATS } from '../classement/data'
 import { dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, type Clue, type Row } from './game'
 import './countryle.css'
 import { locale, plural, t } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
 
 interface Saved {
   guesses: string[]
@@ -80,6 +81,7 @@ export default function Countryle({ mode }: { mode?: string }) {
     setState(next)
     if (storageKey) save(storageKey, next)
     if (!over) return
+    if (win) stamp(target, 'countryle')
     if (!practice && !dailyResult('countryle', day)) saveDailyResult('countryle', { won: win, guesses: n }, day)
     recordPlay('countryle', { pts: score(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
