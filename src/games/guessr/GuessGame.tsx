@@ -12,6 +12,10 @@ import GuessMap, { type LatLng, type Pair } from './GuessMap'
 import { MODES, score, type Mode } from './guess'
 import './guessr.css'
 import { fmt, locale, msg, t, tx } from '../../lib/i18n'
+import { stamp } from '../../lib/passport'
+import { countryAt } from '../../geo/measure'
+import { getWorld } from '../../geo/world'
+import { feedback } from '../../lib/feedback'
 
 export interface Spot {
   id: string
@@ -198,6 +202,10 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop, d
     if (!ready || revealed || (!pick && !force)) return
     setGuesses((g) => [...g.slice(0, round), pick])
     setRevealed(true)
+    const km = pick ? distanceKm([pick[1], pick[0]], [spot.lng, spot.lat]) : Infinity
+    feedback(score(km, mode.scaleKm) >= 3500 ? 'good' : pick ? 'tap' : 'bad')
+    // repère posé dans le bon pays : le pays entre au passeport
+    if (pick && spot.country && countryAt(getWorld(), [pick[1], pick[0]]) === spot.country) stamp(spot.country, game)
   }
 
   const results = spots.map((s, i) => {
