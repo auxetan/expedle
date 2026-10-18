@@ -339,35 +339,18 @@ a {
   outline-offset: 2px;
 }
 
-.confetti {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 200;
-}
-
-/* Transitions de page : l'ancienne s'efface pendant que la nouvelle monte, la barre du haut ne bouge pas */
+/* Transitions de page : un simple fondu, court */
 ::view-transition-old(root) {
-  animation: page-out 0.16s ease-in both;
+  animation: page-fade 0.12s ease-in both reverse;
 }
 
 ::view-transition-new(root) {
-  animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-fade 0.18s ease-out both;
 }
 
-@keyframes page-out {
-  to {
-    opacity: 0;
-    transform: scale(0.99);
-  }
-}
-
-@keyframes page-in {
+@keyframes page-fade {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
 }
 
