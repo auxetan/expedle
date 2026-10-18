@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { evaluate, levelOf, loadSeen, saveSeen, TIER_XP, type Tier } from '../lib/achievements'
 import { HISTORY_CHANGED } from '../lib/cloud'
 import { plural, t } from '../lib/i18n'
+import { countryName, flagEmoji } from '../geo/countries'
+import { coverage, passport, STAMPED } from '../lib/passport'
 import { plays, PLAYED } from '../lib/stats'
+import { feedback } from '../lib/feedback'
 
 interface Toast {
   id: number
@@ -10,6 +13,7 @@ interface Toast {
   title: string
   desc: string
   tier?: Tier
+  href?: string
 }
 
 let next = 0
@@ -49,13 +53,24 @@ export default function Celebrations() {
       clearTimeout(timer)
       timer = window.setTimeout(check, 900)
     }
+    // un nouveau pays au passeport : un tampon s'annonce, avec le compte du monde
+    const onStamp = (e: Event) => {
+      const fresh = (e as CustomEvent<string[]>).detail
+      setTimeout(() => feedback('stamp'), 300)
+      const { stamped, total } = coverage(passport())
+      fresh.slice(0, 3).forEach((code, i) =>
+        push({ glyph: flagEmoji(code), title: t('Nouveau tampon : {name}', { name: countryName(code) }), desc: t('Passeport : {n} / {total} pays', { n: stamped, total }), href: '#/passeport' }, 300 + i * 600),
+      )
+    }
     check()
     window.addEventListener(PLAYED, onPlay)
     window.addEventListener(HISTORY_CHANGED, onPlay)
+    window.addEventListener(STAMPED, onStamp)
     return () => {
       clearTimeout(timer)
       window.removeEventListener(PLAYED, onPlay)
       window.removeEventListener(HISTORY_CHANGED, onPlay)
+      window.removeEventListener(STAMPED, onStamp)
     }
   }, [])
 
@@ -63,7 +78,7 @@ export default function Celebrations() {
   return (
     <div className="ach-toasts" aria-live="polite">
       {toasts.map((t) => (
-        <a key={t.id} href="#/succes" className={`ach-toast ${t.tier ?? ''}`}>
+        <a key={t.id} href={t.href ?? '#/succes'} className={`ach-toast ${t.tier ?? ''}`}>
           <span className="ach-badge small">{t.glyph}</span>
           <span>
             <b>{t.title}</b>
