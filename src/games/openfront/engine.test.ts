@@ -1,194 +1,287 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../../lib/util'
 import {
+  accept,
   addPlayer,
+  agreeExtension,
+  allied,
   attackAt,
-  buildCity,
-  cityCost,
+  breakAlliance,
+  build,
   createGame,
-  maxTroops,
-  NEUTRAL,
+  isTraitor,
+  launch,
+  LAND,
+  maxTroopsOf,
   neighbors,
+  OCEAN,
   player,
+  requestAlliance,
+  sendBoat,
   spawn,
   startAttack,
   step,
-  WATER,
   winner,
   type Game,
-  type MapGrid,
 } from './engine'
+import { ALLIANCE_TICKS, BUILD_TICKS, CITY_TROOPS, MAX_BOATS, TRAITOR_TICKS } from './rules'
 
-// '#' : terre, '.' : mer
-function grid(rows: string[]): MapGrid {
+// '#' plaine, '^' montagne, 'x' infranchissable, '.' mer
+function map(rows: string[]) {
   const w = rows[0].length
-  const land = new Uint8Array(w * rows.length)
-  rows.forEach((r, y) => [...r].forEach((ch, x) => (land[y * w + x] = ch === '#' ? 1 : 0)))
-  return { w, h: rows.length, land }
+  const terrain = new Uint8Array(w * rows.length)
+  rows.forEach((r, y) =>
+    [...r].forEach((ch, x) => {
+      terrain[y * w + x] = ch === '#' ? LAND : ch === '^' ? LAND | 25 : ch === 'x' ? LAND | 31 : OCEAN
+    }),
+  )
+  return { w, h: rows.length, terrain }
 }
 
+const block = (w: number, h: number, ch = '#') => Array.from({ length: h }, () => ch.repeat(w))
 const at = (g: Game, x: number, y: number) => y * g.w + x
 const run = (g: Game, n: number) => {
   for (let i = 0; i < n; i++) step(g)
 }
 
-describe('carte', () => {
-  it('compte la terre et marque la mer', () => {
-    const g = createGame(grid(['##..', '#...']))
-    expect(g.land).toBe(3)
-    expect(g.owner[at(g, 2, 0)]).toBe(WATER)
-    expect(g.owner[at(g, 0, 0)]).toBe(NEUTRAL)
-  })
+function duel(rows = block(60, 30)) {
+  const g = createGame(map(rows), 'moyen', mulberry32(1))
+  const a = addPlayer(g, 'A', 'human')
+  const b = addPlayer(g, 'B', 'nation')
+  spawn(g, a.id, at(g, 10, 15))
+  spawn(g, b.id, at(g, 50, 15))
+  return { g, a, b }
+}
 
-  it('se referme d’est en ouest comme le globe', () => {
-    const g = createGame(grid(['#..#', '#..#']))
-    expect(neighbors(g, at(g, 0, 0))).toContain(at(g, 3, 0))
-    expect(neighbors(g, at(g, 0, 0))).toContain(at(g, 0, 1))
-    expect(neighbors(g, at(g, 0, 0))).not.toContain(at(g, 0, -1))
+describe('carte', () => {
+  it('compte la terre franchissable et ne se referme pas sur les bords', () => {
+    const g = createGame(map(['##x.', '#^..']), 'moyen')
+    expect(g.land).toBe(4)
+    const out = new Int32Array(4)
+    expect(neighbors(g, at(g, 0, 0), out)).toBe(2)
   })
 })
 
 describe('apparition', () => {
-  it('prend un disque de terre libre autour du point choisi', () => {
-    const g = createGame(grid(['#########', '#########', '#########', '#########', '#########', '#########', '#########']))
-    const p = addPlayer(g, 'A')
-    expect(spawn(g, p.id, at(g, 4, 3))).toBe(true)
-    expect(p.cells).toBeGreaterThan(20)
-    expect(g.owner[at(g, 4, 3)]).toBe(p.id)
-    expect(g.owner[at(g, 0, 0)]).toBe(NEUTRAL)
-  })
-
-  it('refuse la mer et les terres déjà prises', () => {
-    const g = createGame(grid(['###.', '###.']))
-    const a = addPlayer(g, 'A')
-    const b = addPlayer(g, 'B')
-    expect(spawn(g, a.id, at(g, 3, 0))).toBe(false)
-    spawn(g, a.id, at(g, 0, 0))
-    expect(spawn(g, b.id, at(g, 0, 0))).toBe(false)
+  it('prend un disque de rayon 4 et se déplace si l’on rechoisit', () => {
+    const g = createGame(map(block(30, 30)), 'moyen')
+    const p = addPlayer(g, 'A', 'human')
+    expect(spawn(g, p.id, at(g, 10, 10))).toBe(true)
+    expect(p.tiles).toBe(49)
+    spawn(g, p.id, at(g, 20, 20))
+    expect(g.owner[at(g, 10, 10)]).toBe(0)
+    expect(p.tiles).toBe(49)
+    expect(p.troops).toBe(25_000)
   })
 })
 
 describe('troupes', () => {
-  it('grandissent sans dépasser le plafond', () => {
-    const g = createGame(grid(['#####', '#####', '#####']))
-    const p = addPlayer(g, 'A')
-    spawn(g, p.id, at(g, 2, 1))
-    const before = p.troops
-    run(g, 5)
-    expect(p.troops).toBeGreaterThan(before)
-    run(g, 3000)
-    expect(p.troops).toBeLessThanOrEqual(maxTroops(g, p) + 1e-6)
+  it('poussent vers le plafond sans le dépasser', () => {
+    const { g, a } = duel()
+    run(g, 50)
+    expect(a.troops).toBeGreaterThan(25_000)
+    run(g, 5000)
+    expect(a.troops).toBeLessThanOrEqual(maxTroopsOf(g, a) + 1e-6)
   })
 })
 
 describe('attaques', () => {
-  it('conquièrent la terre libre voisine en dépensant des troupes', () => {
-    const g = createGame(grid(['.####################.']), mulberry32(1))
-    const p = addPlayer(g, 'A')
-    spawn(g, p.id, at(g, 3, 0))
-    const cells = p.cells
-    startAttack(g, p.id, NEUTRAL, 40)
-    run(g, 3)
-    expect(p.cells).toBeGreaterThan(cells)
-    expect(g.attacks.length).toBe(1)
+  it('avancent petit à petit sur la terre libre, 16 troupes par case de plaine', () => {
+    const { g, a } = duel(block(200, 100))
+    const before = a.tiles
+    startAttack(g, a.id, 0, 5000)
+    step(g)
+    const first = a.tiles - before
+    expect(first).toBeGreaterThan(0)
+    expect(first).toBeLessThan(40)
+    run(g, 30)
+    expect(a.tiles).toBeGreaterThan(before + first * 5)
+    const used = 5000 - g.attacks[0].troops
+    expect(used / (a.tiles - before)).toBeCloseTo(16, 0)
   })
 
-  it('rendent les troupes restantes quand il n’y a plus rien à prendre', () => {
-    const g = createGame(grid(['.#########.']), mulberry32(2))
-    const p = addPlayer(g, 'A')
-    spawn(g, p.id, at(g, 2, 0))
-    p.troops = 1000
-    startAttack(g, p.id, NEUTRAL, 500)
-    run(g, 20)
-    expect(p.cells).toBe(9)
-    expect(g.attacks.length).toBe(0)
-    expect(p.troops).toBeGreaterThan(900)
+  it('vont moins vite en montagne', () => {
+    const plain = duel(block(200, 100))
+    const hills = duel(block(200, 100, '^'))
+    // le point de départ est le même ; seule la nature du terrain change
+    startAttack(plain.g, plain.a.id, 0, 5000)
+    startAttack(hills.g, hills.a.id, 0, 5000)
+    run(plain.g, 10)
+    run(hills.g, 10)
+    expect(hills.a.tiles).toBeLessThan(plain.a.tiles)
   })
 
-  it('prennent les cases d’un rival et lui coûtent des troupes, jusqu’à l’éliminer', () => {
-    const g = createGame(grid(['.##########.']), mulberry32(3))
-    const a = addPlayer(g, 'A')
-    const b = addPlayer(g, 'B')
-    spawn(g, a.id, at(g, 2, 0))
-    spawn(g, b.id, at(g, 9, 0))
-    a.troops = 50_000
-    b.troops = 20
-    startAttack(g, a.id, b.id, 40_000)
-    run(g, 40)
-    expect(b.alive).toBe(false)
-    expect(b.killer).toBe(a.id)
-    expect(a.cells).toBe(10)
+  it('usent le défenseur et l’éliminent, en prenant son or', () => {
+    const small = createGame(map(['.##########.']), 'moyen', mulberry32(2))
+    const x = addPlayer(small, 'X', 'human')
+    const y = addPlayer(small, 'Y', 'nation')
+    spawn(small, x.id, at(small, 2, 0))
+    spawn(small, y.id, at(small, 9, 0))
+    y.gold = 1000
+    y.troops = 50
+    x.troops = 100_000
+    startAttack(small, x.id, y.id, 50_000)
+    run(small, 50)
+    expect(y.alive).toBe(false)
+    expect(y.killer).toBe(x.id)
+    expect(x.gold).toBeGreaterThanOrEqual(1000)
   })
 
-  it('s’annulent quand deux joueurs s’attaquent en même temps', () => {
-    const g = createGame(grid(['.##########.']))
-    const a = addPlayer(g, 'A')
-    const b = addPlayer(g, 'B')
-    spawn(g, a.id, at(g, 2, 0))
-    spawn(g, b.id, at(g, 9, 0))
-    a.troops = 1000
-    b.troops = 1000
-    startAttack(g, a.id, b.id, 300)
-    startAttack(g, b.id, a.id, 500)
-    expect(g.attacks).toEqual([{ from: b.id, to: a.id, troops: 200 }])
+  it('s’annulent quand deux joueurs s’attaquent l’un l’autre', () => {
+    const g = createGame(map(['.##########.']), 'moyen')
+    const x = addPlayer(g, 'X', 'human')
+    const y = addPlayer(g, 'Y', 'nation')
+    spawn(g, x.id, at(g, 2, 0))
+    spawn(g, y.id, at(g, 9, 0))
+    startAttack(g, x.id, y.id, 3000)
+    startAttack(g, y.id, x.id, 5000)
+    expect(g.attacks).toHaveLength(1)
+    expect(g.attacks[0]).toMatchObject({ from: y.id, to: x.id, troops: 2000 })
   })
 })
 
 describe('bateaux', () => {
-  const islands = ['.###.....###.', '.###.....###.', '.###.....###.']
+  const islands = ['............................', '.#####..............#####...', '.#####..............#####...', '.#####..............#####...', '............................']
 
-  it('traversent la mer et débarquent sur l’autre rive', () => {
-    const g = createGame(grid(islands), mulberry32(4))
-    const p = addPlayer(g, 'A')
-    spawn(g, p.id, at(g, 2, 1))
-    p.troops = 500
-    expect(attackAt(g, p.id, at(g, 10, 1), 300)).toBe('mer')
-    expect(g.boats.length).toBe(1)
-    run(g, 30)
-    expect(g.boats.length).toBe(0)
-    expect(g.owner[at(g, 10, 1)]).toBe(p.id)
+  it('avancent d’une case par tour, débarquent et attaquent depuis la plage', () => {
+    const g = createGame(map(islands), 'moyen', mulberry32(3))
+    const p = addPlayer(g, 'A', 'human')
+    spawn(g, p.id, at(g, 3, 2))
+    expect(attackAt(g, p.id, at(g, 22, 2), 5000)).toBe('mer')
+    const boat = g.boats[0]
+    run(g, boat.path.length - 1)
+    expect(g.boats).toHaveLength(1)
+    step(g)
+    expect(g.boats).toHaveLength(0)
+    expect(g.owner[boat.dst]).toBe(p.id)
+    run(g, 20)
+    expect(g.owner[at(g, 22, 2)]).toBe(p.id)
   })
 
-  it('ne servent pas quand la cible touche déjà le joueur', () => {
-    const g = createGame(grid(['.############.']))
-    const p = addPlayer(g, 'A')
-    spawn(g, p.id, at(g, 3, 0))
-    expect(attackAt(g, p.id, at(g, 11, 0), 50)).toBe('terre')
-    expect(attackAt(g, p.id, at(g, 3, 0), 50)).toBeNull()
+  it('ne sont que trois à la fois', () => {
+    const g = createGame(map(islands), 'moyen')
+    const p = addPlayer(g, 'A', 'human')
+    spawn(g, p.id, at(g, 3, 2))
+    for (let i = 0; i < MAX_BOATS; i++) expect(sendBoat(g, p.id, at(g, 22, 2), 100)).toBe(true)
+    expect(sendBoat(g, p.id, at(g, 22, 2), 100)).toBe(false)
   })
 })
 
-describe('villes', () => {
-  it('coûtent de l’or, se bâtissent chez soi et relèvent le plafond de troupes', () => {
-    const g = createGame(grid(['.#########.', '.#########.']))
-    const a = addPlayer(g, 'A')
-    const b = addPlayer(g, 'B')
-    spawn(g, a.id, at(g, 2, 0))
-    spawn(g, b.id, at(g, 8, 1))
-    const city = at(g, 2, 0)
-    expect(buildCity(g, a.id, city)).toBe(false)
-    a.gold = cityCost(g, a.id)
-    const max = maxTroops(g, a)
-    expect(buildCity(g, a.id, at(g, 8, 1))).toBe(false)
-    expect(buildCity(g, a.id, city)).toBe(true)
+describe('bâtiments', () => {
+  it('coûtent de l’or, se tiennent à distance et une ville relève le plafond une fois bâtie', () => {
+    const { g, a } = duel()
+    a.gold = 125_000
+    expect(build(g, a.id, 'ville', at(g, 50, 15))).toBe('place')
+    expect(build(g, a.id, 'ville', at(g, 10, 15))).toBe('ok')
     expect(a.gold).toBe(0)
-    expect(maxTroops(g, a)).toBeGreaterThan(max)
-    expect(cityCost(g, a.id)).toBeGreaterThan(cityCost(g, b.id))
+    const max = maxTroopsOf(g, a)
+    run(g, BUILD_TICKS.ville)
+    expect(maxTroopsOf(g, a)).toBeCloseTo(max + CITY_TROOPS)
+    a.gold = 1e6
+    expect(build(g, a.id, 'poste', at(g, 12, 15))).toBe('place')
+  })
+
+  it('une seconde ville au même endroit améliore la première', () => {
+    const { g, a } = duel()
+    a.gold = 1e6
+    build(g, a.id, 'ville', at(g, 10, 15))
+    build(g, a.id, 'ville', at(g, 11, 15))
+    expect(g.units).toHaveLength(1)
+    expect(g.units[0].level).toBe(2)
+  })
+
+  it('un poste de défense rend l’attaque bien plus coûteuse', () => {
+    const fight = (post: boolean) => {
+      const g = createGame(map(['.' + '#'.repeat(40) + '.']), 'moyen', mulberry32(5))
+      const x = addPlayer(g, 'X', 'human')
+      const y = addPlayer(g, 'Y', 'nation')
+      spawn(g, x.id, at(g, 2, 0))
+      spawn(g, y.id, at(g, 38, 0))
+      startAttack(g, y.id, 0, 5000)
+      run(g, 40)
+      if (post) {
+        y.gold = 1e6
+        build(g, y.id, 'poste', at(g, 30, 0))
+        run(g, BUILD_TICKS.poste)
+      }
+      x.troops = 20_000
+      startAttack(g, x.id, y.id, 10_000)
+      run(g, 5)
+      return x.tiles
+    }
+    expect(fight(true)).toBeLessThan(fight(false))
   })
 })
 
-describe('victoire', () => {
-  it('revient à qui tient 80 % des terres', () => {
-    const g = createGame(grid(['.##########.']))
-    const a = addPlayer(g, 'A')
-    const b = addPlayer(g, 'B')
-    spawn(g, a.id, at(g, 2, 0))
-    spawn(g, b.id, at(g, 9, 0))
-    expect(winner(g)).toBe(0)
-    a.troops = 100_000
-    startAttack(g, a.id, b.id, 50_000)
-    run(g, 3)
-    expect(player(g, a.id).cells / g.land).toBeGreaterThanOrEqual(0.8)
-    expect(winner(g)).toBe(a.id)
+describe('alliances', () => {
+  it('se demandent, s’acceptent, empêchent d’attaquer, et se rompent en traître', () => {
+    const { g, a, b } = duel()
+    expect(requestAlliance(g, a.id, b.id)).toBe('envoyée')
+    accept(g, a.id, b.id)
+    expect(allied(g, a.id, b.id)).toBe(true)
+    expect(startAttack(g, a.id, b.id, 1000)).toBe(false)
+    breakAlliance(g, a.id, b.id)
+    expect(allied(g, a.id, b.id)).toBe(false)
+    expect(isTraitor(g, a)).toBe(true)
+    run(g, TRAITOR_TICKS)
+    expect(isTraitor(g, a)).toBe(false)
+  })
+
+  it('durent cinq minutes, sauf si les deux prolongent', () => {
+    const { g, a, b } = duel()
+    requestAlliance(g, a.id, b.id)
+    requestAlliance(g, b.id, a.id)
+    expect(allied(g, a.id, b.id)).toBe(true)
+    run(g, ALLIANCE_TICKS - 100)
+    agreeExtension(g, a.id, b.id)
+    agreeExtension(g, b.id, a.id)
+    run(g, 200)
+    expect(allied(g, a.id, b.id)).toBe(true)
+  })
+})
+
+describe('bombes', () => {
+  it('exigent un silo, rasent la zone et laissent des retombées', () => {
+    const { g, a, b } = duel(block(120, 60))
+    startAttack(g, b.id, 0, 20_000)
+    run(g, 60)
+    const tiles = b.tiles
+    a.gold = 10e6
+    expect(launch(g, a.id, 'bombe', at(g, 50, 15))).toBe('silo')
+    build(g, a.id, 'silo', at(g, 10, 15))
+    run(g, BUILD_TICKS.silo)
+    expect(launch(g, a.id, 'bombe', at(g, 50, 15))).toBe('ok')
+    run(g, 10)
+    expect(b.tiles).toBeLessThan(tiles - 100)
+    expect(g.falloutTiles).toBeGreaterThan(100)
+    expect(player(g, b.id).relations.get(a.id)).toBeLessThan(0)
+  })
+
+  it('tombent sur une défense antiaérienne ennemie à portée', () => {
+    const { g, a, b } = duel(block(120, 60))
+    a.gold = 10e6
+    b.gold = 10e6
+    build(g, a.id, 'silo', at(g, 10, 15))
+    build(g, b.id, 'dca', at(g, 50, 15))
+    run(g, BUILD_TICKS.dca)
+    const tiles = b.tiles
+    launch(g, a.id, 'bombe', at(g, 52, 15))
+    run(g, 10)
+    expect(b.tiles).toBe(tiles)
+  })
+})
+
+describe('fin de partie', () => {
+  it('un territoire cerné par un seul ennemi lui revient', () => {
+    const g = createGame(map(block(30, 30)), 'moyen', mulberry32(6))
+    const big = addPlayer(g, 'Grand', 'nation')
+    const small = addPlayer(g, 'Petit', 'bot')
+    spawn(g, small.id, at(g, 15, 15))
+    big.troops = 1e6
+    spawn(g, big.id, at(g, 3, 3))
+    startAttack(g, big.id, 0, 1e6)
+    run(g, 200)
+    expect(small.alive).toBe(false)
+    expect(winner(g)).toBe(big.id)
   })
 })
