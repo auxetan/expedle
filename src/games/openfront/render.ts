@@ -189,7 +189,8 @@ function glyph(ctx: CanvasRenderingContext2D, u: Unit, x: number, y: number, r: 
   }
 }
 
-export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, view: View, cw: number, ch: number, labels: Anchor[], me: number) {
+// `alpha` : la part du tour suivant déjà écoulée, pour faire glisser bateaux et bombes entre deux tours.
+export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, view: View, cw: number, ch: number, labels: Anchor[], me: number, alpha: number) {
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
   ctx.fillStyle = css(pal.water)
@@ -237,21 +238,19 @@ export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, v
     fronts.push({ x: mx / a.front.size, y: my / a.front.size, troops: a.troops })
   }
 
-  // le tracé des bateaux de débarquement, en pointillés derrière eux ; rouge s'ils viennent sur toi
-  ctx.lineWidth = 1.5
-  ctx.setLineDash([3, 4])
+  // le sillage des bateaux de débarquement : les cases déjà parcourues ; rouge s'ils viennent sur toi
+  const wake = Math.max(1.5, view.s * 0.6)
   for (const b of g.boats) {
     if (b.trade || b.at < 1) continue
     const end = Math.min(b.at, b.path.length - 1)
-    const stride = Math.max(1, Math.floor(b.path.length / 120))
-    ctx.beginPath()
-    ctx.moveTo(sx(b.path[0]), sy(b.path[0]))
-    for (let i = stride; i < end; i += stride) ctx.lineTo(sx(b.path[i]), sy(b.path[i]))
-    ctx.lineTo(sx(b.path[end]), sy(b.path[end]))
-    ctx.strokeStyle = css(b.to === me ? pal.bad : pal.players[b.owner - 1], 0.8)
-    ctx.stroke()
+    const stride = Math.max(1, Math.floor(end / 200))
+    ctx.fillStyle = css(b.to === me ? pal.bad : pal.players[b.owner - 1], 0.55)
+    for (let i = 0; i < end; i += stride) {
+      const x = sx(b.path[i])
+      const y = sy(b.path[i])
+      if (visible(x, y)) ctx.fillRect(x - wake / 2, y - wake / 2, wake, wake)
+    }
   }
-  ctx.setLineDash([])
 
   // les bateaux eux-mêmes, aux couleurs de leur pays et tournés dans leur sens de marche
   const hull = Math.min(22, Math.max(11, view.s * 5))
@@ -260,10 +259,11 @@ export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, v
   for (const b of g.boats) {
     const i = Math.min(b.at, b.path.length - 1)
     const t = b.path[i]
-    const x = sx(t)
-    const y = sy(t)
-    if (!visible(x, y)) continue
     const ahead = b.path[Math.min(i + 1, b.path.length - 1)]
+    // glissement entre la case du tour et la suivante
+    const x = sx(t) + (sx(ahead) - sx(t)) * alpha
+    const y = sy(t) + (sy(ahead) - sy(t)) * alpha
+    if (!visible(x, y)) continue
     const behind = b.path[Math.max(i - 1, 0)]
     const angle = Math.atan2(sy(ahead) - sy(behind), sx(ahead) - sx(behind))
     boat(ctx, x, y, angle, b.trade ? hull * 0.75 : hull, pal.players[b.owner - 1], pal.bg, b.trade ? 'commerce' : 'transport')
@@ -271,7 +271,7 @@ export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, v
     const owner = player(g, b.owner)
     ctx.font = `500 ${Math.round(hull * 0.75)}px Ubuntu, system-ui, sans-serif`
     ctx.textAlign = 'center'
-    const text = `${owner.code ? flagEmoji(owner.code) + ' ' : ''}${compact(b.troops)}`
+    const text = `${owner.code ? flagEmoji(owner.code) + ' ' : ''}${troopsText(b.troops)}`
     ctx.lineWidth = 3
     ctx.strokeText(text, x, y - hull * 0.8)
     ctx.fillStyle = css(b.to === me ? pal.bad : pal.fg)
@@ -297,7 +297,7 @@ export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, v
   // bombes en vol : la cible cerclée, l'engin sur sa courbe
   for (const n of g.nukes) {
     if (g.tick < n.start) continue
-    const k = Math.min(1, (g.tick - n.start) / n.ticks)
+    const k = Math.min(1, (g.tick - n.start + alpha) / n.ticks)
     const x0 = sx(n.from)
     const y0 = sy(n.from)
     const x1 = sx(n.dst)
@@ -354,13 +354,13 @@ export function draw(ctx: CanvasRenderingContext2D, painter: Painter, g: Game, v
     ctx.fillStyle = css(color)
     ctx.fillText(name, x, y)
     ctx.font = `${size * 0.8}px Ubuntu, system-ui, sans-serif`
-    const troops = compact(p.troops)
+    const troops = troopsText(p.troops)
     ctx.strokeText(troops, x, y + size)
     ctx.fillText(troops, x, y + size)
   }
   ctx.font = '600 13px Ubuntu, system-ui, sans-serif'
   for (const f of fronts) {
-    const text = `⚔ ${compact(f.troops)}`
+    const text = `⚔ ${troopsText(f.troops)}`
     ctx.strokeText(text, f.x, f.y)
     ctx.fillStyle = css(pal.bad)
     ctx.fillText(text, f.x, f.y)
@@ -398,6 +398,9 @@ function boat(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number
   ctx.fill()
   ctx.restore()
 }
+
+// OpenFront compte ses troupes par dizaines et n'en affiche que le dixième : 25 000 au départ s'affichent 2,5k.
+export const troopsText = (n: number) => compact(n / 10)
 
 export const compact = (n: number) => {
   const v = Math.floor(n)
