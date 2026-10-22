@@ -19,7 +19,7 @@ interface Props {
   pairs?: Pair[]
 }
 
-// Tuiles OpenStreetMap, sans clé ; la teinte Méridien vient d'un filtre CSS selon le thème.
+// Tuiles OpenStreetMap, sans clé ; la teinte Expedle vient d'un filtre CSS selon le thème.
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 // Carte Leaflet pilotée à la main : React ne gère que le conteneur, Leaflet le reste.
