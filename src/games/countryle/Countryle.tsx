@@ -87,7 +87,7 @@ export default function Countryle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Countryle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}\n${rows.map(shareLine).join('\n')}`
+    const text = `Countryle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}\n${rows.map(shareLine).join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
