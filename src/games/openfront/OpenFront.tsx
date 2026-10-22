@@ -10,7 +10,7 @@ import { Sim } from './client'
 import { allianceOf, allied, boatsOf, buildSpot, distance, isLand, isTraitor, maxTroopsOf, passable, player, priceOf, unitsOf, winner, type BuildResult, type Game } from './engine'
 import { worldMap } from './map'
 import RadialMenu, { ICON, type MenuItem } from './RadialMenu'
-import { compact, draw, Labels, Painter, palette, troopsText, type Preview, type View } from './render'
+import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Preview, type View } from './render'
 import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
@@ -51,7 +51,8 @@ interface Hud {
   gold: number
   income: number
   top: { id: number; name: string; gold: number; troops: number }[]
-  attacks: { id: number; name: string; troops: number }[]
+  // tes attaques et tes débarquements en route, que tu peux rappeler
+  attacks: { id: number; name: string; troops: number; boat: boolean }[]
   // ce qui arrive sur toi : attaques par la terre et débarquements en route
   incoming: { id: number; name: string; troops: number; boat: boolean }[]
   boats: number
@@ -62,6 +63,8 @@ interface Note {
   text: string
   until: number
   actions?: { label: string; act: () => void }[]
+  // demande d'alliance de ce joueur : le message part dès qu'elle n'est plus en attente
+  request?: number
 }
 
 interface Result {
@@ -175,13 +178,7 @@ function menuFor(sim: Sim, tile: number, ratio: number, say: (text: string) => v
             act: () =>
               sim.send({ op: 'ally', to: owner }).then((r) =>
                 say(
-                  r === 'envoyée'
-                    ? t('Demande envoyée à {name}', { name: nameOf(g, owner) })
-                    : r === 'alliés'
-                      ? t('Alliance conclue avec {name}', { name: nameOf(g, owner) })
-                      : r === 'attendre'
-                        ? t('Attends un peu avant de redemander.')
-                        : '',
+                  r === 'envoyée' ? t('Demande envoyée à {name}', { name: nameOf(g, owner) }) : r === 'attendre' ? t('Attends un peu avant de redemander.') : '',
                 ),
               ),
           },
@@ -273,6 +270,7 @@ export default function OpenFront() {
     const labels = new Labels()
     const view: View & { fit: number } = { s: 1, x: 0, y: 0, fit: 1 }
     let preview: Preview | null = null
+    const floats: Float[] = []
     let cw = 0
     let ch = 0
     let spawnAt = 0
@@ -312,38 +310,48 @@ export default function OpenFront() {
       clamp()
     }
 
-    const note = (text: string, actions?: Note['actions'], seconds = 8) =>
-      setNotes((list) => [...list.slice(-2), { key: ++key, text, actions, until: performance.now() + seconds * 1000 }])
-    const dismiss = (k: number) => setNotes((list) => list.filter((n) => n.key !== k))
+    // la clé est prise avant d'ajouter le message, pour que ses boutons ferment bien celui-là
+    const note = (text: string, actions?: (close: () => void) => Note['actions'], seconds = 8, request?: number) => {
+      const k = ++key
+      const close = () => setNotes((list) => list.filter((n) => n.key !== k))
+      const item: Note = { key: k, text, actions: actions?.(close), until: performance.now() + seconds * 1000, request }
+      setNotes((list) => [...list.slice(-2), item])
+    }
 
     // ce qui arrive au joueur : demandes d'alliance à trancher, trahisons, bombes
     const readEvents = () => {
       for (const e of g.events) {
         const other = e.from === ME ? e.to : e.from
         const who = nameOf(g, other)
-        if (e.type === 'request' && e.to === ME) {
-          const k = key + 1
+        if (e.type === 'request' && e.to === ME)
           note(
             t('{name} propose une alliance', { name: who }),
-            [
-              { label: t('Accepter'), act: () => (sim.send({ op: 'accept', from: e.from }), dismiss(k)) },
-              { label: t('Refuser'), act: () => (sim.send({ op: 'refuse', from: e.from }), dismiss(k)) },
+            (close) => [
+              { label: t('Accepter'), act: () => (sim.send({ op: 'accept', from: e.from }), close()) },
+              { label: t('Refuser'), act: () => (sim.send({ op: 'refuse', from: e.from }), close()) },
             ],
             20,
+            e.from,
           )
-        } else if (e.type === 'accepted' && e.to === ME) note(t('{name} accepte l’alliance', { name: who }))
+        else if (e.type === 'accepted' && e.to === ME) note(t('{name} accepte l’alliance', { name: who }))
+        else if (e.type === 'accepted' && e.from === ME) note(t('Alliance conclue avec {name}', { name: who }))
         else if (e.type === 'refused' && e.to === ME && e.from !== ME) note(t('{name} refuse l’alliance', { name: who }))
-        else if (e.type === 'extend' && (e.from === ME || e.to === ME)) {
-          const k = key + 1
-          note(t('L’alliance avec {name} touche à sa fin', { name: who }), [{ label: t('Prolonger'), act: () => (sim.send({ op: 'extend', other }), dismiss(k)) }], 30)
-        } else if (e.type === 'expired' && (e.from === ME || e.to === ME)) note(t('Fin de l’alliance avec {name}', { name: who }))
+        else if (e.type === 'extend' && (e.from === ME || e.to === ME))
+          note(t('L’alliance avec {name} touche à sa fin', { name: who }), (close) => [{ label: t('Prolonger'), act: () => (sim.send({ op: 'extend', other }), close()) }], 30)
+        else if (e.type === 'expired' && (e.from === ME || e.to === ME)) note(t('Fin de l’alliance avec {name}', { name: who }))
         else if (e.type === 'betrayed' && e.to === ME) note(t('{name} t’a trahi !', { name: who }))
         else if (e.type === 'nuke' && e.to === ME) {
           feedback('bad')
           note(t('Bombe lancée par {name} !', { name: who }))
         } else if (e.type === 'intercepted' && e.from === ME) note(t('Ta défense a abattu une bombe de {name}', { name: nameOf(g, e.to) }))
         else if (e.type === 'intercepted' && e.to === ME) note(t('Ta bombe a été abattue'))
-        else if (e.type === 'eliminated' && e.from === ME) note(t('Tu as éliminé {name}', { name: nameOf(g, e.to) }))
+        else if (e.type === 'eliminated' && e.from === ME)
+          note(e.gold ? t('Tu as éliminé {name} : +{gold} or', { name: nameOf(g, e.to), gold: compact(e.gold) }) : t('Tu as éliminé {name}', { name: nameOf(g, e.to) }))
+        else if (e.type === 'captured' && e.to === ME) note(t('{name} a pris ton navire marchand', { name: who }))
+        else if (e.type === 'captured' && e.from === ME) note(t('Tu as pris un navire marchand de {name}', { name: who }))
+        // l'or du commerce s'affiche au port où il arrive
+        if (e.type === 'trade' && (e.from === ME || e.to === ME) && e.gold && e.tile !== undefined)
+          floats.push({ tile: e.tile, text: `+${compact(e.gold)}`, at: performance.now() })
       }
       g.events = []
     }
@@ -381,7 +389,8 @@ export default function OpenFront() {
         sim.run(!document.hidden)
       }
       painter.flush()
-      draw(ctx, painter, labels, g, view, cw, ch, sim.labels, ME, live.current.phase === 'jeu' ? sim.progress(now) : 0, now, preview)
+      while (floats.length && now - floats[0].at > FLOAT_MS) floats.shift()
+      draw(ctx, painter, labels, g, view, cw, ch, sim.labels, ME, live.current.phase === 'jeu' ? sim.progress(now) : 0, now, preview, floats)
     }
     resize()
     raf = requestAnimationFrame(frame)
@@ -394,7 +403,8 @@ export default function OpenFront() {
       if (spawnAt && live.current.phase === 'depart') setCountdown(Math.max(1, Math.ceil((SPAWN_TICKS * TICK_MS - (performance.now() - spawnAt)) / 1000)))
       if (live.current.phase !== 'jeu') return
       const now = performance.now()
-      setNotes((list) => (list.some((n) => n.until < now) ? list.filter((n) => n.until >= now) : list))
+      const stale = (n: Note) => n.until < now || (!!n.request && !g.requests.some((r) => r.from === n.request && r.to === ME))
+      setNotes((list) => (list.some(stale) ? list.filter((n) => !stale(n)) : list))
       const max = maxTroopsOf(g, me)
       const top = g.players
         .filter((p) => p.alive && p.tiles)
@@ -408,10 +418,13 @@ export default function OpenFront() {
         gold: me.gold,
         income: goldPerTick(me.kind) * 10,
         top: top.map((p) => ({ id: p.id, name: p.name, gold: p.gold, troops: p.troops })),
-        attacks: g.attacks.filter((a) => a.from === ME).map((a) => ({ id: a.id, name: nameOf(g, a.to), troops: a.troops })),
+        attacks: [
+          ...g.attacks.filter((a) => a.from === ME).map((a) => ({ id: a.id, name: nameOf(g, a.to), troops: a.troops, boat: false })),
+          ...g.boats.filter((b) => b.owner === ME && !b.trade && !b.back).map((b) => ({ id: b.id, name: nameOf(g, b.to), troops: b.troops, boat: true })),
+        ],
         incoming: [
           ...g.attacks.filter((a) => a.to === ME).map((a) => ({ id: a.id, name: nameOf(g, a.from), troops: a.troops, boat: false })),
-          ...g.boats.filter((b) => b.to === ME && !b.trade).map((b) => ({ id: b.id, name: nameOf(g, b.owner), troops: b.troops, boat: true })),
+          ...g.boats.filter((b) => b.to === ME && !b.trade && !b.back).map((b) => ({ id: b.id, name: nameOf(g, b.owner), troops: b.troops, boat: true })),
         ],
         boats: boatsOf(g, ME),
       })
@@ -735,11 +748,14 @@ export default function OpenFront() {
                   </li>
                 ))}
                 {hud.attacks.map((a) => (
-                  <li key={a.id}>
+                  <li key={`${a.boat ? 'b' : 'a'}${a.id}`}>
                     <span>
-                      → {a.name} · {troopsText(a.troops)}
+                      {a.boat ? '⛵' : '→'} {a.name} · {troopsText(a.troops)}
                     </span>
-                    <button onClick={() => sim?.send({ op: 'retreat', attack: a.id })} aria-label={t('Rappeler les troupes')}>
+                    <button
+                      onClick={() => sim?.send(a.boat ? { op: 'recall', boat: a.id } : { op: 'retreat', attack: a.id })}
+                      aria-label={a.boat ? t('Faire demi-tour') : t('Rappeler les troupes')}
+                    >
                       ×
                     </button>
                   </li>
