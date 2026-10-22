@@ -1,6 +1,6 @@
 import type { Game } from './engine'
 
-const BIN = 8
+const BIN = 25
 
 export interface Anchor {
   id: number
@@ -23,7 +23,7 @@ export function anchors(g: Game): Anchor[] {
   }
   const out: Anchor[] = []
   for (const p of g.players) {
-    if (!p.alive || !p.cells) continue
+    if (!p.alive || !p.tiles) continue
     let best = 0
     for (let b = 1; b < bw * bh; b++) if (bins[p.id * bw * bh + b] > bins[p.id * bw * bh + best]) best = b
     const bx = best % bw
