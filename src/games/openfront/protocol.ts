@@ -18,6 +18,7 @@ export type Command =
   | { op: 'troops'; to: number; ratio: number }
   | { op: 'gold'; to: number; share: number }
   | { op: 'retreat'; attack: number }
+  | { op: 'recall'; boat: number }
 
 export type Reply = Order | BuildResult | LaunchResult | AskResult | boolean | null
 
@@ -40,8 +41,8 @@ export interface Snapshot {
   tiles: Int32Array
   players: Float64Array
   units: Unit[]
-  boats: { id: number; owner: number; to: number; troops: number; at: number; trade: boolean; dst: number }[]
-  // chemins des bateaux et des trains apparus depuis le dernier envoi
+  boats: { id: number; owner: number; to: number; troops: number; at: number; trade: boolean; dst: number; back: boolean }[]
+  // chemins des bateaux et des trains apparus (ou détournés : capture, rappel) depuis le dernier envoi
   paths: { id: number; path: Int32Array }[]
   trains: { id: number; owner: number; at: number }[]
   rails?: { a: number; b: number; path: Int32Array }[]
