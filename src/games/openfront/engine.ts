@@ -103,6 +103,8 @@ export interface Boat {
   trade: boolean
   gold: number
   port: number
+  // débarquement rappelé : il rentre au port avec toutes ses troupes
+  back: boolean
 }
 
 export interface Unit {
@@ -180,13 +182,16 @@ export interface Request {
   until: number
 }
 
-export type EventType = 'request' | 'accepted' | 'refused' | 'expired' | 'extend' | 'eliminated' | 'nuke' | 'intercepted' | 'betrayed'
+export type EventType = 'request' | 'accepted' | 'refused' | 'expired' | 'extend' | 'eliminated' | 'nuke' | 'intercepted' | 'betrayed' | 'trade' | 'captured'
 
 export interface GameEvent {
   type: EventType
   from: number
   to: number
   tick: number
+  // l'or gagné, et la case où le montrer
+  gold?: number
+  tile?: number
 }
 
 export interface Blast {
@@ -449,8 +454,8 @@ function conquer(g: Game, id: number, t: number) {
   setOwner(g, t, id)
 }
 
-export function event(g: Game, type: EventType, from: number, to: number) {
-  g.events.push({ type, from, to, tick: g.tick })
+export function event(g: Game, type: EventType, from: number, to: number, gold?: number, tile?: number) {
+  g.events.push({ type, from, to, tick: g.tick, gold, tile })
 }
 
 // --- apparition ---
@@ -568,11 +573,12 @@ function hasPost(g: Game, owner: number, t: number): boolean {
 function eliminate(g: Game, p: Player, by: number) {
   p.alive = false
   p.killer = by
-  if (by) player(g, by).gold += p.kind === 'human' ? p.gold / 2 : p.gold
+  const gold = by ? (p.kind === 'human' ? p.gold / 2 : p.gold) : 0
+  if (by) player(g, by).gold += gold
   p.gold = 0
   p.troops = 0
   g.alliances = g.alliances.filter((a) => a.a !== p.id && a.b !== p.id)
-  event(g, 'eliminated', by, p.id)
+  event(g, 'eliminated', by, p.id, gold)
 }
 
 function stepAttack(g: Game, a: Attack): boolean {
@@ -808,7 +814,7 @@ export function sendBoat(g: Game, from: number, tile: number, troops: number, th
   const { dst, path } = found
   p.troops -= sent
   hostility(g, from, to)
-  g.boats.push({ id: g.nextId++, owner: from, to, troops: sent, path, at: 0, dst, trade: false, gold: 0, port: 0 })
+  g.boats.push({ id: g.nextId++, owner: from, to, troops: sent, path, at: 0, dst, trade: false, gold: 0, port: 0, back: false })
   return true
 }
 
@@ -818,9 +824,15 @@ function stepBoat(g: Game, b: Boat): boolean {
   if (b.trade) {
     const port = g.units.find((u) => u.id === b.port)
     if (port && p.alive) {
+      // un navire capturé qui rentre au port de son preneur ne paie qu'une fois
       p.gold += b.gold
-      player(g, port.owner).gold += b.gold
+      if (port.owner !== b.owner) player(g, port.owner).gold += b.gold
+      event(g, 'trade', b.owner, port.owner, b.gold, port.tile)
     }
+    return false
+  }
+  if (b.back) {
+    p.troops += b.troops
     return false
   }
   const to = g.owner[b.dst]
@@ -832,6 +844,16 @@ function stepBoat(g: Game, b: Boat): boolean {
     startAttack(g, b.owner, to, b.troops, b.dst, false)
   }
   return false
+}
+
+// Rappel d'un débarquement : le bateau fait demi-tour par où il est venu et rapporte toutes ses troupes.
+export function recallBoat(g: Game, id: number) {
+  const b = g.boats.find((x) => x.id === id && !x.trade && !x.back)
+  if (!b) return
+  b.path = b.path.slice(0, Math.min(b.at, b.path.length - 1) + 1).reverse()
+  b.at = 0
+  b.dst = b.path[b.path.length - 1]
+  b.back = true
 }
 
 // --- bâtiments ---
@@ -928,10 +950,11 @@ export function demolish(g: Game, id: number, tile: number): boolean {
 const atWar = (g: Game, a: number, b: number) => g.attacks.some((x) => (x.from === a && x.to === b) || (x.from === b && x.to === a))
 
 // La route d'un port à l'autre, s'ils donnent sur le même bassin.
+const waters = (g: Game, t: number) => Array.from(N1.subarray(0, neighbors(g, t))).filter((w) => isWater(g, w))
+
 function portRoute(g: Game, from: number, to: number): Int32Array | null {
-  const waters = (t: number) => Array.from(N1.subarray(0, neighbors(g, t))).filter((w) => isWater(g, w))
-  const arrival = waters(to)
-  for (const w of waters(from)) {
+  const arrival = waters(g, to)
+  for (const w of waters(g, from)) {
     const goal = arrival.find((a) => g.basin[a] === g.basin[w])
     if (goal !== undefined) return route(g, [w], goal, false)
   }
@@ -941,10 +964,13 @@ function portRoute(g: Game, from: number, to: number): Int32Array | null {
 // Le commerce : de temps en temps, un port envoie un navire vers le port d'un joueur en paix avec lui.
 function spawnTrade(g: Game) {
   const ports = g.units.filter((u) => u.type === 'port' && u.ready <= g.tick)
-  if (ports.length < 2 || g.boats.filter((b) => b.trade).length >= 80) return
+  if (ports.length < 2) return
+  // chaque joueur a sa propre flotte marchande : les ports des autres ne bouchent pas la mer pour toi
+  const afloat = new Map<number, number>()
+  for (const b of g.boats) if (b.trade) afloat.set(b.owner, (afloat.get(b.owner) ?? 0) + 1)
   let charted = false
   for (const port of ports) {
-    if (g.rng() * 12 > port.level) continue
+    if (g.rng() * 12 > port.level || (afloat.get(port.owner) ?? 0) >= 3 + port.level) continue
     const partners = ports.filter((q) => q.owner !== port.owner && relation(g, q.owner, port.owner) > -50 && !atWar(g, q.owner, port.owner))
     if (!partners.length) continue
     // on commerce surtout avec les ports voisins : un tiers des partenaires, au moins quatre, les plus proches
@@ -959,7 +985,8 @@ function spawnTrade(g: Game) {
     }
     const path = g.routes.get(key)
     if (!path) continue
-    g.boats.push({ id: g.nextId++, owner: port.owner, to: dest.owner, troops: 0, path, at: 0, dst: dest.tile, trade: true, gold: Math.min(150_000, 20_000 + 100 * path.length), port: dest.id })
+    g.boats.push({ id: g.nextId++, owner: port.owner, to: dest.owner, troops: 0, path, at: 0, dst: dest.tile, trade: true, gold: Math.min(150_000, 20_000 + 100 * path.length), port: dest.id, back: false })
+    afloat.set(port.owner, (afloat.get(port.owner) ?? 0) + 1)
   }
 }
 
@@ -997,14 +1024,34 @@ function stepShell(g: Game, s: Shell): boolean {
   if (g.tick < s.hit) return true
   if (s.target === 'boat') {
     const b = g.boats.find((x) => x.id === s.id)
-    if (b) {
-      // un navire marchand pris rapporte la moitié de son or au tireur ; un transport coule avec ses troupes
-      if (b.trade) player(g, s.owner).gold += b.gold / 2
-      g.boats = g.boats.filter((x) => x !== b)
-    }
+    // un navire marchand est pris, un transport coule avec ses troupes
+    if (b && !(b.trade && capture(g, b, s.owner))) g.boats = g.boats.filter((x) => x !== b)
   } else {
     const v = g.units.find((x) => x.id === s.id)
     if (v && (v.hp -= SHELL_DAMAGE) <= 0) removeUnit(g, v)
+  }
+  return false
+}
+
+// Un navire marchand pris change de pavillon et file vers le port le plus proche de son preneur, qui en gardera tout l'or.
+// Sans port à portée, il coule.
+function capture(g: Game, b: Boat, by: number): boolean {
+  const here = b.path[Math.min(b.at, b.path.length - 1)]
+  const ports = unitsOf(g, by, 'port')
+    .filter((u) => u.ready <= g.tick)
+    .sort((u, v) => dist2(g, u.tile, here) - dist2(g, v.tile, here))
+  for (const port of ports.slice(0, 3)) {
+    const goal = waters(g, port.tile).find((w) => g.basin[w] === g.basin[here])
+    const path = goal === undefined ? null : route(g, [here], goal, false)
+    if (!path) continue
+    event(g, 'captured', by, b.owner, b.gold, here)
+    b.owner = by
+    b.to = by
+    b.port = port.id
+    b.dst = port.tile
+    b.path = path
+    b.at = 0
+    return true
   }
   return false
 }
