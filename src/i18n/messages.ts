@@ -1210,4 +1210,12 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "{n} / 3 bateaux": ["{n} / 3 boats", "{n} / 3 barcos", "{n} / 3 Boote", "{n} / 3 navi", "{n} / 3 barcos"],
   "Attaque {n} %": ["Attack {n}%", "Ataque {n} %", "Angriff {n} %", "Attacco {n}%", "Ataque {n} %"],
   "Retour": ["Back", "Volver", "Zurück", "Indietro", "Voltar"],
+  "T’attaque": ["Attacking you", "Te ataca", "Greift dich an", "Ti attacca", "Está a atacar-te"],
+  "Tu l’attaques": ["You’re attacking them", "Le atacas", "Du greifst an", "Lo stai attaccando", "Estás a atacá-lo"],
+  "{name} t’attaque avec {n} troupes": ["{name} attacks you with {n} troops", "{name} te ataca con {n} tropas", "{name} greift dich mit {n} Truppen an", "{name} ti attacca con {n} truppe", "{name} ataca-te com {n} tropas"],
+  "Débarquement de {name} en approche : {n} troupes": ["{name} landing incoming: {n} troops", "Desembarco de {name} en camino: {n} tropas", "Landung von {name} im Anmarsch: {n} Truppen", "Sbarco di {name} in arrivo: {n} truppe", "Desembarque de {name} a caminho: {n} tropas"],
+  "Touche la cible : {name}": ["Tap the target: {name}", "Toca el objetivo: {name}", "Tippe auf das Ziel: {name}", "Tocca il bersaglio: {name}", "Toca no alvo: {name}"],
+  "Touche l’endroit où bâtir : {name}": ["Tap where to build: {name}", "Toca dónde construir: {name}", "Tippe, wo gebaut werden soll: {name}", "Tocca dove costruire: {name}", "Toca onde construir: {name}"],
+  "Acheter": ["Buy", "Comprar", "Kaufen", "Compra", "Comprar"],
+  "Il faut un silo prêt à tirer.": ["You need a silo ready to fire.", "Necesitas un silo listo para disparar.", "Du brauchst ein schussbereites Silo.", "Serve un silo pronto a lanciare.", "Precisas de um silo pronto a disparar."],
 }
