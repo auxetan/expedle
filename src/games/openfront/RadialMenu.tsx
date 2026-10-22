@@ -1,30 +1,11 @@
 import { useEffect, useState } from 'react'
 import { t } from '../../lib/i18n'
+import { ICON } from './icons'
 
-// Icônes au trait, dans un carré de 24.
-export const ICON = {
-  info: 'M12 11v6 M12 7.5v.5 M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
-  bateau: 'M3 15h18l-3 4H6z M12 4v11 M12 4l6 8h-6',
-  alliance: 'M9 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M15 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
-  rompre: 'M7 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M17 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M11 19l2-14',
-  prolonger: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v4h-4',
-  attaque: 'M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M12 2v5 M12 17v5 M2 12h5 M17 12h5',
-  construire: 'M4 20l9-9 M14 4l6 6-3 3-6-6z',
-  supprimer: 'M5 7h14 M10 7V4h4v3 M7 7l1 13h8l1-13',
-  or: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-  troupes: 'M12 4v12 M7 11l5 5 5-5 M5 20h14',
-  depart: 'M6 21V4 M6 4h11l-2 4 2 4H6',
-  retour: 'M15 6l-6 6 6 6',
-  ville: 'M4 20V10l8-6 8 6v10z M10 20v-5h4v5',
-  port: 'M12 3v18 M8 7h8 M5 14a7 7 0 0 0 14 0',
-  usine: 'M3 20V10l5 3v-3l5 3V7h3v13z M16 7V3h2v4 M7 20v-3h3v3',
-  poste: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
-  silo: 'M12 3c3 3 4 7 4 11H8c0-4 1-8 4-11z M8 14l-2 5h4 M16 14l2 5h-4',
-  dca: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M12 8v8 M8 12h8',
-  navire: 'M3 15h18l-3 4H6z M8 15v-4h8v4 M12 11V7',
-  bombe: 'M11 21a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M15 8l3-4',
-  hbombe: 'M11 21a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M15 8l3-4 M11 11v6 M8 14h6',
-  mirv: 'M6 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+// Une icône d'OpenFront peinte d'une seule teinte (la couleur du texte autour) : sa forme sert de masque.
+// Les guillemets comptent : Vite intègre les petits SVG en adresse data:, qui en contient.
+export function Glyph({ src, size = 20 }: { src: string; size?: number }) {
+  return <span className="of-glyph" aria-hidden style={{ width: size, height: size, maskImage: `url("${src}")`, WebkitMaskImage: `url("${src}")` }} />
 }
 
 export interface MenuItem {
@@ -87,9 +68,9 @@ export default function RadialMenu({ x, y, items, center, onClose }: { x: number
               <g key={item.id} className={`of-slice${item.disabled ? ' off' : ''}${item.danger ? ' danger' : ''}`} onClick={() => pick(item)}>
                 <title>{item.note ? `${item.title ?? item.label} · ${item.note}` : (item.title ?? item.label)}</title>
                 <path d={sector(a0 + 0.02, a0 + step - 0.02)} />
-                <g transform={`translate(${cx - 10} ${cy - 18}) scale(${20 / 24})`}>
-                  <path className="of-ico" d={item.icon} />
-                </g>
+                <foreignObject x={cx - 10} y={cy - 18} width={20} height={20}>
+                  <Glyph src={item.icon} />
+                </foreignObject>
                 <text x={cx} y={cy + 14}>
                   {item.label}
                 </text>
@@ -104,9 +85,9 @@ export default function RadialMenu({ x, y, items, center, onClose }: { x: number
           <g className={`of-center${middle.disabled ? ' off' : ''}`} onClick={() => (open ? setOpen(null) : pick(middle))}>
             <title>{middle.label}</title>
             <circle cx={SIZE / 2} cy={SIZE / 2} r={R1 - 5} />
-            <g transform={`translate(${SIZE / 2 - 11} ${SIZE / 2 - 11}) scale(${22 / 24})`}>
-              <path className="of-ico" d={middle.icon} />
-            </g>
+            <foreignObject x={SIZE / 2 - 11} y={SIZE / 2 - 11} width={22} height={22}>
+              <Glyph src={middle.icon} size={22} />
+            </foreignObject>
           </g>
         </svg>
       </div>
