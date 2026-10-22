@@ -292,8 +292,10 @@ function basins(w: number, h: number, terrain: Uint8Array): Int32Array {
   return id
 }
 
-export function createGame(map: GameMap, level: Level, rng: () => number = Math.random): Game {
+// `routing` : la mémoire des recherches de chemin (bassins, blocs, tampons). La copie d'affichage n'en a pas besoin.
+export function createGame(map: GameMap, level: Level, rng: () => number = Math.random, routing = true): Game {
   const n = map.w * map.h
+  const work = routing ? n : 0
   let land = 0
   for (let t = 0; t < n; t++) if ((map.terrain[t] & LAND) !== 0 && (map.terrain[t] & MAG) !== IMPASSABLE) land++
   return {
@@ -326,15 +328,15 @@ export function createGame(map: GameMap, level: Level, rng: () => number = Math.
     dirty: new Int32Array(n),
     dirtyCount: 0,
     dirtyMark: new Uint8Array(n),
-    prev: new Int32Array(n),
-    seen: new Uint32Array(n),
+    prev: new Int32Array(work),
+    seen: new Uint32Array(work),
     stamp: 0,
-    queue: new Int32Array(n),
+    queue: new Int32Array(work),
     routes: new Map(),
     posts: new Map(),
-    basin: basins(map.w, map.h, map.terrain),
-    dist: new Float32Array(n),
-    blocks: blocksOf(map.w, map.h, map.terrain),
+    basin: routing ? basins(map.w, map.h, map.terrain) : new Int32Array(0),
+    dist: new Float32Array(work),
+    blocks: blocksOf(routing ? map.w : 0, routing ? map.h : 0, map.terrain),
   }
 }
 
@@ -392,13 +394,13 @@ const dist2 = (g: Game, a: number, b: number) => {
 
 export const distance = (g: Game, a: number, b: number) => Math.sqrt(dist2(g, a, b))
 
-function markDirty(g: Game, t: number) {
+export function markDirty(g: Game, t: number) {
   if (g.dirtyMark[t]) return
   g.dirtyMark[t] = 1
   g.dirty[g.dirtyCount++] = t
 }
 
-function isBorder(g: Game, t: number): boolean {
+export function isBorder(g: Game, t: number): boolean {
   const o = g.owner[t]
   const k = neighbors(g, t, N2)
   for (let i = 0; i < k; i++) if (g.owner[N2[i]] !== o || !isLand(g, N2[i])) return true
