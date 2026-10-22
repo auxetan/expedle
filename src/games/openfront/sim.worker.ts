@@ -81,8 +81,8 @@ function snapshot(full: boolean): Snapshot {
     paths,
     trains: g.trains.map((t) => ({ id: t.id, owner: t.owner, at: t.at })),
     rails,
-    // le front n'intéresse l'affichage que pour les attaques du joueur et celles qu'il subit
-    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.from === ME || a.to === ME ? Int32Array.from(a.front) : null })),
+    // le front n'intéresse l'affichage que pour les combats du joueur, pas pour la terre libre
+    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.to && (a.from === ME || a.to === ME) ? Int32Array.from(a.front) : null })),
     nukes: g.nukes,
     missiles: g.missiles,
     shells: g.shells,
