@@ -17,6 +17,7 @@ import {
   player,
   refuse,
   requestAlliance,
+  recallBoat,
   retreat,
   sendBoat,
   spawn,
@@ -33,8 +34,8 @@ let brains: Brain[] = []
 let running = false
 let speed = 1
 let timer = 0
-// bateaux et trains dont le chemin est déjà parti vers l'affichage
-let sent = new Set<number>()
+// chemin de chaque bateau et train tel qu'envoyé à l'affichage : un bateau pris ou rappelé en change
+let sent = new Map<number, Int32Array>()
 let railKey = ''
 
 const post = (msg: FromSim, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(msg, transfer)
@@ -53,11 +54,11 @@ function snapshot(full: boolean): Snapshot {
     const o = i * PLAYER_FIELDS
     players.set([p.troops, p.gold, p.tiles, p.alive ? 1 : 0, p.spawned ? 1 : 0, p.traitorUntil, p.killer, p.cityLevels], o)
   })
-  if (sent.size > 5000) sent = new Set([...g.boats.map((b) => b.id), ...g.trains.map((t) => t.id)])
+  if (sent.size > 5000) sent = new Map([...g.boats, ...g.trains].filter((m) => sent.has(m.id)).map((m) => [m.id, sent.get(m.id)!]))
   const paths: Snapshot['paths'] = []
   for (const moving of [...g.boats, ...g.trains])
-    if (!sent.has(moving.id)) {
-      sent.add(moving.id)
+    if (sent.get(moving.id) !== moving.path) {
+      sent.set(moving.id, moving.path)
       paths.push({ id: moving.id, path: moving.path })
     }
   const key = g.rails.map((r) => `${r.a}-${r.b}`).join()
@@ -72,7 +73,7 @@ function snapshot(full: boolean): Snapshot {
     tiles,
     players,
     units: g.units,
-    boats: g.boats.map((b) => ({ id: b.id, owner: b.owner, to: b.to, troops: b.troops, at: b.at, trade: b.trade, dst: b.dst })),
+    boats: g.boats.map((b) => ({ id: b.id, owner: b.owner, to: b.to, troops: b.troops, at: b.at, trade: b.trade, dst: b.dst, back: b.back })),
     paths,
     trains: g.trains.map((t) => ({ id: t.id, owner: t.owner, at: t.at })),
     rails,
@@ -138,6 +139,9 @@ function run(c: Command): Reply {
       return true
     case 'retreat':
       retreat(g, c.attack)
+      return true
+    case 'recall':
+      recallBoat(g, c.boat)
       return true
   }
 }
