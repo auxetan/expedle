@@ -97,7 +97,7 @@ function FriendsSection({ initialCode }: { initialCode: string }) {
 
   async function shareCode() {
     const url = `${location.origin}${location.pathname}#/defis?ami=${account.code}`
-    const ok = await copyText(t('Ajoute-moi en ami sur Méridien : {url}', { url }))
+    const ok = await copyText(t('Ajoute-moi en ami sur Expedle : {url}', { url }))
     setCopied(ok)
     setTimeout(() => setCopied(false), 2000)
   }
