@@ -183,6 +183,8 @@ function wish(g: Game, p: Player): UnitType | null {
   if (!count('port') && p.tiles > 300 && [...p.border].some((t) => !isLand(g, t - 1) || !isLand(g, t + 1))) return 'port'
   if (enemiesHaveSilos && !count('dca') && g.level !== 'facile') return 'dca'
   if (p.troops > maxTroopsOf(g, p) * 0.7 || count('ville') < p.tiles / 4000) return 'ville'
+  // une usine relie les villes par le rail : les trains rapportent de l'or à chaque gare
+  if (count('ville') >= 2 && count('usine') < count('ville') / 3 && g.rng() < 0.3) return 'usine'
   if ((g.level === 'difficile' || g.level === 'impossible') && !count('silo') && p.tiles > 3000) return 'silo'
   if (count('poste') < 2 && g.rng() < 0.3) return 'poste'
   if (count('port') && count('navire') < 2 && g.rng() < 0.2) return 'navire'
@@ -196,7 +198,7 @@ function structures(g: Game, p: Player) {
 }
 
 function nukes(g: Game, p: Player) {
-  if (g.level === 'facile' || !unitsOf(g, p.id, 'silo').some((s) => s.ready <= g.tick && s.cooldown <= g.tick)) return
+  if (g.level === 'facile' || !unitsOf(g, p.id, 'silo').some((s) => s.ready <= g.tick && s.slots.some((c) => c <= g.tick))) return
   const type = p.gold >= priceOf(g, p.id, 'hbombe') ? 'hbombe' : p.gold >= priceOf(g, p.id, 'bombe') ? 'bombe' : null
   if (!type || (g.level === 'moyen' && g.rng() > 0.3)) return
   // la cible : l'ennemi le plus étendu, sur une de ses villes si possible

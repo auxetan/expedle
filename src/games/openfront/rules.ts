@@ -4,7 +4,7 @@
 export type Kind = 'human' | 'nation' | 'bot'
 export type Level = 'facile' | 'moyen' | 'difficile' | 'impossible'
 export type Terrain = 'plaine' | 'plateau' | 'montagne'
-export type UnitType = 'ville' | 'port' | 'poste' | 'silo' | 'dca' | 'navire'
+export type UnitType = 'ville' | 'port' | 'usine' | 'poste' | 'silo' | 'dca' | 'navire'
 export type NukeType = 'bombe' | 'hbombe' | 'mirv'
 export type Buyable = UnitType | NukeType
 
@@ -28,6 +28,14 @@ export const NUKE_ALLY_BREAK = 100
 export const WARSHIP_HP = 1000
 export const SHELL_DAMAGE = 250
 export const CITY_TROOPS = 250_000
+// rails : une usine se relie aux gares (villes, ports, usines) à moins de 120 cases, par la terre
+export const RAIL_RANGE = 120
+export const TRAIN_SPEED = 2
+export const TRAIN_CAP = 100
+export const SAM_SPEED = 12
+
+// Ce que rapporte un train à l'arrivée : d'autant plus que la ligne est longue.
+export const trainGold = (length: number) => 10_000 + 50 * length
 
 const NATION: Record<Level, { cap: number; growth: number; start: number }> = {
   facile: { cap: 0.5, growth: 0.9, start: 12_500 },
@@ -132,6 +140,7 @@ export function unitCost(type: Buyable, owned: number): number {
   switch (type) {
     case 'ville':
     case 'port':
+    case 'usine':
       return Math.min(1_000_000, 2 ** owned * 125_000)
     case 'navire':
       return Math.min(1_000_000, (owned + 1) * 250_000)
@@ -150,7 +159,7 @@ export function unitCost(type: Buyable, owned: number): number {
   }
 }
 
-export const BUILD_TICKS: Record<UnitType, number> = { ville: 20, port: 50, poste: 50, silo: 100, dca: 300, navire: 0 }
+export const BUILD_TICKS: Record<UnitType, number> = { ville: 20, port: 50, usine: 20, poste: 50, silo: 100, dca: 300, navire: 0 }
 
 export const BLAST: Record<NukeType | 'ogive', { inner: number; outer: number; speed: number }> = {
   bombe: { inner: 12, outer: 30, speed: 10 },

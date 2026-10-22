@@ -17,6 +17,7 @@ export const ICON = {
   retour: 'M15 6l-6 6 6 6',
   ville: 'M4 20V10l8-6 8 6v10z M10 20v-5h4v5',
   port: 'M12 3v18 M8 7h8 M5 14a7 7 0 0 0 14 0',
+  usine: 'M3 20V10l5 3v-3l5 3V7h3v13z M16 7V3h2v4 M7 20v-3h3v3',
   poste: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   silo: 'M12 3c3 3 4 7 4 11H8c0-4 1-8 4-11z M8 14l-2 5h4 M16 14l2 5h-4',
   dca: 'M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M12 8v8 M8 12h8',

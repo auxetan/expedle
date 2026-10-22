@@ -16,6 +16,7 @@ import {
   neighbors,
   OCEAN,
   player,
+  priceOf,
   requestAlliance,
   sendBoat,
   spawn,
@@ -223,6 +224,48 @@ describe('bâtiments', () => {
   })
 })
 
+describe('usines et trains', () => {
+  function estate(rows = block(160, 60)) {
+    const g = createGame(map(rows), 'moyen', mulberry32(11))
+    const a = addPlayer(g, 'A', 'human')
+    spawn(g, a.id, at(g, 40, 30))
+    a.troops = 1e7
+    startAttack(g, a.id, 0, 5e6)
+    run(g, 120)
+    a.gold = 1e7
+    return { g, a }
+  }
+
+  it('relient par le rail les gares proches, et leurs trains rapportent de l’or', () => {
+    const { g, a } = estate()
+    expect(build(g, a.id, 'usine', at(g, 30, 30))).toBe('ok')
+    expect(build(g, a.id, 'ville', at(g, 80, 30))).toBe('ok')
+    run(g, BUILD_TICKS.usine)
+    expect(g.rails).toHaveLength(1)
+    const before = a.gold
+    run(g, 600)
+    expect(a.gold - before).toBeGreaterThan(600 * 100 + 10_000)
+  })
+
+  it('ne posent pas de rail au-dessus de la mer', () => {
+    const rows = block(160, 60).map((r) => r.slice(0, 55) + '.'.repeat(10) + r.slice(65))
+    const { g, a } = estate(rows)
+    build(g, a.id, 'usine', at(g, 30, 30))
+    build(g, a.id, 'ville', at(g, 50, 30))
+    if (g.owner[at(g, 80, 30)] === a.id) build(g, a.id, 'ville', at(g, 80, 30))
+    run(g, BUILD_TICKS.usine)
+    expect(g.rails.every((r) => [...r.path].every((t) => g.terrain[t] & LAND))).toBe(true)
+    expect(g.rails.some((r) => [r.a, r.b].includes(g.units.find((u) => u.tile === at(g, 80, 30))?.id ?? -1))).toBe(false)
+  })
+
+  it('comptent les ports dans le prix d’une usine', () => {
+    const { g, a } = estate()
+    const first = priceOf(g, a.id, 'usine')
+    g.units.push({ id: 999, type: 'port', owner: a.id, tile: at(g, 0, 0), level: 1, ready: 0, cooldown: 0, slots: [0], hp: 0, home: 0, goal: -1 })
+    expect(priceOf(g, a.id, 'usine')).toBe(first * 2)
+  })
+})
+
 describe('alliances', () => {
   it('se demandent, s’acceptent, empêchent d’attaquer, et se rompent en traître', () => {
     const { g, a, b } = duel()
@@ -267,6 +310,17 @@ describe('bombes', () => {
     expect(player(g, b.id).relations.get(a.id)).toBeLessThan(0)
   })
 
+  it('partent d’autant de silos qu’il a de niveaux avant de recharger', () => {
+    const { g, a } = duel(block(120, 60))
+    a.gold = 1e8
+    build(g, a.id, 'silo', at(g, 10, 15))
+    build(g, a.id, 'silo', at(g, 11, 15))
+    run(g, BUILD_TICKS.silo)
+    expect(launch(g, a.id, 'bombe', at(g, 50, 15))).toBe('ok')
+    expect(launch(g, a.id, 'bombe', at(g, 50, 16))).toBe('ok')
+    expect(launch(g, a.id, 'bombe', at(g, 50, 17))).toBe('silo')
+  })
+
   it('tombent sur une défense antiaérienne ennemie à portée', () => {
     const { g, a, b } = duel(block(120, 60))
     a.gold = 10e6
@@ -276,7 +330,12 @@ describe('bombes', () => {
     run(g, BUILD_TICKS.dca)
     const tiles = b.tiles
     launch(g, a.id, 'bombe', at(g, 52, 15))
+    step(g)
+    // le missile antiaérien part aussitôt la bombe à portée, et l'abat en vol
+    expect(g.missiles).toHaveLength(1)
     run(g, 10)
+    expect(g.nukes).toHaveLength(0)
+    expect(g.missiles).toHaveLength(0)
     expect(b.tiles).toBe(tiles)
   })
 })
