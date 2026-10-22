@@ -76,7 +76,7 @@ export default function Factle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Factle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.tries.length : 'X'}/${MAX_TRIES}\n${t('Top 5 : {cat}', { cat: t(q.category.label) })}\n${state.tries
+    const text = `Factle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.tries.length : 'X'}/${MAX_TRIES}\n${t('Top 5 : {cat}', { cat: t(q.category.label) })}\n${state.tries
       .map((attempt) => attempt.map((code, i) => EMOJI[mark(q, i, code)]).join(''))
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
