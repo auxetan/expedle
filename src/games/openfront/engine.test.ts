@@ -13,11 +13,15 @@ import {
   launch,
   LAND,
   maxTroopsOf,
+  moveWarship,
   neighbors,
   OCEAN,
   player,
   priceOf,
   recallBoat,
+  sendEmoji,
+  setTarget,
+  toggleEmbargo,
   requestAlliance,
   sendBoat,
   spawn,
@@ -351,6 +355,92 @@ describe('commerce', () => {
   })
 })
 
+describe('options de partie', () => {
+  it('bâtissent sur-le-champ et donnent au joueur or et troupes sans fin', () => {
+    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: true, infiniteGold: true, infiniteTroops: true, nukes: true })
+    const a = addPlayer(g, 'A', 'human')
+    spawn(g, a.id, at(g, 10, 15))
+    step(g)
+    expect(a.gold).toBeGreaterThan(1e12)
+    expect(a.troops).toBe(maxTroopsOf(g, a))
+    expect(build(g, a.id, 'ville', at(g, 10, 15))).toBe('ok')
+    step(g)
+    expect(g.units[0].ready).toBeLessThanOrEqual(g.tick)
+  })
+
+  it('sans bombes, ni silo ni lancement', () => {
+    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: false })
+    const a = addPlayer(g, 'A', 'human')
+    spawn(g, a.id, at(g, 10, 15))
+    a.gold = 1e9
+    expect(build(g, a.id, 'silo', at(g, 10, 15))).not.toBe('ok')
+  })
+})
+
+describe('diplomatie', () => {
+  it('envoie un emoji, mais pas plus d’un toutes les deux secondes', () => {
+    const { g, a, b } = duel()
+    expect(sendEmoji(g, a.id, b.id, '😡')).toBe(true)
+    expect(sendEmoji(g, a.id, b.id, '😂')).toBe(false)
+    run(g, 20)
+    expect(sendEmoji(g, a.id, b.id, '😂')).toBe(true)
+    expect(g.events.filter((e) => e.type === 'emoji').map((e) => e.emoji)).toEqual(['😡', '😂'])
+  })
+
+  it('un embargo coupe le commerce entre deux ports', () => {
+    const sea = ['.'.repeat(40), ...Array.from({ length: 10 }, () => '..' + '#'.repeat(12) + '.'.repeat(12) + '#'.repeat(12) + '..'), '.'.repeat(40)]
+    const g = createGame(map(sea), 'moyen', mulberry32(6))
+    const [a, b] = ['A', 'B'].map((name, i) => {
+      const p = addPlayer(g, name, i ? 'nation' : 'human')
+      spawn(g, p.id, at(g, 8 + i * 24, 6))
+      p.troops = 1e6
+      startAttack(g, p.id, 0, 5e5)
+      return p
+    })
+    run(g, 60)
+    for (const p of [a, b]) {
+      p.gold = 1e7
+      expect(build(g, p.id, 'port', at(g, 8 + (p.id - 1) * 24, 1))).toBe('ok')
+    }
+    toggleEmbargo(g, a.id, b.id)
+    run(g, 1500)
+    expect(g.events.some((e) => e.type === 'trade')).toBe(false)
+    toggleEmbargo(g, a.id, b.id)
+    for (let i = 0; i < 3000 && !g.events.some((e) => e.type === 'trade'); i++) step(g)
+    expect(g.events.some((e) => e.type === 'trade')).toBe(true)
+  })
+
+  it('désigne une cible, que ses alliés connaissent', () => {
+    const { g, a, b } = duel()
+    setTarget(g, a.id, b.id)
+    expect(a.target).toBe(b.id)
+    expect(g.events.some((e) => e.type === 'target' && e.from === a.id && e.to === b.id)).toBe(true)
+    setTarget(g, a.id, b.id)
+    expect(a.target).toBe(0)
+  })
+})
+
+describe('navires de guerre', () => {
+  it('filent où on les envoie, par la mer', () => {
+    const sea = ['.'.repeat(50), ...Array.from({ length: 12 }, () => '..' + '#'.repeat(12) + '.'.repeat(36)), '.'.repeat(50)]
+    const g = createGame(map(sea), 'moyen', mulberry32(8))
+    const a = addPlayer(g, 'A', 'human')
+    spawn(g, a.id, at(g, 8, 6))
+    a.troops = 1e6
+    startAttack(g, a.id, 0, 5e5)
+    run(g, 40)
+    a.gold = 1e9
+    expect(build(g, a.id, 'port', at(g, 8, 1))).toBe('ok')
+    run(g, BUILD_TICKS.port)
+    expect(build(g, a.id, 'navire', at(g, 8, 1))).toBe('ok')
+    const ship = g.units.find((u) => u.type === 'navire')!
+    expect(moveWarship(g, a.id, ship.id, at(g, 2, 6))).toBe(false)
+    expect(moveWarship(g, a.id, ship.id, at(g, 45, 10))).toBe(true)
+    run(g, 55)
+    expect(Math.abs((ship.tile % g.w) - 45) + Math.abs(Math.floor(ship.tile / g.w) - 10)).toBeLessThan(14)
+  })
+})
+
 describe('alliances', () => {
   it('se demandent, s’acceptent, empêchent d’attaquer, et se rompent en traître', () => {
     const { g, a, b } = duel()
@@ -437,5 +527,17 @@ describe('fin de partie', () => {
     run(g, 200)
     expect(small.alive).toBe(false)
     expect(winner(g)).toBe(big.id)
+  })
+
+  it('un territoire adossé au bord de la carte n’est pas cerné', () => {
+    const g = createGame(map(block(30, 30)), 'moyen', mulberry32(6))
+    const big = addPlayer(g, 'Grand', 'nation')
+    const small = addPlayer(g, 'Petit', 'bot')
+    spawn(g, small.id, at(g, 1, 15))
+    big.troops = 1e6
+    spawn(g, big.id, at(g, 20, 15))
+    startAttack(g, big.id, 0, 1e6)
+    run(g, 200)
+    expect(small.alive).toBe(true)
   })
 })
