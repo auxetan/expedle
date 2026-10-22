@@ -104,9 +104,9 @@ export function loadStreetView(key: string): Promise<typeof google.maps.StreetVi
   loading ??= new Promise<void>((resolve, reject) => {
     const w = window as unknown as Record<string, unknown>
     w.gm_authFailure = () => authListeners.forEach((f) => f())
-    w.__meridienMapsReady = () => resolve()
+    w.__expedleMapsReady = () => resolve()
     const s = document.createElement('script')
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&language=fr&callback=__meridienMapsReady`
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&language=fr&callback=__expedleMapsReady`
     s.async = true
     s.onerror = () => {
       loading = null
