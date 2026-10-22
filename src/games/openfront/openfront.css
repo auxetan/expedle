@@ -403,15 +403,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* rappeler les troupes : bien visible, c'est le seul moyen d'annuler un envoi */
 .of-attacks button {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: none;
-  background: var(--line);
-  color: var(--fg);
-  font-size: 13px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 14px;
   line-height: 1;
+  cursor: pointer;
 }
 
 .of-hud {
