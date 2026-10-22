@@ -396,6 +396,24 @@ function arcAt(n: Nuke, k: number, sx: (t: number) => number, sy: (t: number) =>
   return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k - Math.sin(Math.PI * k) * arc, k }
 }
 
+// Un gain d'or affiché sur la carte : il monte au-dessus de sa case et s'efface.
+export interface Float {
+  tile: number
+  text: string
+  at: number
+}
+
+export const FLOAT_MS = 2000
+
+// Ce que l'interface pose par-dessus la partie : la zone d'une bombe qu'on vise, l'or gagné,
+// les marques au-dessus des noms (cible, emojis) et le navire de guerre qu'on dirige.
+export interface Overlay {
+  preview: Preview | null
+  floats: Float[]
+  marks: Map<number, string>
+  ship: number
+}
+
 export interface Preview {
   tile: number
   inner: number
@@ -415,8 +433,9 @@ export function draw(
   me: number,
   alpha: number,
   now: number,
-  preview: Preview | null,
+  overlay: Overlay,
 ) {
+  const { preview, floats, marks, ship } = overlay
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
   ctx.fillStyle = css(pal.water)
@@ -438,7 +457,8 @@ export function draw(
   const fronts: { x: number; y: number; troops: number; mine: boolean }[] = []
   for (const a of g.attacks) {
     const mine = a.from === me
-    if ((!mine && a.to !== me) || !a.front.size) continue
+    // comme sur OpenFront, s'étendre sur la terre libre ne montre ni front ni troupes : seulement les combats
+    if ((!mine && a.to !== me) || !a.to || !a.front.size) continue
     ctx.fillStyle = css(mine ? pal.info : pal.bad, 0.85)
     const seen: number[] = []
     let mx = 0
@@ -558,8 +578,16 @@ export function draw(
     const x = sx(u.tile)
     const y = sy(u.tile)
     if (!visible(x, y)) continue
-    const angle = u.goal >= 0 ? Math.atan2(sy(u.goal) - y, sx(u.goal) - x) : 0
+    const ahead = u.route ? u.route[Math.min((u.step ?? 0) + 1, u.route.length - 1)] : u.goal
+    const angle = ahead >= 0 && ahead !== u.tile ? Math.atan2(sy(ahead) - y, sx(ahead) - x) : 0
     boat(ctx, x, y, angle, hull * 1.25, pal.players[u.owner - 1], pal, 'guerre')
+    if (u.id === ship) {
+      ctx.beginPath()
+      ctx.arc(x, y, hull, 0, 2 * Math.PI)
+      ctx.lineWidth = 2
+      ctx.strokeStyle = css(pal.info)
+      ctx.stroke()
+    }
   }
 
   // obus
@@ -671,6 +699,31 @@ export function draw(
     ctx.fillText(text, f.x, f.y + 1)
   }
   ctx.textBaseline = 'alphabetic'
+
+  // cible et emojis, au-dessus du nom
+  ctx.font = '20px Ubuntu, system-ui, sans-serif'
+  for (const a of anchors) {
+    const mark = marks.get(a.id)
+    if (!mark) continue
+    const x = view.x + (a.x + 0.5) * view.s
+    const y = view.y + (a.y + 0.5) * view.s - 28
+    if (visible(x, y)) ctx.fillText(mark, x, y)
+  }
+
+  ctx.font = '700 14px Ubuntu, system-ui, sans-serif'
+  ctx.lineWidth = 3
+  ctx.lineJoin = 'round'
+  for (const f of floats) {
+    const age = (now - f.at) / FLOAT_MS
+    const x = sx(f.tile)
+    const y = sy(f.tile) - 10 - age * 26
+    if (age >= 1 || !visible(x, y)) continue
+    ctx.globalAlpha = 1 - age * age
+    ctx.strokeText(f.text, x, y)
+    ctx.fillStyle = css(pal.gold)
+    ctx.fillText(f.text, x, y)
+  }
+  ctx.globalAlpha = 1
 }
 
 // Noms et troupes : couronne pour le premier, alliés en vert, traîtres en rouge.

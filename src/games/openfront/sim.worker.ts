@@ -14,13 +14,18 @@ import {
   donateGold,
   donateTroops,
   launch,
+  moveWarship,
   player,
   refuse,
   requestAlliance,
+  recallBoat,
   retreat,
   sendBoat,
+  sendEmoji,
+  setTarget,
   spawn,
   step,
+  toggleEmbargo,
   type Game,
 } from './engine'
 import { anchors } from './labels'
@@ -33,8 +38,8 @@ let brains: Brain[] = []
 let running = false
 let speed = 1
 let timer = 0
-// bateaux et trains dont le chemin est déjà parti vers l'affichage
-let sent = new Set<number>()
+// chemin de chaque bateau et train tel qu'envoyé à l'affichage : un bateau pris ou rappelé en change
+let sent = new Map<number, Int32Array>()
 let railKey = ''
 
 const post = (msg: FromSim, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(msg, transfer)
@@ -53,11 +58,11 @@ function snapshot(full: boolean): Snapshot {
     const o = i * PLAYER_FIELDS
     players.set([p.troops, p.gold, p.tiles, p.alive ? 1 : 0, p.spawned ? 1 : 0, p.traitorUntil, p.killer, p.cityLevels], o)
   })
-  if (sent.size > 5000) sent = new Set([...g.boats.map((b) => b.id), ...g.trains.map((t) => t.id)])
+  if (sent.size > 5000) sent = new Map([...g.boats, ...g.trains].filter((m) => sent.has(m.id)).map((m) => [m.id, sent.get(m.id)!]))
   const paths: Snapshot['paths'] = []
   for (const moving of [...g.boats, ...g.trains])
-    if (!sent.has(moving.id)) {
-      sent.add(moving.id)
+    if (sent.get(moving.id) !== moving.path) {
+      sent.set(moving.id, moving.path)
       paths.push({ id: moving.id, path: moving.path })
     }
   const key = g.rails.map((r) => `${r.a}-${r.b}`).join()
@@ -72,12 +77,12 @@ function snapshot(full: boolean): Snapshot {
     tiles,
     players,
     units: g.units,
-    boats: g.boats.map((b) => ({ id: b.id, owner: b.owner, to: b.to, troops: b.troops, at: b.at, trade: b.trade, dst: b.dst })),
+    boats: g.boats.map((b) => ({ id: b.id, owner: b.owner, to: b.to, troops: b.troops, at: b.at, trade: b.trade, dst: b.dst, back: b.back })),
     paths,
     trains: g.trains.map((t) => ({ id: t.id, owner: t.owner, at: t.at })),
     rails,
-    // le front n'intéresse l'affichage que pour les attaques du joueur et celles qu'il subit
-    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.from === ME || a.to === ME ? Int32Array.from(a.front) : null })),
+    // le front n'intéresse l'affichage que pour les combats du joueur, pas pour la terre libre
+    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.to && (a.from === ME || a.to === ME) ? Int32Array.from(a.front) : null })),
     nukes: g.nukes,
     missiles: g.missiles,
     shells: g.shells,
@@ -86,6 +91,7 @@ function snapshot(full: boolean): Snapshot {
     requests: g.requests,
     events,
     labels: full || g.tick % 10 === 0 ? anchors(g) : undefined,
+    me: { target: player(g, ME).target, embargo: [...player(g, ME).embargo] },
   }
 }
 
@@ -139,6 +145,19 @@ function run(c: Command): Reply {
     case 'retreat':
       retreat(g, c.attack)
       return true
+    case 'recall':
+      recallBoat(g, c.boat)
+      return true
+    case 'emoji':
+      return sendEmoji(g, ME, c.to, c.emoji)
+    case 'target':
+      setTarget(g, ME, c.other)
+      return true
+    case 'embargo':
+      toggleEmbargo(g, ME, c.other)
+      return true
+    case 'move':
+      return moveWarship(g, ME, c.unit, c.tile)
   }
 }
 
@@ -146,7 +165,7 @@ self.onmessage = (e: MessageEvent<ToSim>) => {
   const m = e.data
   switch (m.type) {
     case 'init': {
-      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level)
+      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level, Math.random, true, m.options)
       addPlayer(g, m.name, 'human')
       brains = populate(g, m.seats, m.nations, m.tribes, (code) => m.names[code] ?? code)
       const snap = snapshot(true)

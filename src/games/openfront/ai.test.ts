@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../../lib/util'
 import { brainFor, populate, think } from './ai'
-import { addPlayer, allied, breakAlliance, build, createGame, LAND, OCEAN, requestAlliance, spawn, startAttack, step, type Game } from './engine'
+import { accept, addPlayer, allied, breakAlliance, build, createGame, LAND, OCEAN, requestAlliance, setTarget, spawn, startAttack, step, type Game } from './engine'
 import { BUILD_TICKS } from './rules'
 
 function map(rows: string[]) {
@@ -66,6 +66,31 @@ describe('nations', () => {
     nation.gold = 2_000_000
     for (let i = 0; i < 10; i++) think(g, brain)
     expect(g.units.some((u) => u.owner === nation.id)).toBe(true)
+  })
+
+  it('attaquent la cible que leur désigne un allié, même plus forte qu’un autre voisin', () => {
+    const g = createGame(map(block(120, 30)), 'difficile', mulberry32(7))
+    const me = addPlayer(g, 'Moi', 'human')
+    const nation = addPlayer(g, 'Nation', 'nation')
+    const weak = addPlayer(g, 'Faible', 'bot')
+    const strong = addPlayer(g, 'Fort', 'nation')
+    spawn(g, me.id, at(g, 3, 3))
+    for (const [p, x] of [[nation, 60], [weak, 30], [strong, 90]] as const) {
+      spawn(g, p.id, at(g, x, 15))
+      p.troops = 1e6
+      startAttack(g, p.id, 0, 5e5)
+    }
+    for (let i = 0; i < 200; i++) step(g)
+    requestAlliance(g, me.id, nation.id)
+    accept(g, me.id, nation.id)
+    setTarget(g, me.id, strong.id)
+    weak.troops = 1000
+    strong.troops = 1e5
+    nation.troops = 5e6
+    const brain = brainFor(g, nation.id)
+    brain.started = true
+    think(g, brain)
+    expect(g.attacks.some((a) => a.from === nation.id && a.to === strong.id)).toBe(true)
   })
 
   it('posent une usine une fois quelques villes bâties', () => {
