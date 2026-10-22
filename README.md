@@ -1,32 +1,9 @@
-# React + TypeScript + Vite
+# Expedle
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Jeux de culture générale et de géographie : https://m-ridien.vercel.app
 
-Currently, two official plugins are available:
+## Licence
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Expedle est un logiciel libre, distribué sous licence GNU Affero General Public License v3.0 (voir [LICENSE](LICENSE)).
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Le jeu OpenFront d'Expedle est adapté d'[OpenFront](https://github.com/openfrontio/OpenFrontIO), lui aussi sous AGPL-3.0. Les éléments repris de ce projet gardent leur licence et leurs crédits d'origine.
