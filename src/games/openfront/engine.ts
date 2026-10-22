@@ -199,6 +199,61 @@ export interface Game {
   routes: Map<string, Int32Array | null>
   // postes de défense achevés de chaque joueur, relevés à chaque tour
   posts: Map<number, number[]>
+  // numéro du bassin de chaque eau (-1 pour la terre), et distances de travail des routes maritimes
+  basin: Int32Array
+  dist: Float32Array
+  // la carte en blocs de 8×8 cases : un premier itinéraire grossier sur les blocs d'eau
+  // borne la recherche fine à un couloir, ce qui la rend rapide même d'un océan à l'autre
+  blocks: Blocks
+}
+
+const BLOCK = 8
+
+interface Blocks {
+  w: number
+  h: number
+  water: Uint8Array
+  seen: Uint32Array
+  prev: Int32Array
+  dist: Float32Array
+  band: Uint32Array
+  stamp: number
+}
+
+function blocksOf(w: number, h: number, terrain: Uint8Array): Blocks {
+  const bw = Math.ceil(w / BLOCK)
+  const bh = Math.ceil(h / BLOCK)
+  const water = new Uint8Array(bw * bh)
+  for (let t = 0; t < w * h; t++) if (!(terrain[t] & LAND)) water[Math.floor(Math.floor(t / w) / BLOCK) * bw + Math.floor((t % w) / BLOCK)] = 1
+  const n = bw * bh
+  return { w: bw, h: bh, water, seen: new Uint32Array(n), prev: new Int32Array(n), dist: new Float32Array(n), band: new Uint32Array(n), stamp: 0 }
+}
+
+// Chaque eau reçoit le numéro de son bassin, en quatre directions comme les bateaux :
+// entre deux bassins différents, aucune route n'existe, inutile de la chercher.
+function basins(w: number, h: number, terrain: Uint8Array): Int32Array {
+  const n = w * h
+  const id = new Int32Array(n).fill(-1)
+  const queue = new Int32Array(n)
+  let next = 0
+  for (let start = 0; start < n; start++) {
+    if (terrain[start] & LAND || id[start] >= 0) continue
+    let head = 0
+    let tail = 0
+    queue[tail++] = start
+    id[start] = next
+    while (head < tail) {
+      const t = queue[head++]
+      const x = t % w
+      for (const m of [x > 0 ? t - 1 : -1, x < w - 1 ? t + 1 : -1, t >= w ? t - w : -1, t < n - w ? t + w : -1])
+        if (m >= 0 && !(terrain[m] & LAND) && id[m] < 0) {
+          id[m] = next
+          queue[tail++] = m
+        }
+    }
+    next++
+  }
+  return id
 }
 
 export function createGame(map: GameMap, level: Level, rng: () => number = Math.random): Game {
@@ -238,6 +293,9 @@ export function createGame(map: GameMap, level: Level, rng: () => number = Math.
     queue: new Int32Array(n),
     routes: new Map(),
     posts: new Map(),
+    basin: basins(map.w, map.h, map.terrain),
+    dist: new Float32Array(n),
+    blocks: blocksOf(map.w, map.h, map.terrain),
   }
 }
 
@@ -270,8 +328,11 @@ export const passable = (g: Game, t: number) => (g.terrain[t] & LAND) !== 0 && (
 export const terrainAt = (g: Game, t: number) => terrainOf(g.terrain[t] & MAG)
 export const isTraitor = (g: Game, p: Player) => p.traitorUntil > g.tick
 
+// tampons de voisines, un par niveau d'imbrication, pour ne rien allouer dans les boucles chaudes
 const N1 = new Int32Array(4)
 const N2 = new Int32Array(4)
+const N3 = new Int32Array(4)
+const N4 = new Int32Array(4)
 
 // Les quatre voisines dans le tampon donné ; la carte ne se referme pas sur les bords.
 export function neighbors(g: Game, t: number, out: Int32Array = N1): number {
@@ -332,11 +393,10 @@ function setOwner(g: Game, t: number, to: number) {
   }
   markDirty(g, t)
   refresh(g, t)
-  const k = neighbors(g, t)
-  const near = [N1[0], N1[1], N1[2], N1[3]]
+  const k = neighbors(g, t, N3)
   for (let i = 0; i < k; i++) {
-    refresh(g, near[i])
-    markDirty(g, near[i])
+    refresh(g, N3[i])
+    markDirty(g, N3[i])
   }
 }
 
@@ -405,10 +465,9 @@ function touches(g: Game, t: number, id: number): boolean {
 }
 
 function addNeighbors(g: Game, a: Attack, t: number) {
-  const k = neighbors(g, t)
-  const near = [N1[0], N1[1], N1[2], N1[3]]
+  const k = neighbors(g, t, N4)
   for (let i = 0; i < k; i++) {
-    const n = near[i]
+    const n = N4[i]
     if (g.owner[n] !== a.to || !passable(g, n)) continue
     a.front.add(n)
     let own = 0
@@ -565,77 +624,147 @@ function shoresNear(g: Game, tile: number): number[] {
   return found
 }
 
-const D8 = [-1, 1, 0, 0, -1, -1, 1, 1]
-const E8 = [0, 0, -1, 1, -1, 1, -1, 1]
+const blockOf = (g: Game, t: number) => Math.floor(Math.floor(t / g.w) / BLOCK) * g.blocks.w + Math.floor((t % g.w) / BLOCK)
 
-// Parcours de la mer en huit directions depuis les eaux devant `start`, jusqu'à une eau qui vérifie `done`.
-// Le chemin rendu va de cette eau-là jusqu'à `start` : un bateau y avance d'une case par tour.
-function sail(g: Game, start: number, done: (water: number) => boolean): Int32Array | null {
-  const s = nextStamp(g)
-  let head = 0
-  let tail = 0
-  const k = neighbors(g, start)
-  for (let i = 0; i < k; i++)
-    if (isWater(g, N1[i]) && g.seen[N1[i]] !== s) {
-      g.seen[N1[i]] = s
-      g.prev[N1[i]] = -1
-      g.queue[tail++] = N1[i]
+// Itinéraire grossier de bloc d'eau en bloc d'eau ; ses blocs et ceux à deux pas forment le couloir permis
+// à la recherche fine (marqués du tampon rendu). Rend 0 si les blocs ne se rejoignent pas.
+function corridor(g: Game, starts: number[], goal: number): number {
+  const b = g.blocks
+  const s = ++b.stamp
+  const heap = new Heap()
+  const target = blockOf(g, goal)
+  const tx = target % b.w
+  const ty = (target - tx) / b.w
+  const h = (c: number) => Math.abs((c % b.w) - tx) + Math.abs(Math.floor(c / b.w) - ty)
+  for (const t of starts) {
+    const c = blockOf(g, t)
+    if (b.seen[c] === s) continue
+    b.seen[c] = s
+    b.dist[c] = 0
+    b.prev[c] = -1
+    heap.push(c, h(c))
+  }
+  while (heap.size) {
+    const c = heap.pop()
+    if (c === target) {
+      for (let k = c; k >= 0; k = b.prev[k]) {
+        const x = k % b.w
+        const y = (k - x) / b.w
+        for (let dy = -2; dy <= 2; dy++)
+          for (let dx = -2; dx <= 2; dx++)
+            if (x + dx >= 0 && y + dy >= 0 && x + dx < b.w && y + dy < b.h) b.band[(y + dy) * b.w + x + dx] = s
+      }
+      return s
     }
-  while (head < tail) {
-    const t = g.queue[head++]
-    if (done(t)) {
+    const x = c % b.w
+    const d = b.dist[c] + 1
+    for (const m of [x > 0 ? c - 1 : -1, x < b.w - 1 ? c + 1 : -1, c >= b.w ? c - b.w : -1, c < b.w * (b.h - 1) ? c + b.w : -1]) {
+      if (m < 0 || !b.water[m] || (b.seen[m] === s && b.dist[m] <= d)) continue
+      b.seen[m] = s
+      b.dist[m] = d
+      b.prev[m] = c
+      heap.push(m, d + h(m))
+    }
+  }
+  return 0
+}
+
+// Route maritime case par case, en quatre directions comme sur la grille, des eaux `starts` jusqu'à l'eau `goal`.
+// La recherche reste dans le couloir des blocs ; si un isthme trompe le couloir, seul le joueur (`thorough`)
+// a droit à une recherche sur tout le bassin, trop longue pour les bateaux de l'IA et le commerce.
+function route(g: Game, starts: number[], goal: number, thorough: boolean): Int32Array | null {
+  const band = corridor(g, starts, goal)
+  return (band && search(g, starts, goal, band)) || (thorough ? search(g, starts, goal, 0) : null)
+}
+
+// A* sur la grille. L'heuristique, un rien gonflée et départagée par l'écart à la ligne droite,
+// garde la recherche étroite et donne un escalier régulier plutôt qu'un L.
+function search(g: Game, starts: number[], goal: number, band: number): Int32Array | null {
+  const s = nextStamp(g)
+  const heap = new Heap()
+  const gx = goal % g.w
+  const gy = (goal - gx) / g.w
+  const sx = starts[0] % g.w
+  const sy = (starts[0] - sx) / g.w
+  const h = (t: number) => {
+    const x = t % g.w
+    const y = (t - x) / g.w
+    return (Math.abs(x - gx) + Math.abs(y - gy)) * 1.001 + Math.abs((x - gx) * (sy - gy) - (sx - gx) * (y - gy)) * 0.0005
+  }
+  for (const t of starts) {
+    if (g.seen[t] === s) continue
+    g.seen[t] = s
+    g.dist[t] = 0
+    g.prev[t] = -1
+    heap.push(t, h(t))
+  }
+  while (heap.size) {
+    const t = heap.pop()
+    if (t === goal) {
       const path: number[] = []
       for (let c = t; c >= 0; c = g.prev[c]) path.push(c)
-      return Int32Array.from(path)
+      return Int32Array.from(path.reverse())
     }
-    const x = t % g.w
-    const y = Math.floor(t / g.w)
-    for (let d = 0; d < 8; d++) {
-      const nx = x + D8[d]
-      const ny = y + E8[d]
-      if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h) continue
-      const n = ny * g.w + nx
-      if (g.seen[n] === s || !isWater(g, n)) continue
+    const d = g.dist[t] + 1
+    const k = neighbors(g, t)
+    for (let i = 0; i < k; i++) {
+      const n = N1[i]
+      if (!isWater(g, n) || (g.seen[n] === s && g.dist[n] <= d) || (band && g.blocks.band[blockOf(g, n)] !== band)) continue
       g.seen[n] = s
+      g.dist[n] = d
       g.prev[n] = t
-      g.queue[tail++] = n
+      heap.push(n, d + h(n))
     }
   }
   return null
 }
 
-function landsOn(g: Game, water: number, id: number): boolean {
-  const k = neighbors(g, water, N2)
-  for (let i = 0; i < k; i++) if (g.owner[N2[i]] === id) return true
-  return false
+// Les eaux qui bordent un joueur, rangées par bassin.
+function coastsOf(g: Game, id: number): Map<number, number[]> {
+  const coasts = new Map<number, number[]>()
+  for (const t of player(g, id).border) {
+    const k = neighbors(g, t, N2)
+    for (let i = 0; i < k; i++) {
+      const w = N2[i]
+      if (!isWater(g, w)) continue
+      const list = coasts.get(g.basin[w])
+      if (list) list.push(w)
+      else coasts.set(g.basin[w], [w])
+    }
+  }
+  return coasts
 }
 
-// Où débarquer : la côte la plus proche de la case visée qui soit joignable par la mer depuis le joueur.
-// Une rive de lac intérieur ne mène nulle part ; on écarte d'un coup tout plan d'eau déjà parcouru en vain.
-function landing(g: Game, from: number, tile: number): { dst: number; path: Int32Array } | null {
-  const dead = new Set<number>()
+const nearestTo = (g: Game, list: number[], target: number, count: number) =>
+  list.length <= count ? list : [...list].sort((a, b) => dist2(g, a, target) - dist2(g, b, target)).slice(0, count)
+
+// Où débarquer : la côte la plus proche de la case visée qui partage un bassin avec une côte du joueur.
+// Une rive de lac intérieur est écartée d'emblée, sans chercher de route.
+function landing(g: Game, from: number, tile: number, thorough: boolean): { dst: number; path: Int32Array } | null {
+  const coasts = coastsOf(g, from)
+  if (!coasts.size) return null
   for (const shore of shoresNear(g, tile)) {
     const k = neighbors(g, shore)
-    let known = false
-    for (let i = 0; i < k; i++) if (isWater(g, N1[i]) && dead.has(g.seen[N1[i]])) known = true
-    if (known) continue
-    const path = sail(g, shore, (w) => landsOn(g, w, from))
-    if (path) return { dst: shore, path }
-    dead.add(g.stamp)
+    const waters = Array.from(N1.subarray(0, k)).filter((w) => isWater(g, w) && coasts.has(g.basin[w]))
+    for (const w of waters) {
+      const path = route(g, nearestTo(g, coasts.get(g.basin[w])!, w, 40), w, thorough)
+      if (path) return { dst: shore, path }
+    }
   }
   return null
 }
 
 export const boatsOf = (g: Game, id: number) => g.boats.filter((b) => b.owner === id && !b.trade).length
 
-export function sendBoat(g: Game, from: number, tile: number, troops: number): boolean {
+// `thorough` : le joueur peut payer une longue recherche de route ; l'IA se contente du couloir.
+export function sendBoat(g: Game, from: number, tile: number, troops: number, thorough = true): boolean {
   const p = player(g, from)
   const to = g.owner[tile]
   if (!passable(g, tile) || to === from || (to && allied(g, from, to)) || boatsOf(g, from) >= MAX_BOATS) return false
-  const route = landing(g, from, tile)
+  const found = landing(g, from, tile, thorough)
   const sent = Math.min(troops, p.troops)
-  if (!route || sent < 1) return false
-  const { dst, path } = route
+  if (!found || sent < 1) return false
+  const { dst, path } = found
   p.troops -= sent
   hostility(g, from, to)
   g.boats.push({ id: g.nextId++, owner: from, to, troops: sent, path, at: 0, dst, trade: false, gold: 0, port: 0 })
@@ -750,23 +879,36 @@ export function demolish(g: Game, id: number, tile: number): boolean {
 
 const atWar = (g: Game, a: number, b: number) => g.attacks.some((x) => (x.from === a && x.to === b) || (x.from === b && x.to === a))
 
-function nextTo(g: Game, water: number, tile: number): boolean {
-  const k = neighbors(g, water, N2)
-  for (let i = 0; i < k; i++) if (N2[i] === tile) return true
-  return false
+// La route d'un port à l'autre, s'ils donnent sur le même bassin.
+function portRoute(g: Game, from: number, to: number): Int32Array | null {
+  const waters = (t: number) => Array.from(N1.subarray(0, neighbors(g, t))).filter((w) => isWater(g, w))
+  const arrival = waters(to)
+  for (const w of waters(from)) {
+    const goal = arrival.find((a) => g.basin[a] === g.basin[w])
+    if (goal !== undefined) return route(g, [w], goal, false)
+  }
+  return null
 }
 
 // Le commerce : de temps en temps, un port envoie un navire vers le port d'un joueur en paix avec lui.
 function spawnTrade(g: Game) {
   const ports = g.units.filter((u) => u.type === 'port' && u.ready <= g.tick)
   if (ports.length < 2 || g.boats.filter((b) => b.trade).length >= 80) return
+  let charted = false
   for (const port of ports) {
     if (g.rng() * 12 > port.level) continue
     const partners = ports.filter((q) => q.owner !== port.owner && relation(g, q.owner, port.owner) > -50 && !atWar(g, q.owner, port.owner))
     if (!partners.length) continue
-    const dest = partners[Math.floor(g.rng() * partners.length)]
+    // on commerce surtout avec les ports voisins : un tiers des partenaires, au moins quatre, les plus proches
+    const near = partners.sort((a, b) => dist2(g, a.tile, port.tile) - dist2(g, b.tile, port.tile)).slice(0, Math.max(4, Math.ceil(partners.length / 3)))
+    const dest = near[Math.floor(g.rng() * near.length)]
     const key = `${port.id}-${dest.id}`
-    if (!g.routes.has(key)) g.routes.set(key, sail(g, dest.tile, (w) => nextTo(g, w, port.tile)))
+    if (!g.routes.has(key)) {
+      // une seule nouvelle route calculée par passage : les autres ports attendent le suivant
+      if (charted) continue
+      charted = true
+      g.routes.set(key, portRoute(g, port.tile, dest.tile))
+    }
     const path = g.routes.get(key)
     if (!path) continue
     g.boats.push({ id: g.nextId++, owner: port.owner, to: dest.owner, troops: 0, path, at: 0, dst: dest.tile, trade: true, gold: Math.min(150_000, 20_000 + 100 * path.length), port: dest.id })
@@ -997,10 +1139,13 @@ function stepDiplomacy(g: Game) {
 // --- encerclement ---
 
 // Un morceau de territoire entièrement cerné par un seul ennemi, sans accès à la mer ni à la terre libre, lui revient.
+// On parcourt au plus 30 000 cases par passage : un grand empire n'est pas cerné, et ses enclaves se trouvent vite.
 function annexEnclosed(g: Game, p: Player) {
   if (!p.alive || !p.tiles) return
   const s = nextStamp(g)
-  for (const start of [...p.border]) {
+  let budget = 30_000
+  for (const start of p.border) {
+    if (budget <= 0) return
     if (g.seen[start] === s || g.owner[start] !== p.id) continue
     let head = 0
     let tail = 0
@@ -1008,7 +1153,7 @@ function annexEnclosed(g: Game, p: Player) {
     g.seen[start] = s
     let surrounder = 0
     let open = false
-    while (head < tail) {
+    while (head < tail && head < budget) {
       const t = g.queue[head++]
       const k = neighbors(g, t)
       for (let i = 0; i < k; i++) {
@@ -1024,7 +1169,8 @@ function annexEnclosed(g: Game, p: Player) {
         else surrounder = o
       }
     }
-    if (open || !surrounder || allied(g, p.id, surrounder)) continue
+    budget -= head
+    if (open || head < tail || !surrounder || allied(g, p.id, surrounder)) continue
     const cluster = Array.from(g.queue.subarray(0, tail))
     p.troops *= 1 - tail / p.tiles
     p.killer = surrounder
