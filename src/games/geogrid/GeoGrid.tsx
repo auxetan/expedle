@@ -74,7 +74,7 @@ export default function GeoGrid({ mode }: { mode?: string }) {
 
   async function share() {
     const lines = [0, 1, 2].map((r) => [0, 1, 2].map((c) => (state.cells[r * 3 + c] ? '🟩' : '⬛')).join(''))
-    const text = `GeoGrid Méridien ${practice ? t('(partie libre)') : day} ${filled}/9\n${lines.join('\n')}`
+    const text = `GeoGrid Expedle ${practice ? t('(partie libre)') : day} ${filled}/9\n${lines.join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }

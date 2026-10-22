@@ -1,6 +1,6 @@
 # Jeux à ajouter plus tard
 
-Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Méridien : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, Countryle, Flagle, GeoGrid, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
+Liste tirée de la recherche sur les jeux de géographie et de culture générale les plus joués (octobre 2026). Déjà dans Expedle : Travle, Seterra, GeoHunter, Magnitudle, JetPunk, Worldle, Globle, Countryle, Flagle, GeoGrid, GeoGuessr (vues de rue 360° : Panoramax en France sans clé, Mapillary avec un jeton gratuit, Google Street View avec une clé) et PhotoGuessr (photos, sans clé).
 
 Effort : **petit** = quelques heures avec les données du projet, **moyen** = une nouvelle source de données, **gros** = un serveur ou un service payant.
 

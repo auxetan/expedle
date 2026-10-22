@@ -45,7 +45,7 @@ export default function MgShell({ title, help, children }: { title: string; help
       </header>
       <main className="mg-main">{children}</main>
       <footer className="mg-foot">
-        <span className="mg-kicker">MAGNITUDLE · MÉRIDIEN</span>
+        <span className="mg-kicker">MAGNITUDLE · EXPEDLE</span>
         <a href="#/estimation">{t('Tous les jeux Magnitudle →')}</a>
       </footer>
       </div>

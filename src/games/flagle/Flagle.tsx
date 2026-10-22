@@ -78,7 +78,7 @@ export default function Flagle({ mode }: { mode?: string }) {
 
   async function share() {
     const tiles = t('{n}/{total} tuiles vues', { n: visibleTiles(won ? state.guesses.length - 1 : MAX_GUESSES, false), total: TILES })
-    const text = `Flagle Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES} · ${tiles}\n${rows
+    const text = `Flagle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES} · ${tiles}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))

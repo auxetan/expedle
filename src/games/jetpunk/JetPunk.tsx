@@ -350,7 +350,7 @@ function QuizPlay({ quiz, shared }: { quiz: TableQuiz; shared?: boolean }) {
                   className="ui-btn line"
                   onClick={() =>
                     copy(
-                      t('{title} — {found}/{total} ({pct} %) en {time} sur Méridien', { title: quiz.title, found: found.size, total, pct, time: formatTime(result.ms) }),
+                      t('{title} — {found}/{total} ({pct} %) en {time} sur Expedle', { title: quiz.title, found: found.size, total, pct, time: formatTime(result.ms) }),
                       t('Résultat copié !'),
                     )
                   }

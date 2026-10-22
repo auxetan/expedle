@@ -43,7 +43,7 @@ export default function AppBar({ title, home = false, settings, tools, children 
           {home ? (
             <a href="#/" className="ui-brand">
               <Logo />
-              <span>méridien</span>
+              <span>expedle</span>
             </a>
           ) : (
             <a href="#/" className="ui-back" aria-label={t('Accueil')}>

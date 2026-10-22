@@ -18,8 +18,8 @@ const STAMPING = ['worldle', 'globle', 'countryle', 'flagle', 'dailygeo', 'geogr
 
 // Le numéro du passeport : le code ami quand on est connecté, sinon un numéro tiré de l'appareil.
 function passportNumber(code: string, seed: string): string {
-  if (code) return `M${code}`
-  return `M${(hashString(seed) % 36 ** 7).toString(36).toUpperCase().padStart(7, '0')}X`
+  if (code) return `E${code}`
+  return `E${(hashString(seed) % 36 ** 7).toString(36).toUpperCase().padStart(7, '0')}X`
 }
 
 export default function Passport() {
@@ -50,7 +50,7 @@ export default function Passport() {
       number,
       issued,
       expires,
-      mrz: mrz({ surname: name, given: t(level.title), number, issued, expires, country: 'MRD', personal: `L${level.level}P${cover.stamped}` }),
+      mrz: mrz({ surname: name, given: t(level.title), number, issued, expires, country: 'EXP', personal: `L${level.level}P${cover.stamped}` }),
       stamped: cover.stamped,
       total: cover.total,
     }

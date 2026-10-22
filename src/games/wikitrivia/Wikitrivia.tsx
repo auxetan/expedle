@@ -63,7 +63,7 @@ export default function Wikitrivia({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Wikitrivia Méridien ${practice ? t('(partie libre)') : day} · ${good}/${DECK - 1}\n${state.results.map((r) => (r ? '🟩' : '🟥')).join('')}`
+    const text = `Wikitrivia Expedle ${practice ? t('(partie libre)') : day} · ${good}/${DECK - 1}\n${state.results.map((r) => (r ? '🟩' : '🟥')).join('')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }

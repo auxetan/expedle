@@ -181,7 +181,7 @@ export default function Leaderboards({ tab }: { tab?: string }) {
         {!cloudEnabled ? (
           <section className="lb-closed">
             <h2>{t('Les classements arrivent bientôt')}</h2>
-            <p className="muted">{t('Cette version de Méridien n’est pas encore reliée à un compte en ligne : tes parties restent sur cet appareil.')}</p>
+            <p className="muted">{t('Cette version d’Expedle n’est pas encore reliée à un compte en ligne : tes parties restent sur cet appareil.')}</p>
           </section>
         ) : (
           <>

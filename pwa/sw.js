@@ -1,5 +1,5 @@
-// Service worker de Méridien : tout le site est mis en cache pour jouer hors ligne.
-const CACHE = 'meridien-__VERSION__'
+// Service worker d’Expedle : tout le site est mis en cache pour jouer hors ligne.
+const CACHE = 'expedle-__VERSION__'
 const PRECACHE = __PRECACHE__
 
 self.addEventListener('install', (event) => {

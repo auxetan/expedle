@@ -116,7 +116,7 @@ async function commons(params: Record<string, string>, signal: AbortSignal): Pro
     ...params,
   })
   // Wikimedia demande aux outils de se présenter ; ce nom passe par un en-tête autorisé en CORS.
-  const res = await fetch(`${API}?${q}`, { signal, headers: { 'Api-User-Agent': 'Meridien/1.0 (jeu de géographie personnel)' } })
+  const res = await fetch(`${API}?${q}`, { signal, headers: { 'Api-User-Agent': 'Expedle/1.0 (jeu de géographie personnel)' } })
   if (res.status === 429) throw new RateLimited(1000 * (Number(res.headers.get('Retry-After')) || 2))
   if (!res.ok) throw new Error(`Commons ${res.status}`)
   const data = (await res.json()) as { query?: { pages?: Record<string, CommonsPage> } }
