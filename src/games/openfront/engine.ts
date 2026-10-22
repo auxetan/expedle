@@ -541,17 +541,18 @@ function nextStamp(g: Game): number {
   return g.stamp
 }
 
-// La côte la plus proche de la case visée, sur la terre du même propriétaire.
-function shoreNear(g: Game, tile: number): number {
+// Les côtes de la terre visée, de la plus proche à la plus lointaine (30 au plus).
+function shoresNear(g: Game, tile: number): number[] {
   const o = g.owner[tile]
   const s = nextStamp(g)
+  const found: number[] = []
   let head = 0
   let tail = 0
   g.queue[tail++] = tile
   g.seen[tile] = s
-  while (head < tail && head < 400_000) {
+  while (head < tail && head < 400_000 && found.length < 30) {
     const t = g.queue[head++]
-    if (coastal(g, t)) return t
+    if (coastal(g, t)) found.push(t)
     const k = neighbors(g, t)
     for (let i = 0; i < k; i++) {
       const n = N1[i]
@@ -561,7 +562,7 @@ function shoreNear(g: Game, tile: number): number {
       }
     }
   }
-  return -1
+  return found
 }
 
 const D8 = [-1, 1, 0, 0, -1, -1, 1, 1]
@@ -609,17 +610,32 @@ function landsOn(g: Game, water: number, id: number): boolean {
   return false
 }
 
+// Où débarquer : la côte la plus proche de la case visée qui soit joignable par la mer depuis le joueur.
+// Une rive de lac intérieur ne mène nulle part ; on écarte d'un coup tout plan d'eau déjà parcouru en vain.
+function landing(g: Game, from: number, tile: number): { dst: number; path: Int32Array } | null {
+  const dead = new Set<number>()
+  for (const shore of shoresNear(g, tile)) {
+    const k = neighbors(g, shore)
+    let known = false
+    for (let i = 0; i < k; i++) if (isWater(g, N1[i]) && dead.has(g.seen[N1[i]])) known = true
+    if (known) continue
+    const path = sail(g, shore, (w) => landsOn(g, w, from))
+    if (path) return { dst: shore, path }
+    dead.add(g.stamp)
+  }
+  return null
+}
+
 export const boatsOf = (g: Game, id: number) => g.boats.filter((b) => b.owner === id && !b.trade).length
 
 export function sendBoat(g: Game, from: number, tile: number, troops: number): boolean {
   const p = player(g, from)
   const to = g.owner[tile]
   if (!passable(g, tile) || to === from || (to && allied(g, from, to)) || boatsOf(g, from) >= MAX_BOATS) return false
-  const dst = shoreNear(g, tile)
-  if (dst < 0) return false
-  const path = sail(g, dst, (w) => landsOn(g, w, from))
+  const route = landing(g, from, tile)
   const sent = Math.min(troops, p.troops)
-  if (!path || sent < 1) return false
+  if (!route || sent < 1) return false
+  const { dst, path } = route
   p.troops -= sent
   hostility(g, from, to)
   g.boats.push({ id: g.nextId++, owner: from, to, troops: sent, path, at: 0, dst, trade: false, gold: 0, port: 0 })
