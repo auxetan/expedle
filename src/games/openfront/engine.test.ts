@@ -17,6 +17,7 @@ import {
   OCEAN,
   player,
   priceOf,
+  recallBoat,
   requestAlliance,
   sendBoat,
   spawn,
@@ -126,6 +127,7 @@ describe('attaques', () => {
     expect(y.alive).toBe(false)
     expect(y.killer).toBe(x.id)
     expect(x.gold).toBeGreaterThanOrEqual(1000)
+    expect(small.events.find((e) => e.type === 'eliminated')?.gold).toBeGreaterThanOrEqual(1000)
   })
 
   it('s’annulent quand deux joueurs s’attaquent l’un l’autre', () => {
@@ -167,6 +169,22 @@ describe('bateaux', () => {
     // la case visée touche le lac, mais seule la mer mène jusqu'au joueur
     expect(sendBoat(g, p.id, at(g, 20, 2), 100)).toBe(true)
     expect(g.boats[0].path.length).toBeGreaterThan(5)
+  })
+
+  it('font demi-tour quand on les rappelle et ramènent toutes leurs troupes', () => {
+    const g = createGame(map(islands), 'moyen', mulberry32(3))
+    const p = addPlayer(g, 'A', 'human')
+    spawn(g, p.id, at(g, 3, 2))
+    p.troops = 20_000
+    expect(sendBoat(g, p.id, at(g, 22, 2), 5000)).toBe(true)
+    run(g, 5)
+    const left = p.troops
+    recallBoat(g, g.boats[0].id)
+    run(g, 10)
+    expect(g.boats).toHaveLength(0)
+    expect(p.troops).toBeGreaterThanOrEqual(left + 5000)
+    expect([...g.owner].filter((o) => o === p.id).length).toBe(p.tiles)
+    expect(g.owner[at(g, 22, 2)]).toBe(0)
   })
 
   it('ne sont que trois à la fois', () => {
@@ -263,6 +281,73 @@ describe('usines et trains', () => {
     const first = priceOf(g, a.id, 'usine')
     g.units.push({ id: 999, type: 'port', owner: a.id, tile: at(g, 0, 0), level: 1, ready: 0, cooldown: 0, slots: [0], hp: 0, home: 0, goal: -1 })
     expect(priceOf(g, a.id, 'usine')).toBe(first * 2)
+  })
+})
+
+describe('commerce', () => {
+  const sea = ['.'.repeat(64), ...Array.from({ length: 14 }, () => '..' + '#'.repeat(11) + '.'.repeat(12) + '#'.repeat(11) + '.'.repeat(12) + '#'.repeat(11) + '...'), '.'.repeat(64)]
+
+  // trois îles, chacune à un joueur, avec un port sur la côte
+  function harbors() {
+    const g = createGame(map(sea), 'moyen', mulberry32(5))
+    const players = ['A', 'B', 'C'].map((name, i) => {
+      const p = addPlayer(g, name, i ? 'nation' : 'human')
+      spawn(g, p.id, at(g, 7 + i * 23, 8))
+      p.troops = 1e6
+      startAttack(g, p.id, 0, 5e5)
+      return p
+    })
+    run(g, 60)
+    for (const p of players) {
+      p.gold = 1e7
+      expect(build(g, p.id, 'port', at(g, 7 + (p.id - 1) * 23, 1))).toBe('ok')
+    }
+    run(g, BUILD_TICKS.port)
+    return { g, a: players[0], b: players[1], c: players[2] }
+  }
+
+  it('fait naviguer des navires marchands entre ports, qui rapportent de l’or aux deux bouts', () => {
+    const { g, a } = harbors()
+    const before = a.gold
+    let i = 0
+    for (; i < 3000 && !g.events.some((e) => e.type === 'trade' && (e.from === a.id || e.to === a.id)); i++) step(g)
+    const trade = g.events.find((e) => e.type === 'trade' && (e.from === a.id || e.to === a.id))!
+    expect(trade.gold).toBeGreaterThan(0)
+    expect(a.gold - before).toBeGreaterThanOrEqual(trade.gold!)
+  })
+
+  it('laisse partir les navires d’un port même quand les autres joueurs en ont déjà beaucoup en mer', () => {
+    const { g, a, b } = harbors()
+    const water = at(g, 0, 0)
+    for (let i = 0; i < 120; i++) g.boats.push({ id: g.nextId++, owner: b.id, to: 0, troops: 0, path: new Int32Array(9999).fill(water), at: 0, dst: water, trade: true, gold: 0, port: 0, back: false })
+    let sent = false
+    for (let i = 0; i < 2000 && !sent; i++) {
+      step(g)
+      sent = g.boats.some((x) => x.trade && x.owner === a.id)
+    }
+    expect(sent).toBe(true)
+  })
+
+  it('se font capturer par un navire de guerre ennemi, qui les ramène à son port et en garde l’or', () => {
+    const { g, c } = harbors()
+    c.gold = 1e7
+    expect(build(g, c.id, 'navire', at(g, 53, 1))).toBe('ok')
+    let i = 0
+    for (; i < 4000 && !g.events.some((e) => e.type === 'captured' && e.from === c.id); i++) step(g)
+    const taken = g.events.find((e) => e.type === 'captured' && e.from === c.id)!
+    expect(taken).toBeDefined()
+    const boat = g.boats.find((x) => x.trade && x.owner === c.id && x.port === g.units.find((u) => u.type === 'port' && u.owner === c.id)!.id)
+    expect(boat).toBeDefined()
+  })
+
+  it('ne se font pas prendre par les navires d’un allié', () => {
+    const { g, a, c } = harbors()
+    requestAlliance(g, a.id, c.id)
+    accept(g, a.id, c.id)
+    c.gold = 1e7
+    build(g, c.id, 'navire', at(g, 53, 1))
+    for (let i = 0; i < 1500; i++) step(g)
+    expect(g.events.some((e) => e.type === 'captured' && e.to === a.id)).toBe(false)
   })
 })
 
