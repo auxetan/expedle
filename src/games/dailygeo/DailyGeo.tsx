@@ -69,7 +69,7 @@ export default function DailyGeo({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `DailyGeo Méridien ${practice ? t('(partie libre)') : day} ${found ? state.guesses.length : 'X'}/${MAX_GUESSES} ${capitalOk ? '🏛️' : '✖️'} · ${pts}/100\n${rows
+    const text = `DailyGeo Expedle ${practice ? t('(partie libre)') : day} ${found ? state.guesses.length : 'X'}/${MAX_GUESSES} ${capitalOk ? '🏛️' : '✖️'} · ${pts}/100\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
