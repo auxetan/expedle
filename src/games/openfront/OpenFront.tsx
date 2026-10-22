@@ -44,7 +44,7 @@ import {
 import { anchors, type Anchor } from './labels'
 import { worldMap } from './map'
 import RadialMenu, { ICON, type MenuItem } from './RadialMenu'
-import { compact, draw, Painter, palette, type View } from './render'
+import { compact, draw, Painter, palette, troopsText, type View } from './render'
 import { EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
@@ -88,7 +88,7 @@ interface Hud {
   growth: number
   gold: number
   income: number
-  top: { id: number; name: string; share: number }[]
+  top: { id: number; name: string; gold: number; troops: number }[]
   attacks: { id: number; name: string; troops: number }[]
   // ce qui arrive sur toi : attaques par la terre et débarquements en route
   incoming: { id: number; name: string; troops: number; boat: boolean }[]
@@ -418,7 +418,7 @@ export default function OpenFront() {
       }
       last = now
       painter.flush()
-      draw(ctx, painter, g, view, cw, ch, labels, ME)
+      draw(ctx, painter, g, view, cw, ch, labels, ME, live.current.phase === 'jeu' ? Math.min(1, acc / TICK_MS) : 0)
     }
     resize()
     raf = requestAnimationFrame(frame)
@@ -440,7 +440,7 @@ export default function OpenFront() {
         growth: troopGrowth(me.kind, g.level, me.troops, max) * 10,
         gold: me.gold,
         income: goldPerTick(me.kind) * 10,
-        top: top.map((p) => ({ id: p.id, name: p.name, share: p.tiles / g.land })),
+        top: top.map((p) => ({ id: p.id, name: p.name, gold: p.gold, troops: p.troops })),
         attacks: g.attacks.filter((a) => a.from === ME).map((a) => ({ id: a.id, name: nameOf(g, a.to), troops: a.troops })),
         incoming: [
           ...g.attacks.filter((a) => a.to === ME).map((a) => ({ id: a.id, name: nameOf(g, a.from), troops: a.troops, boat: false })),
@@ -453,13 +453,13 @@ export default function OpenFront() {
         if (a.to === ME && !warned.has(a.id)) {
           warned.add(a.id)
           feedback('bad')
-          note(t('{name} t’attaque avec {n} troupes', { name: nameOf(g, a.from), n: compact(a.troops) }), undefined, 6)
+          note(t('{name} t’attaque avec {n} troupes', { name: nameOf(g, a.from), n: troopsText(a.troops) }), undefined, 6)
         }
       for (const b of g.boats)
         if (b.to === ME && !b.trade && !warned.has(b.id)) {
           warned.add(b.id)
           feedback('bad')
-          note(t('Débarquement de {name} en approche : {n} troupes', { name: nameOf(g, b.owner), n: compact(b.troops) }), undefined, 6)
+          note(t('Débarquement de {name} en approche : {n} troupes', { name: nameOf(g, b.owner), n: troopsText(b.troops) }), undefined, 6)
         }
     }, 250)
     const labelTimer = window.setInterval(() => (labels = anchors(g)), 1000)
@@ -643,10 +643,16 @@ export default function OpenFront() {
           )}
           {(phase === 'jeu' || phase === 'fin') && hud && (
             <ol className="of-rank">
+              <li className="head">
+                <span />
+                <small>{t('Or')}</small>
+                <small>{t('Troupes')}</small>
+              </li>
               {hud.top.map((p) => (
                 <li key={p.id} className={p.id === ME ? 'me' : ''}>
                   <span>{p.name}</span>
-                  <b>{percent(p.share)} %</b>
+                  <b className="of-gold">{compact(p.gold)}</b>
+                  <b>{troopsText(p.troops)}</b>
                 </li>
               ))}
             </ol>
@@ -661,7 +667,7 @@ export default function OpenFront() {
               </header>
               <dl>
                 <dt>{t('Troupes')}</dt>
-                <dd>{compact(shown.troops)}</dd>
+                <dd>{troopsText(shown.troops)}</dd>
                 <dt>{t('Or')}</dt>
                 <dd className="of-gold">{compact(shown.gold)}</dd>
                 <dt>{t('Territoire')}</dt>
@@ -706,7 +712,7 @@ export default function OpenFront() {
                 </b>
                 <dl>
                   <dt>{t('Troupes')}</dt>
-                  <dd>{compact(hovered.troops)}</dd>
+                  <dd>{troopsText(hovered.troops)}</dd>
                   <dt>{t('Or')}</dt>
                   <dd className="of-gold">{compact(hovered.gold)}</dd>
                   <dt>{t('Territoire')}</dt>
@@ -746,14 +752,14 @@ export default function OpenFront() {
                 {hud.incoming.map((a) => (
                   <li key={`in${a.id}`} className="in">
                     <span>
-                      {a.boat ? '⛵' : '⚔'} {a.name} · {compact(a.troops)}
+                      {a.boat ? '⛵' : '⚔'} {a.name} · {troopsText(a.troops)}
                     </span>
                   </li>
                 ))}
                 {hud.attacks.map((a) => (
                   <li key={a.id}>
                     <span>
-                      → {a.name} · {compact(a.troops)}
+                      → {a.name} · {troopsText(a.troops)}
                     </span>
                     <button onClick={() => g && retreat(g, a.id)} aria-label={t('Rappeler les troupes')}>
                       ×
@@ -795,7 +801,7 @@ export default function OpenFront() {
             <div className="of-hud">
               <div className="of-stat">
                 <span>
-                  <b>{compact(hud.troops)}</b> / {compact(hud.max)} <small>+{compact(hud.growth)}/s</small>
+                  <b>{troopsText(hud.troops)}</b> / {troopsText(hud.max)} <small>+{troopsText(hud.growth)}/s</small>
                 </span>
                 <span className="of-bar">
                   <i style={{ width: `${Math.min(100, (hud.troops / hud.max) * 100)}%` }} />
