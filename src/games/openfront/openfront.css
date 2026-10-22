@@ -94,6 +94,22 @@
   color: var(--bg);
 }
 
+/* le malus de trahison qui court, posé sur la carte pour ne rien décaler */
+.of-traitor {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--bad);
+  background: var(--card);
+  color: var(--bad);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* réglages de la partie solo, sous les niveaux */
 .of-options {
   display: flex;
