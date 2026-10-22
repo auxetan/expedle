@@ -7,7 +7,7 @@ Enregistre chaque image sous le nom indiqué dans `public/icons/` : je les branc
 ## Style commun (à coller en premier)
 
 ```
-Tu vas créer une série d'icônes de jeux pour Méridien, un site de jeux de géographie et de culture générale. Le style doit être strictement identique pour toutes les icônes :
+Tu vas créer une série d'icônes de jeux pour Expedle, un site de jeux de géographie et de culture générale. Le style doit être strictement identique pour toutes les icônes :
 
 - Illustration vectorielle plate et minimaliste : formes géométriques simples aux angles arrondis, volumes pleins, aucune texture, aucun dégradé, aucune ombre portée, aucune 3D, aucun contour noir.
 - Palette fixe, uniquement ces couleurs : bleu poudré #8FB4D8, terracotta #E07A5F, sauge #8FBF8F, moutarde #E3B55B, vieux rose #C9899A, vert d'eau #88AFA2, crème #ECE6DA. Trois couleurs au maximum par icône. Le crème ne sert qu'aux petits détails posés sur une forme colorée, jamais en bord extérieur. Jamais de noir ni de blanc pur.
