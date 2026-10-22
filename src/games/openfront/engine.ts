@@ -600,7 +600,7 @@ function nextStamp(g: Game): number {
   return g.stamp
 }
 
-// Les côtes de la terre visée, de la plus proche à la plus lointaine (30 au plus).
+// Les côtes de la terre visée, de la plus proche à la plus lointaine (30 au plus, à 40 000 cases de parcours au plus).
 function shoresNear(g: Game, tile: number): number[] {
   const o = g.owner[tile]
   const s = nextStamp(g)
@@ -609,7 +609,7 @@ function shoresNear(g: Game, tile: number): number[] {
   let tail = 0
   g.queue[tail++] = tile
   g.seen[tile] = s
-  while (head < tail && head < 400_000 && found.length < 30) {
+  while (head < tail && head < 40_000 && found.length < 30) {
     const t = g.queue[head++]
     if (coastal(g, t)) found.push(t)
     const k = neighbors(g, t)
@@ -1139,11 +1139,11 @@ function stepDiplomacy(g: Game) {
 // --- encerclement ---
 
 // Un morceau de territoire entièrement cerné par un seul ennemi, sans accès à la mer ni à la terre libre, lui revient.
-// On parcourt au plus 30 000 cases par passage : un grand empire n'est pas cerné, et ses enclaves se trouvent vite.
+// On parcourt au plus 10 000 cases par passage : un grand empire n'est pas cerné, et ses enclaves se trouvent vite.
 function annexEnclosed(g: Game, p: Player) {
   if (!p.alive || !p.tiles) return
   const s = nextStamp(g)
-  let budget = 30_000
+  let budget = 10_000
   for (const start of p.border) {
     if (budget <= 0) return
     if (g.seen[start] === s || g.owner[start] !== p.id) continue
