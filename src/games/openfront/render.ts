@@ -405,6 +405,15 @@ export interface Float {
 
 export const FLOAT_MS = 2000
 
+// Ce que l'interface pose par-dessus la partie : la zone d'une bombe qu'on vise, l'or gagné,
+// les marques au-dessus des noms (cible, emojis) et le navire de guerre qu'on dirige.
+export interface Overlay {
+  preview: Preview | null
+  floats: Float[]
+  marks: Map<number, string>
+  ship: number
+}
+
 export interface Preview {
   tile: number
   inner: number
@@ -424,9 +433,9 @@ export function draw(
   me: number,
   alpha: number,
   now: number,
-  preview: Preview | null,
-  floats: Float[],
+  overlay: Overlay,
 ) {
+  const { preview, floats, marks, ship } = overlay
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
   ctx.fillStyle = css(pal.water)
@@ -568,8 +577,16 @@ export function draw(
     const x = sx(u.tile)
     const y = sy(u.tile)
     if (!visible(x, y)) continue
-    const angle = u.goal >= 0 ? Math.atan2(sy(u.goal) - y, sx(u.goal) - x) : 0
+    const ahead = u.route ? u.route[Math.min((u.step ?? 0) + 1, u.route.length - 1)] : u.goal
+    const angle = ahead >= 0 && ahead !== u.tile ? Math.atan2(sy(ahead) - y, sx(ahead) - x) : 0
     boat(ctx, x, y, angle, hull * 1.25, pal.players[u.owner - 1], pal, 'guerre')
+    if (u.id === ship) {
+      ctx.beginPath()
+      ctx.arc(x, y, hull, 0, 2 * Math.PI)
+      ctx.lineWidth = 2
+      ctx.strokeStyle = css(pal.info)
+      ctx.stroke()
+    }
   }
 
   // obus
@@ -681,6 +698,16 @@ export function draw(
     ctx.fillText(text, f.x, f.y + 1)
   }
   ctx.textBaseline = 'alphabetic'
+
+  // cible et emojis, au-dessus du nom
+  ctx.font = '20px Ubuntu, system-ui, sans-serif'
+  for (const a of anchors) {
+    const mark = marks.get(a.id)
+    if (!mark) continue
+    const x = view.x + (a.x + 0.5) * view.s
+    const y = view.y + (a.y + 0.5) * view.s - 28
+    if (visible(x, y)) ctx.fillText(mark, x, y)
+  }
 
   ctx.font = '700 14px Ubuntu, system-ui, sans-serif'
   ctx.lineWidth = 3
