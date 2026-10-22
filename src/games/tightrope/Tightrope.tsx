@@ -66,7 +66,7 @@ export default function Tightrope({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Tightrope Méridien ${practice ? t('(partie libre)') : day} · ${good}/${STEPS}\n${state.answers.map((a, i) => (a === items[i].a ? '🟩' : '🟥')).join('')}${lives <= 0 ? ' 💥' : ' 🏁'}`
+    const text = `Tightrope Expedle ${practice ? t('(partie libre)') : day} · ${good}/${STEPS}\n${state.answers.map((a, i) => (a === items[i].a ? '🟩' : '🟥')).join('')}${lives <= 0 ? ' 💥' : ' 🏁'}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
