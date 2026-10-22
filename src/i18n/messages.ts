@@ -1152,6 +1152,7 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Impossible": ["Impossible", "Imposible", "Unmöglich", "Impossibile", "Impossível"],
   "Ville": ["City", "Ciudad", "Stadt", "Città", "Cidade"],
   "Port": ["Port", "Puerto", "Hafen", "Porto", "Porto"],
+  "Usine": ["Factory", "Fábrica", "Fabrik", "Fabbrica", "Fábrica"],
   "Poste de défense": ["Defense post", "Puesto de defensa", "Verteidigungsposten", "Postazione difensiva", "Posto de defesa"],
   "Silo à missiles": ["Missile silo", "Silo de misiles", "Raketensilo", "Silo missilistico", "Silo de mísseis"],
   "Défense antiaérienne": ["SAM launcher", "Defensa antiaérea", "Flugabwehr", "Difesa antiaerea", "Defesa antiaérea"],
