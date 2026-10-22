@@ -86,7 +86,7 @@ export default function Globle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Globle Méridien ${practice ? t('(partie libre)') : day}\n${won ? `🌍 ${plural(state.guesses.length, 'Trouvé en {n} essai', 'Trouvé en {n} essais')}` : `🏳️ ${t('Abandon')}`}\n${guesses
+    const text = `Globle Expedle ${practice ? t('(partie libre)') : day}\n${won ? `🌍 ${plural(state.guesses.length, 'Trouvé en {n} essai', 'Trouvé en {n} essais')}` : `🏳️ ${t('Abandon')}`}\n${guesses
       .slice(0, 12)
       .map((g) => (g.code === target ? '🟩' : g.km < 500 ? '🟥' : g.km < 2000 ? '🟧' : g.km < 6000 ? '🟨' : '⬜'))
       .join('')}`
