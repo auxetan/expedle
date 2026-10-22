@@ -28,6 +28,7 @@ export const GAMES: Record<string, GameInfo> = {
   'classement-jour': { title: 'GeoHunter : défi du jour', href: '#/classement/jour', unit: rang, lower: true },
   'classement-hebdo': { title: 'GeoHunter hebdo', href: '#/classement/hebdo', unit: rang, lower: true },
   cartographe: { title: 'Seterra', href: '#/cartographe', unit: (s) => `${s} %` },
+  openfront: { title: 'OpenFront', href: '#/openfront', unit: (s) => t('{n} % des terres', { n: s }) },
   'echelle-objets': { title: 'Size It Up', href: '#/echelle', unit: pts },
   'echelle-pop': { title: 'Size It Up : Pop Culture', href: '#/echelle/pop', unit: pts },
   'echelle-geo': { title: 'Size It Up : Géographie', href: '#/echelle/geo', unit: pts },
