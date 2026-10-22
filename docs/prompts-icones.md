@@ -175,3 +175,9 @@ Icône de PhotoGuessr, où l'on devine où une photo a été prise. Un cadre pho
 ```
 Icône de GeoGuessr, où l'on est lâché dans une vue de rue et où l'on doit deviner l'endroit. Un médaillon rond : en haut un ciel crème, en bas des collines taupe, et une route crème bordée de pointillés qui file droit vers l'horizon. Une grosse punaise de carte noire flotte au-dessus de l'horizon.
 ```
+
+### `openfront.png` : OpenFront
+
+```
+Icône d'OpenFront, où l'on conquiert le monde case après case contre des armées rivales. Une terre en gros pixels carrés, partagée entre un territoire taupe et un territoire crème, avec une rangée de pixels taupe foncé sur la frontière ; un petit drapeau noir planté sur le territoire taupe et, sur le vide à côté, un petit voilier noir qui part à l'assaut.
+```

@@ -29,6 +29,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
       { href: '#/photoguessr/jour', title: 'PhotoGuessr : défi du jour', tagline: 'Cinq photos, les mêmes pour tous', rhythm: 'quotidien', dailyId: 'photoguessr-jour', icon: 'photoguessr' },
       { href: '#/classement', title: 'GeoHunter', tagline: 'Chaque pays dans sa meilleure catégorie', rhythm: 'quotidien', dailyId: 'classement-jour', icon: 'geohunter' },
       { href: '#/cartographe', title: 'Seterra', tagline: 'Situer pays, capitales et drapeaux', rhythm: 'libre', icon: 'seterra' },
+      { href: '#/openfront', title: 'OpenFront', tagline: 'Conquérir le monde contre des bots', rhythm: 'libre', icon: 'openfront' },
     ],
   },
   {
