@@ -5,7 +5,7 @@ import type { Play } from './stats'
 import { hashString, load, save, todayKey } from './util'
 
 // Les jeux arrivés récemment, mis en avant tant qu'on ne les a pas essayés.
-export const NEW_GAMES = new Set(['#/statele', '#/dailygeo', '#/factle', '#/wikitrivia', '#/tightrope', '#/geoguessr/jour', '#/photoguessr/jour'])
+export const NEW_GAMES = new Set(['#/openfront', '#/statele', '#/dailygeo', '#/factle', '#/wikitrivia', '#/tightrope', '#/geoguessr/jour', '#/photoguessr/jour'])
 
 // Pour qui débute : les classiques, simples et rapides, avant les nouveautés.
 const STARTERS = new Set(['#/worldle', '#/itineraire', '#/quiz/jour', '#/flagle', '#/echelle', '#/globle', '#/question'])
