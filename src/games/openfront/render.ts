@@ -457,7 +457,8 @@ export function draw(
   const fronts: { x: number; y: number; troops: number; mine: boolean }[] = []
   for (const a of g.attacks) {
     const mine = a.from === me
-    if ((!mine && a.to !== me) || !a.front.size) continue
+    // comme sur OpenFront, s'étendre sur la terre libre ne montre ni front ni troupes : seulement les combats
+    if ((!mine && a.to !== me) || !a.to || !a.front.size) continue
     ctx.fillStyle = css(mine ? pal.info : pal.bad, 0.85)
     const seen: number[] = []
     let mx = 0
