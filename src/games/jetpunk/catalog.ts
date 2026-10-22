@@ -25,7 +25,7 @@ type Meta = Omit<TableQuiz, 'id' | 'rows' | 'time'> & { time?: number }
 const timeFor = (n: number) => Math.min(900, Math.max(60, Math.ceil((n * 6) / 30) * 30))
 
 function quiz(id: string, meta: Meta, rows: Row[]): TableQuiz {
-  return { id, ...meta, time: meta.time ?? timeFor(rows.length), rows, author: 'Méridien' }
+  return { id, ...meta, time: meta.time ?? timeFor(rows.length), rows, author: 'Expedle' }
 }
 
 const sovereign = COUNTRIES.filter((c) => !c.territory && c.continent !== 'AN')
