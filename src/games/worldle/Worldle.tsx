@@ -144,7 +144,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
 
   async function share() {
     const stars = '⭐'.repeat(good)
-    const text = `${v.title} Méridien ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
+    const text = `${v.title} Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
