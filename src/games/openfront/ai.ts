@@ -196,7 +196,7 @@ function structures(g: Game, p: Player) {
 }
 
 function nukes(g: Game, p: Player) {
-  if (g.level === 'facile' || !unitsOf(g, p.id, 'silo').some((s) => s.ready <= g.tick && s.cooldown <= g.tick)) return
+  if (g.level === 'facile' || !unitsOf(g, p.id, 'silo').some((s) => s.ready <= g.tick && s.slots.some((c) => c <= g.tick))) return
   const type = p.gold >= priceOf(g, p.id, 'hbombe') ? 'hbombe' : p.gold >= priceOf(g, p.id, 'bombe') ? 'bombe' : null
   if (!type || (g.level === 'moyen' && g.rng() > 0.3)) return
   // la cible : l'ennemi le plus étendu, sur une de ses villes si possible
