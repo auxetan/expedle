@@ -20,6 +20,7 @@ import {
   relation,
   requestAlliance,
   sendBoat,
+  sendEmoji,
   spawn,
   startAttack,
   unitsOf,
@@ -80,8 +81,10 @@ function diplomacy(g: Game, p: Player) {
     const asker = player(g, r.from)
     const trusted = !isTraitor(g, asker) && relation(g, p.id, asker.id) > -20
     // une tribu dit toujours oui ; une nation, si l'autre est fiable et pas trop faible pour valoir quelque chose
-    if (p.kind === 'bot' || (trusted && (asker.troops > p.troops * 0.4 || g.rng() < 0.5))) accept(g, r.from, p.id)
-    else refuse(g, r.from, p.id)
+    if (p.kind === 'bot' || (trusted && (asker.troops > p.troops * 0.4 || g.rng() < 0.5))) {
+      accept(g, r.from, p.id)
+      if (p.kind === 'nation' && asker.kind === 'human') sendEmoji(g, p.id, asker.id, '🤝')
+    } else refuse(g, r.from, p.id)
   }
   for (const a of g.alliances)
     if ((a.a === p.id || a.b === p.id) && a.asked) {
@@ -122,6 +125,7 @@ function attack(g: Game, p: Player, b: Brain) {
   // riposte contre qui nous attaque
   const attacker = g.attacks.find((a) => a.to === p.id && enemies.some((e) => e.id === a.from))
   if (attacker && spare(g, p, b) > 0) {
+    if (p.kind === 'nation' && player(g, attacker.from).kind === 'human' && g.rng() < 0.3) sendEmoji(g, p.id, attacker.from, '😡')
     startAttack(g, p.id, attacker.from, spare(g, p, b))
     return
   }
@@ -141,8 +145,10 @@ function attack(g: Game, p: Player, b: Brain) {
   if (p.kind === 'nation') for (const e of enemies) if (e.troops > p.troops * 1.5 && !isTraitor(g, e) && g.rng() < 0.1) requestAlliance(g, p.id, e.id)
   if (!ready) return
   const traitor = enemies.find((e) => isTraitor(g, e))
-  const target = traitor ?? enemies[0]
-  if (traitor || p.troops > target.troops * (p.kind === 'bot' ? 2 : 1.2)) startAttack(g, p.id, target.id, spare(g, p, b))
+  // la cible désignée par un allié passe avant le voisin le plus faible
+  const wanted = enemies.find((e) => g.players.some((q) => q.alive && q.target === e.id && allied(g, q.id, p.id)))
+  const target = traitor ?? wanted ?? enemies[0]
+  if (traitor || wanted || p.troops > target.troops * (p.kind === 'bot' ? 2 : 1.2)) startAttack(g, p.id, target.id, spare(g, p, b))
 }
 
 // Une traversée vers une terre proche de ses côtes, la terre libre d'abord ; un seul bateau à la fois.
@@ -181,11 +187,11 @@ function wish(g: Game, p: Player): UnitType | null {
   const count = (type: UnitType) => unitsOf(g, p.id, type).length
   const enemiesHaveSilos = g.units.some((u) => u.type === 'silo' && u.owner !== p.id && !allied(g, p.id, u.owner))
   if (!count('port') && p.tiles > 300 && [...p.border].some((t) => !isLand(g, t - 1) || !isLand(g, t + 1))) return 'port'
-  if (enemiesHaveSilos && !count('dca') && g.level !== 'facile') return 'dca'
+  if (enemiesHaveSilos && !count('dca') && g.level !== 'facile' && g.options.nukes) return 'dca'
   if (p.troops > maxTroopsOf(g, p) * 0.7 || count('ville') < p.tiles / 4000) return 'ville'
   // une usine relie les villes par le rail : les trains rapportent de l'or à chaque gare
   if (count('ville') >= 2 && count('usine') < count('ville') / 3 && g.rng() < 0.3) return 'usine'
-  if ((g.level === 'difficile' || g.level === 'impossible') && !count('silo') && p.tiles > 3000) return 'silo'
+  if ((g.level === 'difficile' || g.level === 'impossible') && !count('silo') && p.tiles > 3000 && g.options.nukes) return 'silo'
   if (count('poste') < 2 && g.rng() < 0.3) return 'poste'
   if (count('port') && count('navire') < 2 && g.rng() < 0.2) return 'navire'
   return null
