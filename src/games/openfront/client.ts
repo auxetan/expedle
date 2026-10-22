@@ -1,6 +1,6 @@
 // Côté affichage : une copie légère de la partie, tenue à jour par les envois du Worker, sur laquelle
 // on dessine et on prépare les menus ; les ordres du joueur partent vers le Worker, qui répond.
-import { addPlayer, createGame, markDirty, type Attack, type Game } from './engine'
+import { addPlayer, createGame, markDirty, player, type Attack, type Game, type Options } from './engine'
 import type { Heap } from './heap'
 import type { Anchor } from './labels'
 import type { WorldMap } from './map'
@@ -20,11 +20,11 @@ export class Sim {
   private waiting = new Map<number, (value: Reply) => void>()
   private paths = new Map<number, Int32Array>()
 
-  constructor(map: WorldMap, level: Level, name: string, names: Record<string, string>, nations: number, tribes: number) {
-    this.g = createGame(map, level, Math.random, false)
+  constructor(map: WorldMap, level: Level, name: string, names: Record<string, string>, nations: number, tribes: number, options: Options) {
+    this.g = createGame(map, level, Math.random, false, options)
     this.worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
     this.worker.onmessage = (e: MessageEvent<FromSim>) => this.receive(e.data)
-    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, name, seats: map.seats, names, nations, tribes })
+    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, name, seats: map.seats, names, nations, tribes, options })
   }
 
   private receive(m: FromSim) {
@@ -80,6 +80,9 @@ export class Sim {
     g.requests = s.requests
     g.events.push(...s.events)
     if (s.labels) this.labels = s.labels
+    const me = player(g, 1)
+    me.target = s.me.target
+    me.embargo = new Set(s.me.embargo)
   }
 
   send(cmd: Command): Promise<Reply> {
