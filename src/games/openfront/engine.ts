@@ -78,6 +78,12 @@ export interface Player {
   cityLevels: number
   killer: number
   spawn: number[]
+  // le joueur désigné à ses alliés, ou 0
+  target: number
+  // ceux avec qui ce joueur refuse de commercer
+  embargo: Set<number>
+  // dernier emoji envoyé, pour en limiter le flot
+  emojiAt: number
 }
 
 export interface Attack {
@@ -118,9 +124,11 @@ export interface Unit {
   // silos et défenses antiaériennes : un emplacement de tir par niveau, chacun avec sa fin de recharge
   slots: number[]
   hp: number
-  // navires de guerre : le port d'attache et le point visé
+  // navires de guerre : le port d'attache et le point visé, et la route quand on les envoie ailleurs
   home: number
   goal: number
+  route?: Int32Array
+  step?: number
 }
 
 export interface Rail {
@@ -182,7 +190,21 @@ export interface Request {
   until: number
 }
 
-export type EventType = 'request' | 'accepted' | 'refused' | 'expired' | 'extend' | 'eliminated' | 'nuke' | 'intercepted' | 'betrayed' | 'trade' | 'captured'
+export type EventType =
+  | 'request'
+  | 'accepted'
+  | 'refused'
+  | 'expired'
+  | 'extend'
+  | 'eliminated'
+  | 'nuke'
+  | 'intercepted'
+  | 'betrayed'
+  | 'trade'
+  | 'captured'
+  | 'emoji'
+  | 'target'
+  | 'embargo'
 
 export interface GameEvent {
   type: EventType
@@ -192,7 +214,19 @@ export interface GameEvent {
   // l'or gagné, et la case où le montrer
   gold?: number
   tile?: number
+  emoji?: string
 }
+
+// Les réglages d'une partie solo, comme sur OpenFront.
+export interface Options {
+  instantBuild: boolean
+  // pour les joueurs humains seulement
+  infiniteGold: boolean
+  infiniteTroops: boolean
+  nukes: boolean
+}
+
+export const DEFAULT_OPTIONS: Options = { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: true }
 
 export interface Blast {
   tile: number
@@ -225,6 +259,7 @@ export interface Game {
   // terres franchissables, la base des 80 % à prendre
   land: number
   level: Level
+  options: Options
   rng: () => number
   mirvs: number
   nextId: number
@@ -298,7 +333,7 @@ function basins(w: number, h: number, terrain: Uint8Array): Int32Array {
 }
 
 // `routing` : la mémoire des recherches de chemin (bassins, blocs, tampons). La copie d'affichage n'en a pas besoin.
-export function createGame(map: GameMap, level: Level, rng: () => number = Math.random, routing = true): Game {
+export function createGame(map: GameMap, level: Level, rng: () => number = Math.random, routing = true, options: Options = DEFAULT_OPTIONS): Game {
   const n = map.w * map.h
   const work = routing ? n : 0
   let land = 0
@@ -327,6 +362,7 @@ export function createGame(map: GameMap, level: Level, rng: () => number = Math.
     tick: 0,
     land,
     level,
+    options,
     rng,
     mirvs: 0,
     nextId: 1,
@@ -363,6 +399,9 @@ export function addPlayer(g: Game, name: string, kind: Kind, code = ''): Player 
     cityLevels: 0,
     killer: 0,
     spawn: [],
+    target: 0,
+    embargo: new Set(),
+    emojiAt: -EMOJI_TICKS,
   }
   g.players.push(p)
   return p
@@ -881,6 +920,7 @@ export type BuildResult = 'ok' | 'or' | 'place' | 'port' | 'mer'
 
 // La case où le bâtiment se poserait (ou le bâtiment voisin du même type à améliorer), sans rien dépenser.
 export function buildSpot(g: Game, id: number, type: UnitType, tile: number): { tile: number; upgrade: Unit | null } | BuildResult {
+  if (!g.options.nukes && (type === 'silo' || type === 'dca')) return 'place'
   if (type === 'navire') {
     const ports = unitsOf(g, id, 'port').filter((u) => u.ready <= g.tick)
     if (!ports.length) return 'port'
@@ -917,6 +957,9 @@ export function buildSpot(g: Game, id: number, type: UnitType, tile: number): { 
   return { tile: spot, upgrade: null }
 }
 
+// construction instantanée : prêt au tour suivant, pour que le rail se branche comme d'habitude
+const readyAt = (g: Game, type: UnitType) => g.tick + (g.options.instantBuild ? Math.min(1, BUILD_TICKS[type]) : BUILD_TICKS[type])
+
 export function build(g: Game, id: number, type: UnitType, tile: number): BuildResult {
   const p = player(g, id)
   const spot = buildSpot(g, id, type, tile)
@@ -927,9 +970,9 @@ export function build(g: Game, id: number, type: UnitType, tile: number): BuildR
   if (spot.upgrade) {
     spot.upgrade.level++
     spot.upgrade.slots.push(0)
-    spot.upgrade.ready = g.tick + BUILD_TICKS[type]
+    spot.upgrade.ready = readyAt(g, type)
   } else {
-    const u: Unit = { id: g.nextId++, type, owner: id, tile: spot.tile, level: 1, ready: g.tick + BUILD_TICKS[type], cooldown: 0, slots: [0], hp: WARSHIP_HP, home: spot.tile, goal: -1 }
+    const u: Unit = { id: g.nextId++, type, owner: id, tile: spot.tile, level: 1, ready: readyAt(g, type), cooldown: 0, slots: [0], hp: WARSHIP_HP, home: spot.tile, goal: -1 }
     if (type !== 'navire') g.unitAt.set(spot.tile, u)
     g.units.push(u)
   }
@@ -971,7 +1014,14 @@ function spawnTrade(g: Game) {
   let charted = false
   for (const port of ports) {
     if (g.rng() * 12 > port.level || (afloat.get(port.owner) ?? 0) >= 3 + port.level) continue
-    const partners = ports.filter((q) => q.owner !== port.owner && relation(g, q.owner, port.owner) > -50 && !atWar(g, q.owner, port.owner))
+    const partners = ports.filter(
+      (q) =>
+        q.owner !== port.owner &&
+        relation(g, q.owner, port.owner) > -50 &&
+        !atWar(g, q.owner, port.owner) &&
+        !player(g, q.owner).embargo.has(port.owner) &&
+        !player(g, port.owner).embargo.has(q.owner),
+    )
     if (!partners.length) continue
     // on commerce surtout avec les ports voisins : un tiers des partenaires, au moins quatre, les plus proches
     const near = partners.sort((a, b) => dist2(g, a.tile, port.tile) - dist2(g, b.tile, port.tile)).slice(0, Math.max(4, Math.ceil(partners.length / 3)))
@@ -992,7 +1042,14 @@ function spawnTrade(g: Game) {
 
 // Navires de guerre : patrouille autour du port d'attache, tirs sur les bateaux et navires ennemis à portée.
 function stepWarship(g: Game, u: Unit) {
-  if (u.goal < 0 || u.tile === u.goal) {
+  if (u.route) {
+    u.step = (u.step ?? 0) + 1
+    u.tile = u.route[Math.min(u.step, u.route.length - 1)]
+    if (u.step >= u.route.length - 1) {
+      u.route = undefined
+      u.goal = -1
+    }
+  } else if (u.goal < 0 || u.tile === u.goal) {
     const hx = u.home % g.w
     const hy = Math.floor(u.home / g.w)
     for (let i = 0; i < 20; i++) {
@@ -1063,7 +1120,7 @@ export type LaunchResult = 'ok' | 'or' | 'silo'
 export function launch(g: Game, id: number, type: NukeType, tile: number): LaunchResult {
   const p = player(g, id)
   const silos = unitsOf(g, id, 'silo').filter((u) => u.ready <= g.tick && u.slots.some((c) => c <= g.tick))
-  if (!silos.length) return 'silo'
+  if (!silos.length || !g.options.nukes) return 'silo'
   const cost = priceOf(g, id, type)
   if (p.gold < cost) return 'or'
   p.gold -= cost
@@ -1304,6 +1361,47 @@ export function donateGold(g: Game, from: number, to: number, amount: number) {
   player(g, to).gold += n
 }
 
+// un emoji toutes les deux secondes au plus
+const EMOJI_TICKS = 20
+// l'or « infini » : assez pour tout acheter, sans casser les calculs
+const INFINITE_GOLD = 1e13
+
+export function sendEmoji(g: Game, from: number, to: number, emoji: string): boolean {
+  const p = player(g, from)
+  if (g.tick - p.emojiAt < EMOJI_TICKS || !player(g, to).alive) return false
+  p.emojiAt = g.tick
+  g.events.push({ type: 'emoji', from, to, tick: g.tick, emoji })
+  return true
+}
+
+// Désigne (ou retire) la cible à attaquer : les alliés la voient et s'y mettent.
+export function setTarget(g: Game, id: number, target: number) {
+  const p = player(g, id)
+  p.target = p.target === target ? 0 : target
+  if (p.target) event(g, 'target', id, target)
+}
+
+// Coupe (ou rétablit) le commerce avec un joueur ; les navires déjà en mer finissent leur route.
+export function toggleEmbargo(g: Game, id: number, other: number) {
+  const p = player(g, id)
+  if (p.embargo.delete(other)) return
+  p.embargo.add(other)
+  event(g, 'embargo', id, other)
+}
+
+// Envoie un navire de guerre patrouiller ailleurs, par la mer de son bassin.
+export function moveWarship(g: Game, owner: number, id: number, tile: number): boolean {
+  const u = g.units.find((x) => x.id === id && x.owner === owner && x.type === 'navire')
+  if (!u || !isWater(g, tile) || g.basin[tile] !== g.basin[u.tile]) return false
+  const path = route(g, [u.tile], tile, true)
+  if (!path) return false
+  u.route = path
+  u.step = 0
+  u.home = tile
+  u.goal = -1
+  return true
+}
+
 function stepDiplomacy(g: Game) {
   for (const r of g.requests) if (r.until <= g.tick) event(g, 'refused', r.to, r.from)
   g.requests = g.requests.filter((r) => r.until > g.tick)
@@ -1336,6 +1434,9 @@ function annexEnclosed(g: Game, p: Player) {
     let open = false
     while (head < tail && head < budget) {
       const t = g.queue[head++]
+      // le bord de la carte ne ferme rien : on n'y est pas cerné
+      const x = t % g.w
+      if (x === 0 || x === g.w - 1 || t < g.w || t >= g.w * (g.h - 1)) open = true
       const k = neighbors(g, t)
       for (let i = 0; i < k; i++) {
         const n = N1[i]
@@ -1368,6 +1469,9 @@ export function step(g: Game) {
     if (!p.alive || !p.spawned) continue
     p.troops += troopGrowth(p.kind, g.level, p.troops, maxTroopsOf(g, p))
     p.gold += goldPerTick(p.kind)
+    if (p.kind !== 'human') continue
+    if (g.options.infiniteGold) p.gold = Math.max(p.gold, INFINITE_GOLD)
+    if (g.options.infiniteTroops) p.troops = maxTroopsOf(g, p)
   }
   if (g.units.some((u) => u.ready === g.tick)) recountCities(g)
   for (const u of g.units) if (u.ready === g.tick && STATIONS.has(u.type)) connect(g, u)
