@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { countryName } from '../../geo/countries'
+import { countryName, flagEmoji } from '../../geo/countries'
 import { feedback } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { recordPlay } from '../../lib/stats'
@@ -45,7 +45,7 @@ import { anchors, type Anchor } from './labels'
 import { worldMap } from './map'
 import RadialMenu, { ICON, type MenuItem } from './RadialMenu'
 import { compact, draw, Painter, palette, type View } from './render'
-import { EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Level, type NukeType, type UnitType } from './rules'
+import { EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
 const ME = 1
@@ -73,6 +73,8 @@ const BUILD_ERRORS: Record<Exclude<BuildResult, 'ok'>, string> = {
   mer: msg('Aucune côte à portée.'),
 }
 
+const NO_SILO = msg('Il faut un silo prêt à tirer.')
+
 type Phase = 'chargement' | 'depart' | 'jeu' | 'fin'
 
 interface Setup {
@@ -88,6 +90,8 @@ interface Hud {
   income: number
   top: { id: number; name: string; share: number }[]
   attacks: { id: number; name: string; troops: number }[]
+  // ce qui arrive sur toi : attaques par la terre et débarquements en route
+  incoming: { id: number; name: string; troops: number; boat: boolean }[]
   boats: number
 }
 
@@ -110,6 +114,18 @@ function newSetup(level: Level, name: string): Setup {
   const g = createGame(map, level)
   addPlayer(g, name, 'human')
   return { g, brains: populate(g, map.seats, NATIONS, TRIBES, countryName) }
+}
+
+// Ce qu'on sait d'un joueur en un mot : toi, traître, allié, en guerre avec toi, ou simplement nation ou tribu.
+function status(g: Game, id: number): string {
+  const p = player(g, id)
+  if (id === ME) return t('C’est toi.')
+  if (isTraitor(g, p)) return t('Traître : sa défense est affaiblie.')
+  const ally = allianceOf(g, ME, id)
+  if (ally) return t('Allié encore {time}', { time: formatTime((ally.until - g.tick) * TICK_MS) })
+  if (g.attacks.some((a) => a.from === id && a.to === ME)) return t('T’attaque')
+  if (g.attacks.some((a) => a.from === ME && a.to === id)) return t('Tu l’attaques')
+  return p.kind === 'bot' ? t('Tribu') : t('Nation')
 }
 
 const percent = (share: number) => fmt(share * 100, { maximumFractionDigits: share < 0.1 ? 1 : 0 })
@@ -233,13 +249,17 @@ export default function OpenFront() {
   const [hud, setHud] = useState<Hud | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; tile: number } | null>(null)
   const [info, setInfo] = useState(0)
+  const [shop, setShop] = useState(false)
+  const [placing, setPlacing] = useState<Buyable | null>(null)
+  const [hover, setHover] = useState(0)
+  const hoverRef = useRef<HTMLDivElement>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [message, setMessage] = useState('')
   const [result, setResult] = useState<Result | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // les gestes et la boucle de jeu lisent ces valeurs sans relancer la boucle
-  const live = useRef({ phase, ratio, speed })
-  live.current = { phase, ratio, speed }
+  const live = useRef({ phase, ratio, speed, placing })
+  live.current = { phase, ratio, speed, placing }
   const sayTimer = useRef(0)
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 
@@ -272,6 +292,9 @@ export default function OpenFront() {
     setNotes([])
     setHud(null)
     setSpeed(1)
+    setShop(false)
+    setPlacing(null)
+    setHover(0)
   }
 
   useEffect(() => {
@@ -290,6 +313,7 @@ export default function OpenFront() {
     let started = 0
     let best = 0
     let key = 0
+    const warned = new Set<number>()
 
     const clamp = () => {
       view.s = Math.min(Math.max(view.s, view.fit), view.fit * 40)
@@ -418,8 +442,25 @@ export default function OpenFront() {
         income: goldPerTick(me.kind) * 10,
         top: top.map((p) => ({ id: p.id, name: p.name, share: p.tiles / g.land })),
         attacks: g.attacks.filter((a) => a.from === ME).map((a) => ({ id: a.id, name: nameOf(g, a.to), troops: a.troops })),
+        incoming: [
+          ...g.attacks.filter((a) => a.to === ME).map((a) => ({ id: a.id, name: nameOf(g, a.from), troops: a.troops, boat: false })),
+          ...g.boats.filter((b) => b.to === ME && !b.trade).map((b) => ({ id: b.id, name: nameOf(g, b.owner), troops: b.troops, boat: true })),
+        ],
         boats: boatsOf(g, ME),
       })
+      // une alerte à chaque nouvelle attaque ou débarquement contre toi
+      for (const a of g.attacks)
+        if (a.to === ME && !warned.has(a.id)) {
+          warned.add(a.id)
+          feedback('bad')
+          note(t('{name} t’attaque avec {n} troupes', { name: nameOf(g, a.from), n: compact(a.troops) }), undefined, 6)
+        }
+      for (const b of g.boats)
+        if (b.to === ME && !b.trade && !warned.has(b.id)) {
+          warned.add(b.id)
+          feedback('bad')
+          note(t('Débarquement de {name} en approche : {n} troupes', { name: nameOf(g, b.owner), n: compact(b.troops) }), undefined, 6)
+        }
     }, 250)
     const labelTimer = window.setInterval(() => (labels = anchors(g)), 1000)
 
@@ -443,6 +484,14 @@ export default function OpenFront() {
         return
       }
       if (live.current.phase !== 'jeu') return
+      const buying = live.current.placing
+      if (buying) {
+        setPlacing(null)
+        const r = NUKES.includes(buying as NukeType) ? launch(g, ME, buying as NukeType, tile) : build(g, ME, buying as UnitType, tile)
+        if (r === 'ok') feedback('tap')
+        else say(t(r === 'silo' ? NO_SILO : BUILD_ERRORS[r]))
+        return
+      }
       if (touch) return openMenu(x, y)
       const r = primary(g, tile, live.current.ratio)
       if (r.ok) feedback('tap')
@@ -470,9 +519,19 @@ export default function OpenFront() {
         start = pos(e)
       } else moved = true
     }
+    let hovered = 0
     const move = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId)
-      if (!prev) return
+      if (!prev) {
+        if (e.pointerType !== 'mouse') return
+        const p = pos(e)
+        const tile = cellAt(p.x, p.y)
+        const id = tile >= 0 && live.current.phase !== 'chargement' ? g.owner[tile] : 0
+        const card = hoverRef.current
+        if (card) card.style.transform = `translate(${p.x > cw - 240 ? p.x - 236 : p.x + 16}px, ${p.y > ch - 170 ? p.y - 150 : p.y + 16}px)`
+        if (id !== hovered) setHover((hovered = id))
+        return
+      }
       const p = pos(e)
       if (pointers.size === 2) {
         const other = [...pointers].find(([id]) => id !== e.pointerId)![1]
@@ -497,16 +556,20 @@ export default function OpenFront() {
     }
     const context = (e: MouseEvent) => {
       e.preventDefault()
+      if (live.current.placing) return setPlacing(null)
       const p = pos(e)
       openMenu(p.x, p.y)
     }
     const wheel = (e: WheelEvent) => {
       e.preventDefault()
       const p = pos(e)
-      zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.002))
+      // une molette à crans (deltaMode 1) avance par lignes : on la ramène en pixels
+      zoomAt(p.x, p.y, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 33 : 1) * 0.006))
     }
     canvas.addEventListener('pointerdown', down)
     canvas.addEventListener('pointermove', move)
+    const leave = () => setHover((hovered = 0))
+    canvas.addEventListener('pointerleave', leave)
     canvas.addEventListener('pointerup', up)
     canvas.addEventListener('pointercancel', up)
     canvas.addEventListener('contextmenu', context)
@@ -523,6 +586,7 @@ export default function OpenFront() {
       clearInterval(labelTimer)
       observer.disconnect()
       themes.disconnect()
+      canvas.removeEventListener('pointerleave', leave)
       canvas.removeEventListener('pointerdown', down)
       canvas.removeEventListener('pointermove', move)
       canvas.removeEventListener('pointerup', up)
@@ -546,6 +610,7 @@ export default function OpenFront() {
   const g = setup?.g
   const radial = g && menu ? menuFor(g, menu.tile, ratio, say, setInfo) : null
   const shown = g && info ? player(g, info) : null
+  const hovered = g && hover ? player(g, hover) : null
 
   return (
     <div className="of">
@@ -598,23 +663,13 @@ export default function OpenFront() {
                 <dt>{t('Troupes')}</dt>
                 <dd>{compact(shown.troops)}</dd>
                 <dt>{t('Or')}</dt>
-                <dd>{compact(shown.gold)}</dd>
+                <dd className="of-gold">{compact(shown.gold)}</dd>
                 <dt>{t('Territoire')}</dt>
                 <dd>{percent(shown.tiles / g.land)} %</dd>
                 <dt>{t('Villes')}</dt>
                 <dd>{unitsOf(g, shown.id, 'ville').length}</dd>
               </dl>
-              <p>
-                {shown.id === ME
-                  ? t('C’est toi.')
-                  : isTraitor(g, shown)
-                    ? t('Traître : sa défense est affaiblie.')
-                    : allied(g, ME, shown.id)
-                      ? t('Allié encore {time}', { time: formatTime(((allianceOf(g, ME, shown.id)?.until ?? g.tick) - g.tick) * TICK_MS) })
-                      : shown.kind === 'bot'
-                        ? t('Tribu')
-                        : t('Nation')}
-              </p>
+              <p>{status(g, shown.id)}</p>
             </section>
           )}
           {notes.length > 0 && (
@@ -632,6 +687,37 @@ export default function OpenFront() {
             </ul>
           )}
           {message && <div className="of-msg">{message}</div>}
+          {placing && phase === 'jeu' && (
+            <div className="of-placing">
+              <span>
+                {NUKES.includes(placing as NukeType)
+                  ? t('Touche la cible : {name}', { name: t(NUKE_NAMES[placing as NukeType]) })
+                  : t('Touche l’endroit où bâtir : {name}', { name: t(UNIT_NAMES[placing as UnitType]) })}
+              </span>
+              <button onClick={() => setPlacing(null)}>{t('Annuler')}</button>
+            </div>
+          )}
+          <div ref={hoverRef} className="of-hover" hidden={!hovered || !!menu}>
+            {hovered && g && (
+              <>
+                <b>
+                  {hovered.code ? `${flagEmoji(hovered.code)} ` : ''}
+                  {hovered.name}
+                </b>
+                <dl>
+                  <dt>{t('Troupes')}</dt>
+                  <dd>{compact(hovered.troops)}</dd>
+                  <dt>{t('Or')}</dt>
+                  <dd className="of-gold">{compact(hovered.gold)}</dd>
+                  <dt>{t('Territoire')}</dt>
+                  <dd>{percent(hovered.tiles / g.land)} %</dd>
+                  <dt>{t('Villes')}</dt>
+                  <dd>{unitsOf(g, hovered.id, 'ville').length}</dd>
+                </dl>
+                <p>{status(g, hovered.id)}</p>
+              </>
+            )}
+          </div>
           {phase === 'fin' && result && (
             <section className="of-end">
               <b>{result.win ? t('Le monde est à toi.') : t('Éliminé')}</b>
@@ -655,8 +741,15 @@ export default function OpenFront() {
         </div>
         {phase === 'jeu' && hud && (
           <>
-            {hud.attacks.length > 0 && (
+            {(hud.attacks.length > 0 || hud.incoming.length > 0) && (
               <ul className="of-attacks">
+                {hud.incoming.map((a) => (
+                  <li key={`in${a.id}`} className="in">
+                    <span>
+                      {a.boat ? '⛵' : '⚔'} {a.name} · {compact(a.troops)}
+                    </span>
+                  </li>
+                ))}
                 {hud.attacks.map((a) => (
                   <li key={a.id}>
                     <span>
@@ -669,6 +762,36 @@ export default function OpenFront() {
                 ))}
               </ul>
             )}
+            {shop && g && (
+              <div className="of-shop">
+                {[...UNITS, ...NUKES].map((type: Buyable) => {
+                  const nuke = NUKES.includes(type as NukeType)
+                  const price = priceOf(g, ME, type)
+                  const owned = nuke ? 0 : unitsOf(g, ME, type as UnitType).length
+                  const ready = !nuke || unitsOf(g, ME, 'silo').some((u) => u.ready <= g.tick)
+                  return (
+                    <button
+                      key={type}
+                      title={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
+                      disabled={hud.gold < price || !ready}
+                      onClick={() => {
+                        setPlacing(type)
+                        setShop(false)
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden>
+                        <path className="of-ico" d={ICON[type]} />
+                      </svg>
+                      <span>
+                        {t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_SHORT[type as UnitType])}
+                        {owned > 0 && <small> ×{owned}</small>}
+                      </span>
+                      <b className="of-gold">{compact(price)}</b>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             <div className="of-hud">
               <div className="of-stat">
                 <span>
@@ -680,7 +803,7 @@ export default function OpenFront() {
               </div>
               <div className="of-stat">
                 <span>
-                  <b>{compact(hud.gold)}</b> {t('or')} <small>+{compact(hud.income)}/s</small>
+                  <b className="of-gold">{compact(hud.gold)}</b> <span className="of-gold">{t('or')}</span> <small>+{compact(hud.income)}/s</small>
                 </span>
                 <small>{t('{n} / 3 bateaux', { n: hud.boats })}</small>
               </div>
@@ -688,6 +811,12 @@ export default function OpenFront() {
                 <span>{t('Attaque {n} %', { n: ratio })}</span>
                 <input type="range" min={1} max={100} value={ratio} onChange={(e) => changeRatio(Number(e.target.value))} />
               </label>
+              <button className={shop ? 'of-buy on' : 'of-buy'} onClick={() => setShop(!shop)} aria-expanded={shop}>
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path className="of-ico" d={ICON.construire} />
+                </svg>
+                {t('Acheter')}
+              </button>
               <button className="of-speed" onClick={() => setSpeed((speed % 3) + 1)} aria-label={t('Vitesse')}>
                 ×{speed}
               </button>
