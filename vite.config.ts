@@ -5,7 +5,7 @@ import { defineConfig, type Plugin } from 'vite'
 // Génère le service worker avec la liste exacte des fichiers du build à précharger.
 function serviceWorker(): Plugin {
   return {
-    name: 'meridien-sw',
+    name: 'expedle-sw',
     apply: 'build',
     generateBundle(_, bundle) {
       // les icônes de public/ ne passent pas par le bundle : on les ajoute pour le hors-ligne
