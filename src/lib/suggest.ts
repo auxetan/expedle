@@ -56,7 +56,7 @@ export function suggest(games: GameEntry[], history: Play[], done: (g: GameEntry
       if (g.dailyId && !done(g)) reasons.push(g.weekly ? [40, msg('Le défi de la semaine t’attend')] : [60, msg('Pas encore joué aujourd’hui')])
       if (beginner) {
         if (STARTERS.has(g.href)) reasons.push([25, msg('Parfait pour commencer')])
-      } else if (!played) reasons.push(NEW_GAMES.has(g.href) ? [30, msg('Nouveau sur Méridien')] : [15, msg('Tu ne l’as jamais essayé')])
+      } else if (!played) reasons.push(NEW_GAMES.has(g.href) ? [30, msg('Nouveau sur Expedle')] : [15, msg('Tu ne l’as jamais essayé')])
       if (favorites.has(g.href)) reasons.push([20, msg('Un de tes favoris')])
       let score = reasons.reduce((s, [w]) => s + w, 0)
       if (g.dailyId && done(g)) score -= 100
