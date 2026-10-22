@@ -35,8 +35,13 @@
   cursor: crosshair;
 }
 
-.of-map canvas.building {
-  cursor: copy;
+.of-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
 }
 
 /* le choix du point de départ, au-dessus de la carte */
@@ -45,7 +50,7 @@
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(440px, calc(100% - 32px));
+  width: min(460px, calc(100% - 32px));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -68,6 +73,7 @@
 
 .of-levels {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
   margin-top: 6px;
@@ -107,21 +113,14 @@
 }
 
 .of-rank li {
-  display: grid;
-  grid-template-columns: 8px 1fr auto;
-  align-items: center;
-  gap: 7px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
   color: var(--muted);
 }
 
 .of-rank li.me {
   color: var(--fg);
-}
-
-.of-rank i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
 }
 
 .of-rank span {
@@ -133,6 +132,102 @@
 .of-rank b {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+/* fiche d'un joueur, ouverte depuis la roue */
+.of-info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: min(240px, calc(100% - 20px));
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 13px;
+}
+
+.of-info header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.of-info header b {
+  font-weight: 500;
+}
+
+.of-info header button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.of-info dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 8px 0;
+}
+
+.of-info dt {
+  color: var(--muted);
+}
+
+.of-info dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-info p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* messages de la partie : alliances à trancher, trahisons, bombes */
+.of-notes {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: grid;
+  gap: 6px;
+  width: min(320px, calc(100% - 20px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.of-notes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 13px;
+}
+
+.of-notes span {
+  flex: 1 1 140px;
+}
+
+.of-notes button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.of-notes button:first-of-type {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
 }
 
 .of-msg {
@@ -182,19 +277,150 @@
   margin-top: 8px;
 }
 
-/* en bas : troupes, part envoyée à chaque ordre, villes */
+/* la roue d'action */
+.of-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.of-radial {
+  position: fixed;
+  z-index: 31;
+  transform: translate(-50%, -50%);
+}
+
+.of-radial svg {
+  display: block;
+  overflow: visible;
+}
+
+.of-slice {
+  cursor: pointer;
+}
+
+.of-slice > path {
+  fill: var(--card);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.of-slice:hover > path {
+  fill: var(--hover);
+}
+
+.of-slice text {
+  fill: var(--fg);
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.of-slice .of-note {
+  fill: var(--muted);
+  font-size: 9px;
+}
+
+.of-ico {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.of-slice.danger .of-ico {
+  stroke: var(--bad);
+}
+
+.of-slice.off,
+.of-center.off {
+  cursor: default;
+}
+
+.of-slice.off:hover > path {
+  fill: var(--card);
+}
+
+.of-slice.off .of-ico,
+.of-slice.off.danger .of-ico {
+  stroke: var(--line);
+}
+
+.of-slice.off text {
+  fill: var(--muted);
+}
+
+.of-center.off circle {
+  fill: var(--line);
+}
+
+.of-center.off .of-ico {
+  stroke: var(--muted);
+}
+
+.of-center {
+  cursor: pointer;
+}
+
+.of-center circle {
+  fill: var(--fg);
+}
+
+.of-center .of-ico {
+  stroke: var(--bg);
+}
+
+/* en bas : attaques en cours, puis troupes, or, part envoyée et vitesse */
+.of-attacks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 16px 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.of-attacks li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.of-attacks button {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--line);
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1;
+}
+
 .of-hud {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: 10px 18px;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
 }
 
-.of-troops,
+.of-attacks + .of-hud {
+  border-top: none;
+}
+
+.of-stat,
 .of-ratio {
-  flex: 1 1 170px;
+  flex: 1 1 150px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -202,11 +428,15 @@
   font-size: 13px;
 }
 
-.of-troops b {
+.of-stat b {
   color: var(--fg);
   font-size: 16px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+.of-stat small {
+  font-size: 11px;
 }
 
 .of-bar {
@@ -238,50 +468,4 @@
   color: var(--fg);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-}
-
-.of-city {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 7px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--fg);
-  font-size: 14px;
-}
-
-.of-city small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.of-city:disabled {
-  opacity: 0.45;
-}
-
-.of-city.on {
-  background: var(--fg);
-  border-color: var(--fg);
-  color: var(--bg);
-}
-
-.of-city.on small {
-  color: var(--bg);
-}
-
-/* sur téléphone : troupes et ville sur une ligne, curseur et vitesse sur l'autre */
-@media (max-width: 520px) {
-  .of-city {
-    order: 1;
-  }
-  .of-ratio {
-    order: 2;
-  }
-  .of-speed {
-    order: 3;
-  }
 }
