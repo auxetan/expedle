@@ -16,10 +16,12 @@ import {
   nukeDeaths,
   PORT_RANGE,
   priority,
+  RAIL_RANGE,
   REQUEST_COOLDOWN,
   REQUEST_TICKS,
   RETREAT_LOSS,
   SAM_COOLDOWN,
+  SAM_SPEED,
   samRange,
   SHELL_DAMAGE,
   SILO_COOLDOWN,
@@ -27,6 +29,9 @@ import {
   startTroops,
   STRUCTURE_MIN_DIST,
   terrainOf,
+  TRAIN_CAP,
+  TRAIN_SPEED,
+  trainGold,
   TRAITOR_TICKS,
   troopGrowth,
   unitCost,
@@ -108,10 +113,36 @@ export interface Unit {
   level: number
   ready: number
   cooldown: number
+  // silos et défenses antiaériennes : un emplacement de tir par niveau, chacun avec sa fin de recharge
+  slots: number[]
   hp: number
   // navires de guerre : le port d'attache et le point visé
   home: number
   goal: number
+}
+
+export interface Rail {
+  a: number
+  b: number
+  path: Int32Array
+}
+
+export interface Train {
+  id: number
+  owner: number
+  path: Int32Array
+  at: number
+  // gare de destination
+  to: number
+}
+
+export interface Missile {
+  id: number
+  owner: number
+  from: number
+  nuke: number
+  start: number
+  ticks: number
 }
 
 export interface Nuke {
@@ -122,6 +153,8 @@ export interface Nuke {
   dst: number
   start: number
   ticks: number
+  // déjà visée par une défense antiaérienne
+  targeted: boolean
 }
 
 export interface Shell {
@@ -176,6 +209,9 @@ export interface Game {
   unitAt: Map<number, Unit>
   nukes: Nuke[]
   shells: Shell[]
+  rails: Rail[]
+  trains: Train[]
+  missiles: Missile[]
   alliances: Alliance[]
   requests: Request[]
   events: GameEvent[]
@@ -274,6 +310,9 @@ export function createGame(map: GameMap, level: Level, rng: () => number = Math.
     unitAt: new Map(),
     nukes: [],
     shells: [],
+    rails: [],
+    trains: [],
+    missiles: [],
     alliances: [],
     requests: [],
     events: [],
@@ -800,12 +839,18 @@ export const unitsOf = (g: Game, id: number, type: UnitType) => g.units.filter((
 export function priceOf(g: Game, id: number, type: Buyable): number {
   if (type === 'mirv') return unitCost('mirv', g.mirvs)
   if (type === 'bombe' || type === 'hbombe') return unitCost(type, 0)
+  // usines et ports se comptent ensemble, comme dans OpenFront
+  if (type === 'usine' || type === 'port') return unitCost(type, unitsOf(g, id, 'usine').length + unitsOf(g, id, 'port').length)
   return unitCost(type, unitsOf(g, id, type).length)
 }
 
 function removeUnit(g: Game, u: Unit) {
   g.units = g.units.filter((x) => x !== u)
   if (g.unitAt.get(u.tile) === u) g.unitAt.delete(u.tile)
+  if (STATIONS.has(u.type)) {
+    g.rails = g.rails.filter((r) => r.a !== u.id && r.b !== u.id)
+    g.trains = g.trains.filter((t) => t.to !== u.id)
+  }
 }
 
 export type BuildResult = 'ok' | 'or' | 'place' | 'port' | 'mer'
@@ -857,9 +902,10 @@ export function build(g: Game, id: number, type: UnitType, tile: number): BuildR
   p.gold -= cost
   if (spot.upgrade) {
     spot.upgrade.level++
+    spot.upgrade.slots.push(0)
     spot.upgrade.ready = g.tick + BUILD_TICKS[type]
   } else {
-    const u: Unit = { id: g.nextId++, type, owner: id, tile: spot.tile, level: 1, ready: g.tick + BUILD_TICKS[type], cooldown: 0, hp: WARSHIP_HP, home: spot.tile, goal: -1 }
+    const u: Unit = { id: g.nextId++, type, owner: id, tile: spot.tile, level: 1, ready: g.tick + BUILD_TICKS[type], cooldown: 0, slots: [0], hp: WARSHIP_HP, home: spot.tile, goal: -1 }
     if (type !== 'navire') g.unitAt.set(spot.tile, u)
     g.units.push(u)
   }
@@ -967,15 +1013,15 @@ export type LaunchResult = 'ok' | 'or' | 'silo'
 
 export function launch(g: Game, id: number, type: NukeType, tile: number): LaunchResult {
   const p = player(g, id)
-  const silos = unitsOf(g, id, 'silo').filter((u) => u.ready <= g.tick && u.cooldown <= g.tick)
+  const silos = unitsOf(g, id, 'silo').filter((u) => u.ready <= g.tick && u.slots.some((c) => c <= g.tick))
   if (!silos.length) return 'silo'
   const cost = priceOf(g, id, type)
   if (p.gold < cost) return 'or'
   p.gold -= cost
   if (type === 'mirv') g.mirvs++
   const silo = silos.reduce((a, b) => (dist2(g, a.tile, tile) <= dist2(g, b.tile, tile) ? a : b))
-  silo.cooldown = g.tick + SILO_COOLDOWN
-  g.nukes.push({ id: g.nextId++, type, owner: id, from: silo.tile, dst: tile, start: g.tick, ticks: Math.max(1, Math.ceil(distance(g, silo.tile, tile) / BLAST[type].speed)) })
+  silo.slots[silo.slots.findIndex((c) => c <= g.tick)] = g.tick + SILO_COOLDOWN
+  g.nukes.push({ id: g.nextId++, type, owner: id, from: silo.tile, dst: tile, start: g.tick, ticks: Math.max(1, Math.ceil(distance(g, silo.tile, tile) / BLAST[type].speed)), targeted: false })
   const target = g.owner[tile]
   if (target && target !== id) {
     changeRelation(g, target, id, -100)
@@ -996,17 +1042,8 @@ function detonate(g: Game, n: Nuke) {
       const t = y * g.w + x
       if (target && g.owner[t] === target) tiles.push(t)
     }
-    for (const t of tiles) g.nukes.push({ id: g.nextId++, type: 'ogive', owner: n.owner, from: n.dst, dst: t, start: g.tick + Math.floor(g.rng() * 20), ticks: Math.max(1, Math.ceil(distance(g, n.dst, t) / BLAST.ogive.speed)) })
+    for (const t of tiles) g.nukes.push({ id: g.nextId++, type: 'ogive', owner: n.owner, from: n.dst, dst: t, start: g.tick + Math.floor(g.rng() * 20), ticks: Math.max(1, Math.ceil(distance(g, n.dst, t) / BLAST.ogive.speed)), targeted: false })
     return
-  }
-  // une défense antiaérienne ennemie à portée abat la bombe (pas les ogives d'un MIRV)
-  if (n.type !== 'ogive') {
-    const sam = g.units.find((u) => u.type === 'dca' && u.ready <= g.tick && u.cooldown <= g.tick && u.owner !== n.owner && !allied(g, u.owner, n.owner) && dist2(g, u.tile, n.dst) <= samRange(u.level) ** 2)
-    if (sam) {
-      sam.cooldown = g.tick + SAM_COOLDOWN
-      event(g, 'intercepted', sam.owner, n.owner)
-      return
-    }
   }
   const { inner, outer } = BLAST[n.type]
   // un rayon irrégulier, tiré entre l'intérieur et l'extérieur, lissé tout autour
@@ -1048,6 +1085,101 @@ function detonate(g: Game, n: Nuke) {
   g.boats = g.boats.filter((b) => dist2(g, b.path[Math.min(b.at, b.path.length - 1)], n.dst) > outer * outer)
   g.blasts.push({ tile: n.dst, radius: outer, tick: g.tick })
   recountCities(g)
+}
+
+// Où en est une bombe sur sa route, en case.
+export function nukeAt(g: Game, n: Nuke, tick = g.tick): number {
+  const k = Math.min(1, Math.max(0, (tick - n.start) / n.ticks))
+  const x = Math.round((n.from % g.w) + ((n.dst % g.w) - (n.from % g.w)) * k)
+  const y = Math.round(Math.floor(n.from / g.w) + (Math.floor(n.dst / g.w) - Math.floor(n.from / g.w)) * k)
+  return y * g.w + x
+}
+
+// Une défense antiaérienne tire sur la bombe ennemie qui entre dans sa portée en visant sa zone ;
+// son missile part de la défense et abat la bombe en vol. Les ogives d'un MIRV et le MIRV lui-même passent.
+function stepSams(g: Game) {
+  for (const n of g.nukes) {
+    if (n.targeted || g.tick < n.start || n.type === 'ogive' || n.type === 'mirv') continue
+    const at = nukeAt(g, n)
+    for (const u of g.units) {
+      if (u.type !== 'dca' || u.ready > g.tick || u.owner === n.owner || allied(g, u.owner, n.owner)) continue
+      const range = samRange(u.level)
+      const slot = u.slots.findIndex((c) => c <= g.tick)
+      if (slot < 0 || dist2(g, u.tile, at) > range * range || dist2(g, u.tile, n.dst) > (range + 40) ** 2) continue
+      u.slots[slot] = g.tick + SAM_COOLDOWN
+      n.targeted = true
+      g.missiles.push({ id: g.nextId++, owner: u.owner, from: u.tile, nuke: n.id, start: g.tick, ticks: Math.max(1, Math.ceil(distance(g, u.tile, at) / SAM_SPEED)) })
+      break
+    }
+  }
+  g.missiles = g.missiles.filter((m) => {
+    if (g.tick < m.start + m.ticks) return true
+    const n = g.nukes.find((x) => x.id === m.nuke)
+    if (n) {
+      g.nukes = g.nukes.filter((x) => x !== n)
+      g.blasts.push({ tile: nukeAt(g, n), radius: 4, tick: g.tick })
+      event(g, 'intercepted', m.owner, n.owner)
+    }
+    return false
+  })
+}
+
+const STATIONS = new Set<UnitType>(['ville', 'port', 'usine'])
+
+// Une ligne droite de case en case, ou null si elle passe par l'eau ou une montagne infranchissable.
+function line(g: Game, a: number, b: number): Int32Array | null {
+  const x0 = a % g.w
+  const y0 = Math.floor(a / g.w)
+  const x1 = b % g.w
+  const y1 = Math.floor(b / g.w)
+  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))
+  const path = new Int32Array(n + 1)
+  for (let i = 0; i <= n; i++) {
+    const t = Math.round(y0 + ((y1 - y0) * i) / Math.max(1, n)) * g.w + Math.round(x0 + ((x1 - x0) * i) / Math.max(1, n))
+    if (!passable(g, t)) return null
+    path[i] = t
+  }
+  return path
+}
+
+// Une gare qui ouvre se relie par le rail aux gares amies proches, dès que l'une des deux est une usine.
+function connect(g: Game, u: Unit) {
+  for (const v of g.units) {
+    if (v === u || !STATIONS.has(v.type) || v.ready > g.tick || (u.type !== 'usine' && v.type !== 'usine')) continue
+    if ((v.owner !== u.owner && !allied(g, v.owner, u.owner)) || dist2(g, u.tile, v.tile) > RAIL_RANGE * RAIL_RANGE) continue
+    if (g.rails.some((r) => (r.a === u.id && r.b === v.id) || (r.a === v.id && r.b === u.id))) continue
+    const path = line(g, u.tile, v.tile)
+    if (path) g.rails.push({ a: u.id, b: v.id, path })
+  }
+}
+
+// Les usines lancent des trains sur leurs lignes ; chaque arrivée rapporte de l'or à l'usine et à la gare.
+// Une ligne dont les deux bouts ne sont plus amis est coupée.
+function stepTrains(g: Game) {
+  const unit = new Map(g.units.map((u) => [u.id, u]))
+  if (g.tick % 10 === 0)
+    g.rails = g.rails.filter((r) => {
+      const a = unit.get(r.a)
+      const b = unit.get(r.b)
+      return !!a && !!b && (a.owner === b.owner || allied(g, a.owner, b.owner))
+    })
+  for (const u of g.units) {
+    if (u.type !== 'usine' || u.ready > g.tick || g.trains.length >= TRAIN_CAP || g.rng() * 120 > u.level) continue
+    const lines = g.rails.filter((r) => r.a === u.id || r.b === u.id)
+    if (!lines.length) continue
+    const r = lines[Math.floor(g.rng() * lines.length)]
+    const forward = r.a === u.id
+    g.trains.push({ id: g.nextId++, owner: u.owner, path: forward ? r.path : r.path.slice().reverse(), at: 0, to: forward ? r.b : r.a })
+  }
+  g.trains = g.trains.filter((tr) => {
+    tr.at += TRAIN_SPEED
+    if (tr.at < tr.path.length - 1) return true
+    const station = unit.get(tr.to)
+    const gold = trainGold(tr.path.length)
+    if (player(g, tr.owner).alive) player(g, tr.owner).gold += gold
+    if (station && station.owner !== tr.owner) player(g, station.owner).gold += gold
+    return false
+  })
 }
 
 // --- alliances ---
@@ -1189,6 +1321,7 @@ export function step(g: Game) {
     p.gold += goldPerTick(p.kind)
   }
   if (g.units.some((u) => u.ready === g.tick)) recountCities(g)
+  for (const u of g.units) if (u.ready === g.tick && STATIONS.has(u.type)) connect(g, u)
   g.posts.clear()
   for (const u of g.units)
     if (u.type === 'poste' && u.ready <= g.tick) {
@@ -1200,6 +1333,8 @@ export function step(g: Game) {
   const due = g.nukes.filter((n) => g.tick >= n.start + n.ticks)
   g.nukes = g.nukes.filter((n) => g.tick < n.start + n.ticks)
   for (const n of due) detonate(g, n)
+  stepSams(g)
+  stepTrains(g)
   for (const u of g.units) if (u.type === 'navire' && u.ready <= g.tick) stepWarship(g, u)
   g.shells = g.shells.filter((s) => stepShell(g, s))
   if (g.tick % 10 === 0) spawnTrade(g)
