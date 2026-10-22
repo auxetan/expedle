@@ -288,7 +288,7 @@ export default function GuessGame<S extends Spot>({ source, settings, menuTop, d
   }
 
   async function share() {
-    const text = `${source.title} Méridien · ${t(mode.label)}\n${results
+    const text = `${source.title} Expedle · ${t(mode.label)}\n${results
       .map((r, i) => `${i + 1}. ${t('{n} pts', { n: fmt(r.points) })} (${fmtKm(r.km)})`)
       .join('\n')}\n${t('Total : {total} / {max}', { total: fmt(total), max: fmt(ROUNDS * 5000) })}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
