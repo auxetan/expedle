@@ -6,46 +6,12 @@ import { recordPlay } from '../../lib/stats'
 import { copyText, formatTime, load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import { loadProfile } from '../../ui/Panels'
-import { populate, runAi, type Brain } from './ai'
-import {
-  accept,
-  addPlayer,
-  agreeExtension,
-  allianceOf,
-  allied,
-  attackAt,
-  boatsOf,
-  breakAlliance,
-  build,
-  buildSpot,
-  createGame,
-  demolish,
-  distance,
-  donateGold,
-  donateTroops,
-  isLand,
-  isTraitor,
-  launch,
-  maxTroopsOf,
-  passable,
-  player,
-  priceOf,
-  refuse,
-  requestAlliance,
-  retreat,
-  sendBoat,
-  spawn,
-  step,
-  unitsOf,
-  winner,
-  type BuildResult,
-  type Game,
-} from './engine'
-import { anchors, type Anchor } from './labels'
+import { Sim } from './client'
+import { allianceOf, allied, boatsOf, buildSpot, distance, isLand, isTraitor, maxTroopsOf, passable, player, priceOf, unitsOf, winner, type BuildResult, type Game } from './engine'
 import { worldMap } from './map'
 import RadialMenu, { ICON, type MenuItem } from './RadialMenu'
-import { compact, draw, Painter, palette, troopsText, type View } from './render'
-import { EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
+import { compact, draw, Labels, Painter, palette, troopsText, type Preview, type View } from './render'
+import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
 const ME = 1
@@ -53,17 +19,18 @@ const NATIONS = 50
 const TRIBES = 250
 const LEVELS: Level[] = ['facile', 'moyen', 'difficile', 'impossible']
 const LEVEL_NAMES: Record<Level, string> = { facile: msg('Facile'), moyen: msg('Moyen'), difficile: msg('Difficile'), impossible: msg('Impossible') }
-const UNITS: UnitType[] = ['ville', 'port', 'poste', 'silo', 'dca', 'navire']
+const UNITS: UnitType[] = ['ville', 'port', 'usine', 'poste', 'silo', 'dca', 'navire']
 const UNIT_NAMES: Record<UnitType, string> = {
   ville: msg('Ville'),
   port: msg('Port'),
+  usine: msg('Usine'),
   poste: msg('Poste de défense'),
   silo: msg('Silo à missiles'),
   dca: msg('Défense antiaérienne'),
   navire: msg('Navire de guerre'),
 }
 // dans la roue, un mot suffit ; le nom complet s'affiche au survol
-const UNIT_SHORT: Record<UnitType, string> = { ville: msg('Ville'), port: msg('Port'), poste: msg('Poste'), silo: msg('Silo'), dca: msg('Antimissile'), navire: msg('Navire') }
+const UNIT_SHORT: Record<UnitType, string> = { ville: msg('Ville'), port: msg('Port'), usine: msg('Usine'), poste: msg('Poste'), silo: msg('Silo'), dca: msg('Antimissile'), navire: msg('Navire') }
 const NUKES: NukeType[] = ['bombe', 'hbombe', 'mirv']
 const NUKE_NAMES: Record<NukeType, string> = { bombe: msg('Bombe A'), hbombe: msg('Bombe H'), mirv: msg('MIRV') }
 const BUILD_ERRORS: Record<Exclude<BuildResult, 'ok'>, string> = {
@@ -76,11 +43,6 @@ const BUILD_ERRORS: Record<Exclude<BuildResult, 'ok'>, string> = {
 const NO_SILO = msg('Il faut un silo prêt à tirer.')
 
 type Phase = 'chargement' | 'depart' | 'jeu' | 'fin'
-
-interface Setup {
-  g: Game
-  brains: Brain[]
-}
 
 interface Hud {
   troops: number
@@ -109,12 +71,7 @@ interface Result {
   by: string
 }
 
-function newSetup(level: Level, name: string): Setup {
-  const map = worldMap()
-  const g = createGame(map, level)
-  addPlayer(g, name, 'human')
-  return { g, brains: populate(g, map.seats, NATIONS, TRIBES, countryName) }
-}
+const isNuke = (type: Buyable): type is NukeType => NUKES.includes(type as NukeType)
 
 // Ce qu'on sait d'un joueur en un mot : toi, traître, allié, en guerre avec toi, ou simplement nation ou tribu.
 function status(g: Game, id: number): string {
@@ -132,27 +89,29 @@ const percent = (share: number) => fmt(share * 100, { maximumFractionDigits: sha
 const nameOf = (g: Game, id: number) => (id ? player(g, id).name : t('la nature'))
 
 // L'action du clic gauche, et du centre de la roue : attaquer, prendre la mer, ou renforcer un allié.
-function primary(g: Game, tile: number, ratio: number): { ok: boolean; text: string } {
+async function primary(sim: Sim, tile: number, ratio: number): Promise<{ ok: boolean; text: string }> {
+  const g = sim.g
   const owner = g.owner[tile]
-  const me = player(g, ME)
   if (!passable(g, tile) || owner === ME) return { ok: false, text: '' }
   if (owner && allied(g, ME, owner)) {
-    donateTroops(g, ME, owner, (me.troops * ratio) / 100)
+    await sim.send({ op: 'troops', to: owner, ratio })
     return { ok: true, text: t('Troupes envoyées à {name}', { name: player(g, owner).name }) }
   }
-  const order = attackAt(g, ME, tile, (me.troops * ratio) / 100)
+  const order = await sim.send({ op: 'attack', tile, ratio })
   if (order) return { ok: true, text: order === 'mer' ? t('Bateau en route') : '' }
   return { ok: false, text: boatsOf(g, ME) >= MAX_BOATS ? t('Trois bateaux en mer au plus.') : t('Aucune route ne mène là.') }
 }
 
-function menuFor(g: Game, tile: number, ratio: number, say: (text: string) => void, showInfo: (id: number) => void): { items: MenuItem[]; center: MenuItem } | null {
+function menuFor(sim: Sim, tile: number, ratio: number, say: (text: string) => void, showInfo: (id: number) => void): { items: MenuItem[]; center: MenuItem } | null {
+  const g = sim.g
   if (!isLand(g, tile)) return null
   const owner = g.owner[tile]
   const me = player(g, ME)
   const ally = owner && owner !== ME ? allianceOf(g, ME, owner) : undefined
+  const attack = () => primary(sim, tile, ratio).then((r) => say(r.text))
   const center: MenuItem = ally
-    ? { id: 'troupes', label: t('Envoyer des troupes'), icon: ICON.troupes, act: () => say(primary(g, tile, ratio).text) }
-    : { id: 'attaque', label: t('Attaquer'), icon: ICON.attaque, disabled: owner === ME || !passable(g, tile), act: () => say(primary(g, tile, ratio).text) }
+    ? { id: 'troupes', label: t('Envoyer des troupes'), icon: ICON.troupes, act: attack }
+    : { id: 'attaque', label: t('Attaquer'), icon: ICON.attaque, disabled: owner === ME || !passable(g, tile), act: attack }
   const info: MenuItem = { id: 'info', label: t('Infos'), icon: ICON.info, disabled: !owner, act: () => showInfo(owner) }
 
   if (owner === ME) {
@@ -166,24 +125,21 @@ function menuFor(g: Game, tile: number, ratio: number, say: (text: string) => vo
         icon: ICON[type],
         note: compact(price),
         disabled: me.gold < price || typeof buildSpot(g, ME, type, tile) === 'string',
-        act: () => {
-          const r = build(g, ME, type, tile)
-          say(r === 'ok' ? '' : t(BUILD_ERRORS[r]))
-        },
+        act: () => sim.send({ op: 'build', unit: type, tile }).then((r) => say(r === 'ok' ? '' : t(BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))),
       }
     })
     return {
       center,
       items: [
         info,
-        { id: 'supprimer', label: t('Démolir'), icon: ICON.supprimer, danger: true, disabled: !near, act: () => demolish(g, ME, tile) },
+        { id: 'supprimer', label: t('Démolir'), icon: ICON.supprimer, danger: true, disabled: !near, act: () => sim.send({ op: 'demolish', tile }) },
         { id: 'alliance', label: t('Alliance'), icon: ICON.alliance, disabled: true },
         { id: 'construire', label: t('Construire'), icon: ICON.construire, sub: builds },
       ],
     }
   }
 
-  const silo = unitsOf(g, ME, 'silo').some((s) => s.ready <= g.tick && s.cooldown <= g.tick)
+  const silo = unitsOf(g, ME, 'silo').some((s) => s.ready <= g.tick && s.slots.some((c) => c <= g.tick))
   const nukes = NUKES.map((type): MenuItem => {
     const price = priceOf(g, ME, type)
     return {
@@ -193,9 +149,7 @@ function menuFor(g: Game, tile: number, ratio: number, say: (text: string) => vo
       note: compact(price),
       danger: true,
       disabled: !silo || me.gold < price,
-      act: () => {
-        if (launch(g, ME, type, tile) === 'ok') feedback('tap')
-      },
+      act: () => sim.send({ op: 'launch', nuke: type, tile }).then((r) => r === 'ok' && feedback('tap')),
     }
   })
   return {
@@ -203,36 +157,36 @@ function menuFor(g: Game, tile: number, ratio: number, say: (text: string) => vo
     items: [
       info,
       ally
-        ? { id: 'rompre', label: t('Trahir'), icon: ICON.rompre, danger: true, act: () => breakAlliance(g, ME, owner) }
+        ? { id: 'rompre', label: t('Trahir'), icon: ICON.rompre, danger: true, act: () => sim.send({ op: 'betray', other: owner }) }
         : {
             id: 'bateau',
             label: t('Bateau'),
             icon: ICON.bateau,
             disabled: boatsOf(g, ME) >= MAX_BOATS,
-            act: () => say(sendBoat(g, ME, tile, (me.troops * ratio) / 100) ? t('Bateau en route') : t('Aucune route ne mène là.')),
+            act: () => sim.send({ op: 'boat', tile, ratio }).then((ok) => say(ok ? t('Bateau en route') : t('Aucune route ne mène là.'))),
           },
       ally && ally.until - g.tick <= EXTEND_WINDOW
-        ? { id: 'prolonger', label: t('Prolonger'), icon: ICON.prolonger, disabled: ally.extend.has(ME), act: () => agreeExtension(g, ME, owner) }
+        ? { id: 'prolonger', label: t('Prolonger'), icon: ICON.prolonger, disabled: ally.extend.has(ME), act: () => sim.send({ op: 'extend', other: owner }) }
         : {
             id: 'alliance',
             label: t('Alliance'),
             icon: ICON.alliance,
             disabled: !owner || !!ally,
-            act: () => {
-              const r = requestAlliance(g, ME, owner)
-              say(
-                r === 'envoyée'
-                  ? t('Demande envoyée à {name}', { name: nameOf(g, owner) })
-                  : r === 'alliés'
-                    ? t('Alliance conclue avec {name}', { name: nameOf(g, owner) })
-                    : r === 'attendre'
-                      ? t('Attends un peu avant de redemander.')
-                      : '',
-              )
-            },
+            act: () =>
+              sim.send({ op: 'ally', to: owner }).then((r) =>
+                say(
+                  r === 'envoyée'
+                    ? t('Demande envoyée à {name}', { name: nameOf(g, owner) })
+                    : r === 'alliés'
+                      ? t('Alliance conclue avec {name}', { name: nameOf(g, owner) })
+                      : r === 'attendre'
+                        ? t('Attends un peu avant de redemander.')
+                        : '',
+                ),
+              ),
           },
       ally
-        ? { id: 'or', label: t('Don d’or'), icon: ICON.or, disabled: me.gold < 1, act: () => donateGold(g, ME, owner, me.gold / 4) }
+        ? { id: 'or', label: t('Don d’or'), icon: ICON.or, disabled: me.gold < 1, act: () => sim.send({ op: 'gold', to: owner, share: 0.25 }) }
         : { id: 'bombes', label: t('Bombes'), icon: ICON.bombe, danger: true, sub: nukes },
     ],
   }
@@ -241,7 +195,8 @@ function menuFor(g: Game, tile: number, ratio: number, say: (text: string) => vo
 export default function OpenFront() {
   const [level, setLevel] = useState<Level>(() => load<Level>('openfront-niveau', 'moyen'))
   const [name] = useState(() => loadProfile().name || t('Toi'))
-  const [setup, setSetup] = useState<Setup | null>(null)
+  const [sim, setSim] = useState<Sim | null>(null)
+  const [ready, setReady] = useState(false)
   const [phase, setPhase] = useState<Phase>('chargement')
   const [countdown, setCountdown] = useState(0)
   const [ratio, setRatio] = useState(() => load('openfront-attaque', 20))
@@ -257,9 +212,9 @@ export default function OpenFront() {
   const [message, setMessage] = useState('')
   const [result, setResult] = useState<Result | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  // les gestes et la boucle de jeu lisent ces valeurs sans relancer la boucle
-  const live = useRef({ phase, ratio, speed, placing })
-  live.current = { phase, ratio, speed, placing }
+  // les gestes et la boucle d'affichage lisent ces valeurs sans se relancer
+  const live = useRef({ phase, ratio, placing })
+  live.current = { phase, ratio, placing }
   const sayTimer = useRef(0)
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 
@@ -270,20 +225,30 @@ export default function OpenFront() {
     sayTimer.current = window.setTimeout(() => setMessage(''), 2200)
   }
 
-  // la carte se construit après le premier affichage, pour montrer le chargement
+  // la carte se construit après le premier affichage, pour montrer le chargement ; la partie part dans son Worker
   useEffect(() => {
-    if (setup) return
+    if (sim) return
     const id = window.setTimeout(() => {
-      setSetup(newSetup(level, name))
-      setPhase('depart')
+      const map = worldMap()
+      const names = Object.fromEntries(map.seats.map((s) => [s.code, countryName(s.code)]))
+      const next = new Sim(map, level, name, names, NATIONS, TRIBES)
+      next.onReady = () => {
+        setReady(true)
+        setPhase('depart')
+      }
+      setSim(next)
     }, 30)
     return () => clearTimeout(id)
-  }, [setup, level, name])
+  }, [sim, level, name])
+
+  useEffect(() => () => sim?.stop(), [sim])
+  useEffect(() => sim?.setSpeed(speed), [sim, speed])
 
   function restart(next: Level = level) {
     setLevel(next)
     save('openfront-niveau', next)
-    setSetup(null)
+    setSim(null)
+    setReady(false)
     setPhase('chargement')
     setCountdown(0)
     setResult(null)
@@ -298,17 +263,18 @@ export default function OpenFront() {
   }
 
   useEffect(() => {
-    if (!setup) return
-    const { g, brains } = setup
+    if (!sim || !ready) return
+    const g = sim.g
     const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const me = player(g, ME)
     const painter = new Painter(g)
     painter.setPalette(palette(canvas, g, ME))
+    const labels = new Labels()
     const view: View & { fit: number } = { s: 1, x: 0, y: 0, fit: 1 }
+    let preview: Preview | null = null
     let cw = 0
     let ch = 0
-    let labels: Anchor[] = anchors(g)
     let spawnAt = 0
     let started = 0
     let best = 0
@@ -360,8 +326,8 @@ export default function OpenFront() {
           note(
             t('{name} propose une alliance', { name: who }),
             [
-              { label: t('Accepter'), act: () => (accept(g, e.from, ME), dismiss(k)) },
-              { label: t('Refuser'), act: () => (refuse(g, e.from, ME), dismiss(k)) },
+              { label: t('Accepter'), act: () => (sim.send({ op: 'accept', from: e.from }), dismiss(k)) },
+              { label: t('Refuser'), act: () => (sim.send({ op: 'refuse', from: e.from }), dismiss(k)) },
             ],
             20,
           )
@@ -369,11 +335,13 @@ export default function OpenFront() {
         else if (e.type === 'refused' && e.to === ME && e.from !== ME) note(t('{name} refuse l’alliance', { name: who }))
         else if (e.type === 'extend' && (e.from === ME || e.to === ME)) {
           const k = key + 1
-          note(t('L’alliance avec {name} touche à sa fin', { name: who }), [{ label: t('Prolonger'), act: () => (agreeExtension(g, ME, other), dismiss(k)) }], 30)
+          note(t('L’alliance avec {name} touche à sa fin', { name: who }), [{ label: t('Prolonger'), act: () => (sim.send({ op: 'extend', other }), dismiss(k)) }], 30)
         } else if (e.type === 'expired' && (e.from === ME || e.to === ME)) note(t('Fin de l’alliance avec {name}', { name: who }))
         else if (e.type === 'betrayed' && e.to === ME) note(t('{name} t’a trahi !', { name: who }))
-        else if (e.type === 'nuke' && e.to === ME) note(t('Bombe lancée par {name} !', { name: who }))
-        else if (e.type === 'intercepted' && e.from === ME) note(t('Ta défense a abattu une bombe de {name}', { name: nameOf(g, e.to) }))
+        else if (e.type === 'nuke' && e.to === ME) {
+          feedback('bad')
+          note(t('Bombe lancée par {name} !', { name: who }))
+        } else if (e.type === 'intercepted' && e.from === ME) note(t('Ta défense a abattu une bombe de {name}', { name: nameOf(g, e.to) }))
         else if (e.type === 'intercepted' && e.to === ME) note(t('Ta bombe a été abattue'))
         else if (e.type === 'eliminated' && e.from === ME) note(t('Tu as éliminé {name}', { name: nameOf(g, e.to) }))
       }
@@ -382,6 +350,7 @@ export default function OpenFront() {
 
     const finish = (win: boolean) => {
       live.current.phase = 'fin'
+      sim.run(false)
       const ms = performance.now() - started
       const by = win ? '' : me.killer ? player(g, me.killer).name : (g.players.find((p) => p.id === winner(g))?.name ?? '')
       recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms })
@@ -390,9 +359,16 @@ export default function OpenFront() {
       setPhase('fin')
     }
 
+    // chaque tour arrive du Worker : on lit ce qui s'est passé, et on regarde si la partie est finie
+    sim.onTick = () => {
+      readEvents()
+      if (live.current.phase !== 'jeu') return
+      best = Math.max(best, me.tiles / g.land)
+      const w = winner(g)
+      if (!me.alive || w) finish(w === ME)
+    }
+
     let raf = 0
-    let last = performance.now()
-    let acc = 0
     let frames = 0
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame)
@@ -402,26 +378,17 @@ export default function OpenFront() {
         live.current.phase = 'jeu'
         setPhase('jeu')
         started = now
+        sim.run(!document.hidden)
       }
-      if (live.current.phase === 'jeu') {
-        // un onglet en arrière-plan met le jeu en pause plutôt que de rattraper le temps perdu
-        acc += Math.min(now - last, 400) * live.current.speed
-        while (acc >= TICK_MS && live.current.phase === 'jeu') {
-          acc -= TICK_MS
-          step(g)
-          runAi(g, brains)
-          readEvents()
-          best = Math.max(best, me.tiles / g.land)
-          const w = winner(g)
-          if (!me.alive || w) finish(w === ME)
-        }
-      }
-      last = now
       painter.flush()
-      draw(ctx, painter, g, view, cw, ch, labels, ME, live.current.phase === 'jeu' ? Math.min(1, acc / TICK_MS) : 0)
+      draw(ctx, painter, labels, g, view, cw, ch, sim.labels, ME, live.current.phase === 'jeu' ? sim.progress(now) : 0, now, preview)
     }
     resize()
     raf = requestAnimationFrame(frame)
+
+    // un onglet en arrière-plan met la partie en pause
+    const visibility = () => live.current.phase === 'jeu' && sim.run(!document.hidden)
+    document.addEventListener('visibilitychange', visibility)
 
     const hudTimer = window.setInterval(() => {
       if (spawnAt && live.current.phase === 'depart') setCountdown(Math.max(1, Math.ceil((SPAWN_TICKS * TICK_MS - (performance.now() - spawnAt)) / 1000)))
@@ -462,7 +429,6 @@ export default function OpenFront() {
           note(t('Débarquement de {name} en approche : {n} troupes', { name: nameOf(g, b.owner), n: troopsText(b.troops) }), undefined, 6)
         }
     }, 250)
-    const labelTimer = window.setInterval(() => (labels = anchors(g)), 1000)
 
     const cellAt = (x: number, y: number) => {
       const cx = Math.floor((x - view.x) / view.s)
@@ -478,7 +444,8 @@ export default function OpenFront() {
       const tile = cellAt(x, y)
       if (tile < 0) return
       if (live.current.phase === 'depart') {
-        if (!passable(g, tile) || (g.owner[tile] && g.owner[tile] !== ME) || !spawn(g, ME, tile)) return say(t('Choisis une terre libre.'))
+        if (!passable(g, tile) || (g.owner[tile] && g.owner[tile] !== ME)) return say(t('Choisis une terre libre.'))
+        sim.spawn(tile)
         spawnAt ||= performance.now()
         feedback('tap')
         return
@@ -487,15 +454,16 @@ export default function OpenFront() {
       const buying = live.current.placing
       if (buying) {
         setPlacing(null)
-        const r = NUKES.includes(buying as NukeType) ? launch(g, ME, buying as NukeType, tile) : build(g, ME, buying as UnitType, tile)
-        if (r === 'ok') feedback('tap')
-        else say(t(r === 'silo' ? NO_SILO : BUILD_ERRORS[r]))
+        preview = null
+        const order = isNuke(buying) ? sim.send({ op: 'launch', nuke: buying, tile }) : sim.send({ op: 'build', unit: buying, tile })
+        order.then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'silo' ? NO_SILO : BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))))
         return
       }
       if (touch) return openMenu(x, y)
-      const r = primary(g, tile, live.current.ratio)
-      if (r.ok) feedback('tap')
-      say(r.text)
+      primary(sim, tile, live.current.ratio).then((r) => {
+        if (r.ok) feedback('tap')
+        say(r.text)
+      })
     }
 
     // glisser déplace la carte, pincer ou la molette zoome, toucher sans bouger joue
@@ -526,6 +494,9 @@ export default function OpenFront() {
         if (e.pointerType !== 'mouse') return
         const p = pos(e)
         const tile = cellAt(p.x, p.y)
+        // en visant avec une bombe, la zone touchée suit la souris
+        const buying = live.current.placing
+        preview = buying && isNuke(buying) && tile >= 0 ? { tile, ...BLAST[buying === 'mirv' ? 'ogive' : buying] } : null
         const id = tile >= 0 && live.current.phase !== 'chargement' ? g.owner[tile] : 0
         const card = hoverRef.current
         if (card) card.style.transform = `translate(${p.x > cw - 240 ? p.x - 236 : p.x + 16}px, ${p.y > ch - 170 ? p.y - 150 : p.y + 16}px)`
@@ -556,7 +527,10 @@ export default function OpenFront() {
     }
     const context = (e: MouseEvent) => {
       e.preventDefault()
-      if (live.current.placing) return setPlacing(null)
+      if (live.current.placing) {
+        preview = null
+        return setPlacing(null)
+      }
       const p = pos(e)
       openMenu(p.x, p.y)
     }
@@ -568,7 +542,10 @@ export default function OpenFront() {
     }
     canvas.addEventListener('pointerdown', down)
     canvas.addEventListener('pointermove', move)
-    const leave = () => setHover((hovered = 0))
+    const leave = () => {
+      preview = null
+      setHover((hovered = 0))
+    }
     canvas.addEventListener('pointerleave', leave)
     canvas.addEventListener('pointerup', up)
     canvas.addEventListener('pointercancel', up)
@@ -583,9 +560,10 @@ export default function OpenFront() {
     return () => {
       cancelAnimationFrame(raf)
       clearInterval(hudTimer)
-      clearInterval(labelTimer)
       observer.disconnect()
       themes.disconnect()
+      document.removeEventListener('visibilitychange', visibility)
+      sim.onTick = () => {}
       canvas.removeEventListener('pointerleave', leave)
       canvas.removeEventListener('pointerdown', down)
       canvas.removeEventListener('pointermove', move)
@@ -594,7 +572,7 @@ export default function OpenFront() {
       canvas.removeEventListener('contextmenu', context)
       canvas.removeEventListener('wheel', wheel)
     }
-  }, [setup])
+  }, [sim, ready])
 
   async function share() {
     if (!result) return
@@ -607,8 +585,8 @@ export default function OpenFront() {
     save('openfront-attaque', n)
   }
 
-  const g = setup?.g
-  const radial = g && menu ? menuFor(g, menu.tile, ratio, say, setInfo) : null
+  const g = ready ? sim?.g : undefined
+  const radial = g && sim && menu ? menuFor(sim, menu.tile, ratio, say, setInfo) : null
   const shown = g && info ? player(g, info) : null
   const hovered = g && hover ? player(g, hover) : null
 
@@ -761,7 +739,7 @@ export default function OpenFront() {
                     <span>
                       → {a.name} · {troopsText(a.troops)}
                     </span>
-                    <button onClick={() => g && retreat(g, a.id)} aria-label={t('Rappeler les troupes')}>
+                    <button onClick={() => sim?.send({ op: 'retreat', attack: a.id })} aria-label={t('Rappeler les troupes')}>
                       ×
                     </button>
                   </li>
@@ -774,12 +752,12 @@ export default function OpenFront() {
                   const nuke = NUKES.includes(type as NukeType)
                   const price = priceOf(g, ME, type)
                   const owned = nuke ? 0 : unitsOf(g, ME, type as UnitType).length
-                  const ready = !nuke || unitsOf(g, ME, 'silo').some((u) => u.ready <= g.tick)
+                  const armed = !nuke || unitsOf(g, ME, 'silo').some((u) => u.ready <= g.tick)
                   return (
                     <button
                       key={type}
                       title={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
-                      disabled={hud.gold < price || !ready}
+                      disabled={hud.gold < price || !armed}
                       onClick={() => {
                         setPlacing(type)
                         setShop(false)
