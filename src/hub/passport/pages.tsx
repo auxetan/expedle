@@ -63,7 +63,7 @@ function Chip() {
 export function Cover() {
   return (
     <div className="pp-leather">
-      <span className="pp-gold pp-cover-country">{t('République de Méridien')}</span>
+      <span className="pp-gold pp-cover-country">{t('République d’Expedle')}</span>
       <Emblem />
       <span className="pp-gold pp-cover-title">{t('Passeport')}</span>
       <span className="pp-gold pp-cover-sub">Passport · Pasaporte · Reisepass</span>
@@ -96,10 +96,10 @@ export function InsideCover({ pages }: { pages: number }) {
   return (
     <Paper className="pp-notice">
       <Emblem size={22} />
-      <p className="pp-notice-title">{t('République de Méridien')}</p>
+      <p className="pp-notice-title">{t('République d’Expedle')}</p>
       <p>
         {t(
-          'Méridien prie les autorités ludiques de toutes les cartes de laisser jouer librement le titulaire du présent passeport et de lui prêter aide et protection en cas de besoin.',
+          'Expedle prie les autorités ludiques de toutes les cartes de laisser jouer librement le titulaire du présent passeport et de lui prêter aide et protection en cas de besoin.',
         )}
       </p>
       <p className="pp-notice-small">{t('Ce passeport contient {n} pages.', { n: pages })}</p>
@@ -140,7 +140,7 @@ export function DataPage({ holder, number }: { holder: Holder; number: number })
           <small>Type</small> P
         </span>
         <span>
-          <small>{t('Code')}</small> MRD
+          <small>{t('Code')}</small> EXP
         </span>
         <span>
           <small>{t('N° du passeport')}</small> {holder.number}
@@ -154,12 +154,12 @@ export function DataPage({ holder, number }: { holder: Holder; number: number })
         <div className="pp-fields">
           <Field label={`${t('Nom')} / Surname`} value={holder.name.toUpperCase()} wide />
           <Field label={`${t('Titre')} / Title`} value={t(holder.title).toUpperCase()} wide />
-          <Field label={`${t('Nationalité')} / Nationality`} value={t('MÉRIDIENNE')} wide />
+          <Field label={`${t('Nationalité')} / Nationality`} value={t('CITOYEN DU MONDE')} wide />
           <Field label={`${t('Niveau')} / Level`} value={String(holder.level)} />
           <Field label={`${t('Pays')} / Countries`} value={`${holder.stamped} / ${holder.total}`} />
           <Field label={`${t('Délivré le')} / Date of issue`} value={date(holder.issued)} />
           <Field label={`${t('Expire le')} / Date of expiry`} value={date(holder.expires)} />
-          <Field label={`${t('Autorité')} / Authority`} value="MÉRIDIEN" wide />
+          <Field label={`${t('Autorité')} / Authority`} value="EXPEDLE" wide />
         </div>
       </div>
       <div className="pp-signature">
