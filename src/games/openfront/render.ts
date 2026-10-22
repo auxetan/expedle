@@ -396,6 +396,15 @@ function arcAt(n: Nuke, k: number, sx: (t: number) => number, sy: (t: number) =>
   return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k - Math.sin(Math.PI * k) * arc, k }
 }
 
+// Un gain d'or affiché sur la carte : il monte au-dessus de sa case et s'efface.
+export interface Float {
+  tile: number
+  text: string
+  at: number
+}
+
+export const FLOAT_MS = 2000
+
 export interface Preview {
   tile: number
   inner: number
@@ -416,6 +425,7 @@ export function draw(
   alpha: number,
   now: number,
   preview: Preview | null,
+  floats: Float[],
 ) {
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
@@ -671,6 +681,21 @@ export function draw(
     ctx.fillText(text, f.x, f.y + 1)
   }
   ctx.textBaseline = 'alphabetic'
+
+  ctx.font = '700 14px Ubuntu, system-ui, sans-serif'
+  ctx.lineWidth = 3
+  ctx.lineJoin = 'round'
+  for (const f of floats) {
+    const age = (now - f.at) / FLOAT_MS
+    const x = sx(f.tile)
+    const y = sy(f.tile) - 10 - age * 26
+    if (age >= 1 || !visible(x, y)) continue
+    ctx.globalAlpha = 1 - age * age
+    ctx.strokeText(f.text, x, y)
+    ctx.fillStyle = css(pal.gold)
+    ctx.fillText(f.text, x, y)
+  }
+  ctx.globalAlpha = 1
 }
 
 // Noms et troupes : couronne pour le premier, alliés en vert, traîtres en rouge.
