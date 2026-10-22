@@ -1,0 +1,287 @@
+.of {
+  --of-l: 64%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+[data-theme='clair'] .of {
+  --of-l: 52%;
+}
+
+.of-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.of-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.of-map canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.of-map canvas.building {
+  cursor: copy;
+}
+
+/* le choix du point de départ, au-dessus de la carte */
+.of-intro {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-align: center;
+}
+
+.of-intro b {
+  font-weight: 500;
+}
+
+.of-intro span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.of-levels {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.of-levels button {
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.of-levels button.on {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.of-rank {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+  max-width: 44%;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.of-rank li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.of-rank li.me {
+  color: var(--fg);
+}
+
+.of-rank i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.of-rank span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.of-rank b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-msg {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.of-end {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-align: center;
+}
+
+.of-end b {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.of-end span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.of-end-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* en bas : troupes, part envoyée à chaque ordre, villes */
+.of-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+}
+
+.of-troops,
+.of-ratio {
+  flex: 1 1 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.of-troops b {
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.of-bar i {
+  display: block;
+  height: 100%;
+  background: var(--fg);
+  transition: width 0.25s;
+}
+
+.of-ratio input {
+  width: 100%;
+  accent-color: var(--fg);
+}
+
+.of-speed {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-city {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 14px;
+}
+
+.of-city small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.of-city:disabled {
+  opacity: 0.45;
+}
+
+.of-city.on {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.of-city.on small {
+  color: var(--bg);
+}
+
+/* sur téléphone : troupes et ville sur une ligne, curseur et vitesse sur l'autre */
+@media (max-width: 520px) {
+  .of-city {
+    order: 1;
+  }
+  .of-ratio {
+    order: 2;
+  }
+  .of-speed {
+    order: 3;
+  }
+}
