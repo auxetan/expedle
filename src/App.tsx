@@ -32,6 +32,7 @@ const Wikitrivia = lazy(() => import('./games/wikitrivia/Wikitrivia'))
 const Tightrope = lazy(() => import('./games/tightrope/Tightrope'))
 const PhotoGuessr = lazy(() => import('./games/guessr/PhotoGuessr'))
 const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
+const OpenFront = lazy(() => import('./games/openfront/OpenFront'))
 
 export default function App() {
   const route = useRoute()
@@ -123,6 +124,9 @@ export default function App() {
       break
     case 'geoguessr':
       content = <GeoGuessr key={key} daily={sub === 'jour'} />
+      break
+    case 'openfront':
+      content = <OpenFront key={key} />
       break
     default:
       content = <Hub />
