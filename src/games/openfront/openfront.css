@@ -100,8 +100,8 @@
   right: 10px;
   display: grid;
   gap: 3px;
-  min-width: 150px;
-  max-width: 44%;
+  min-width: 200px;
+  max-width: 60%;
   margin: 0;
   padding: 8px 10px;
   list-style: none;
@@ -113,10 +113,19 @@
 }
 
 .of-rank li {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px 46px;
+  gap: 8px;
   color: var(--muted);
+}
+
+.of-rank li.head small {
+  font-size: 10px;
+  text-align: right;
+}
+
+.of-rank b {
+  text-align: right;
 }
 
 .of-rank li.me {
@@ -317,7 +326,7 @@
 }
 
 .of-slice .of-note {
-  fill: var(--muted);
+  fill: var(--or);
   font-size: 9px;
 }
 
@@ -468,4 +477,168 @@
   color: var(--fg);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
+}
+
+/* l'or a sa couleur, partout où il apparaît */
+.of-gold {
+  color: var(--or);
+}
+
+.of-attacks li.in {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 55%, var(--line));
+  font-weight: 500;
+}
+
+.of-buy {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 14px;
+}
+
+.of-buy svg,
+.of-shop svg {
+  width: 18px;
+  height: 18px;
+}
+
+.of-buy.on {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.of-buy.on .of-ico {
+  stroke: var(--bg);
+}
+
+/* le tableau des achats, au-dessus du bandeau */
+.of-shop {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+  padding: 10px 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.of-shop button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 12px;
+  text-align: left;
+}
+
+.of-shop button svg {
+  grid-row: span 2;
+}
+
+.of-shop button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.of-shop button b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-shop button small {
+  color: var(--muted);
+}
+
+.of-shop button:not(:disabled):hover {
+  background: var(--hover);
+}
+
+.of-shop button:disabled {
+  opacity: 0.45;
+}
+
+.of-shop + .of-hud,
+.of-shop + .of-attacks {
+  border-top: none;
+}
+
+.of-placing {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.of-placing button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: none;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+}
+
+/* la fiche qui suit la souris au-dessus des pays */
+.of-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: 220px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.of-hover b {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.of-hover dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 10px;
+  margin: 6px 0;
+}
+
+.of-hover dt {
+  color: var(--muted);
+}
+
+.of-hover dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-hover p {
+  margin: 0;
+  color: var(--muted);
 }

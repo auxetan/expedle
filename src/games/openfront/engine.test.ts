@@ -158,6 +158,16 @@ describe('bateaux', () => {
     expect(g.owner[at(g, 22, 2)]).toBe(p.id)
   })
 
+  it('accostent sur une côte de la mer, pas sur la rive d’un lac intérieur', () => {
+    const lake = ['............................', '.#####.............#######..', '.#####.............##.####..', '.#####.............#######..', '............................']
+    const g = createGame(map(lake), 'moyen', mulberry32(9))
+    const p = addPlayer(g, 'A', 'human')
+    spawn(g, p.id, at(g, 3, 2))
+    // la case visée touche le lac, mais seule la mer mène jusqu'au joueur
+    expect(sendBoat(g, p.id, at(g, 20, 2), 100)).toBe(true)
+    expect(g.boats[0].path.length).toBeGreaterThan(5)
+  })
+
   it('ne sont que trois à la fois', () => {
     const g = createGame(map(islands), 'moyen')
     const p = addPlayer(g, 'A', 'human')

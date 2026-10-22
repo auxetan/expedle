@@ -1,6 +1,8 @@
 import type { Game } from './engine'
 
 const BIN = 25
+// une case sur deux dans chaque sens suffit pour placer les noms, et coûte quatre fois moins
+const STRIDE = 2
 
 export interface Anchor {
   id: number
@@ -17,10 +19,11 @@ export function anchors(g: Game): Anchor[] {
   const bh = Math.ceil(g.h / BIN)
   const n = g.players.length + 1
   const bins = new Int32Array(n * bw * bh)
-  for (let i = 0; i < g.owner.length; i++) {
-    const o = g.owner[i]
-    if (o > 0) bins[(o * bh + Math.floor(i / g.w / BIN)) * bw + Math.floor((i % g.w) / BIN)]++
-  }
+  for (let y = 0; y < g.h; y += STRIDE)
+    for (let x = 0; x < g.w; x += STRIDE) {
+      const o = g.owner[y * g.w + x]
+      if (o > 0) bins[(o * bh + Math.floor(y / BIN)) * bw + Math.floor(x / BIN)]++
+    }
   const out: Anchor[] = []
   for (const p of g.players) {
     if (!p.alive || !p.tiles) continue
@@ -31,14 +34,15 @@ export function anchors(g: Game): Anchor[] {
     let sx = 0
     let sy = 0
     let cells = 0
-    for (let y = Math.max(0, (by - 1) * BIN); y < Math.min(g.h, (by + 2) * BIN); y++)
-      for (let x = Math.max(0, (bx - 1) * BIN); x < Math.min(g.w, (bx + 2) * BIN); x++)
+    for (let y = Math.max(0, (by - 1) * BIN); y < Math.min(g.h, (by + 2) * BIN); y += STRIDE)
+      for (let x = Math.max(0, (bx - 1) * BIN); x < Math.min(g.w, (bx + 2) * BIN); x += STRIDE)
         if (g.owner[y * g.w + x] === p.id) {
           sx += x
           sy += y
           cells++
         }
-    out.push({ id: p.id, x: sx / cells, y: sy / cells, cells })
+    // un territoire trop petit pour l'échantillonnage n'a pas la place d'afficher son nom
+    if (cells) out.push({ id: p.id, x: sx / cells, y: sy / cells, cells: cells * STRIDE * STRIDE })
   }
   return out
 }

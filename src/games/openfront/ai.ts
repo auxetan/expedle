@@ -6,6 +6,7 @@ import {
   addPlayer,
   agreeExtension,
   allied,
+  boatsOf,
   build,
   isLand,
   isTraitor,
@@ -144,13 +145,20 @@ function attack(g: Game, p: Player, b: Brain) {
   if (traitor || p.troops > target.troops * (p.kind === 'bot' ? 2 : 1.2)) startAttack(g, p.id, target.id, spare(g, p, b))
 }
 
-// Quelques tirages au hasard sur la carte, la terre libre d'abord : chaque essai calcule une traversée.
+// Une traversée vers une terre proche de ses côtes, la terre libre d'abord ; un seul bateau à la fois.
+// Les tribus restent à terre.
 function boat(g: Game, p: Player, troops: number) {
+  if (p.kind === 'bot' || boatsOf(g, p.id)) return
+  const border = [...p.border]
   for (let i = 0; i < 30; i++) {
-    const t = Math.floor(g.rng() * g.owner.length)
+    const from = border[Math.floor(g.rng() * border.length)]
+    const x = (from % g.w) + Math.round((g.rng() - 0.5) * 400)
+    const y = Math.floor(from / g.w) + Math.round((g.rng() - 0.5) * 400)
+    if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue
+    const t = y * g.w + x
     if (!isLand(g, t) || !passable(g, t) || g.owner[t] === p.id) continue
     if (g.owner[t] && (i < 20 || allied(g, p.id, g.owner[t]))) continue
-    sendBoat(g, p.id, t, troops)
+    sendBoat(g, p.id, t, troops, false)
     return
   }
 }
