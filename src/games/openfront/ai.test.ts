@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../../lib/util'
 import { brainFor, populate, think } from './ai'
-import { addPlayer, allied, breakAlliance, build, createGame, LAND, OCEAN, requestAlliance, spawn, step, type Game } from './engine'
+import { addPlayer, allied, breakAlliance, build, createGame, LAND, OCEAN, requestAlliance, spawn, startAttack, step, type Game } from './engine'
 import { BUILD_TICKS } from './rules'
 
 function map(rows: string[]) {
@@ -66,6 +66,20 @@ describe('nations', () => {
     nation.gold = 2_000_000
     for (let i = 0; i < 10; i++) think(g, brain)
     expect(g.units.some((u) => u.owner === nation.id)).toBe(true)
+  })
+
+  it('posent une usine une fois quelques villes bâties', () => {
+    const { g, nation, brain } = setup(block(200, 100))
+    nation.troops = 1e7
+    startAttack(g, nation.id, 0, 5e6)
+    for (let i = 0; i < 120; i++) step(g)
+    nation.troops = 1e5
+    nation.gold = 1e8
+    build(g, nation.id, 'ville', at(g, 55, 20))
+    build(g, nation.id, 'ville', at(g, 85, 20))
+    const factory = () => g.units.some((u) => u.owner === nation.id && u.type === 'usine')
+    for (let i = 0; i < 60 && !factory(); i++) think(g, brain)
+    expect(factory()).toBe(true)
   })
 
   it('lancent une bombe sur un ennemi quand elles ont un silo et de quoi la payer', () => {
