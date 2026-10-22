@@ -101,6 +101,8 @@ interface Hud {
   // ce qui arrive sur toi : attaques par la terre et débarquements en route
   incoming: { id: number; name: string; troops: number; boat: boolean }[]
   boats: number
+  // temps restant du malus de trahison, en millisecondes
+  traitor: number
 }
 
 interface Note {
@@ -125,7 +127,7 @@ const isNuke = (type: Buyable): type is NukeType => NUKES.includes(type as NukeT
 function status(g: Game, id: number): string {
   const p = player(g, id)
   if (id === ME) return t('C’est toi.')
-  if (isTraitor(g, p)) return t('Traître : sa défense est affaiblie.')
+  if (isTraitor(g, p)) return t('Traître encore {time} : sa défense est affaiblie.', { time: formatTime((p.traitorUntil - g.tick) * TICK_MS) })
   const ally = allianceOf(g, ME, id)
   if (ally) return t('Allié encore {time}', { time: formatTime((ally.until - g.tick) * TICK_MS) })
   if (g.attacks.some((a) => a.from === id && a.to === ME)) return t('T’attaque')
@@ -408,8 +410,12 @@ export default function OpenFront() {
       const first = !cw
       cw = r.width
       ch = r.height
-      canvas.width = Math.round(cw * devicePixelRatio)
-      canvas.height = Math.round(ch * devicePixelRatio)
+      const w = Math.round(cw * devicePixelRatio)
+      const h = Math.round(ch * devicePixelRatio)
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w
+        canvas.height = h
+      }
       view.fit = Math.min(cw / g.w, ch / g.h)
       if (first) {
         // sur un téléphone en hauteur, le monde entier serait minuscule : on part zoomé sur l'Europe et l'Afrique
@@ -418,6 +424,9 @@ export default function OpenFront() {
         view.y = (ch - g.h * view.s) / 2
       }
       clamp()
+      // changer la taille vide le canevas, et l'observateur passe après l'image déjà dessinée :
+      // sans ce nouveau dessin, l'écran clignote en blanc quand la barre des attaques apparaît ou disparaît
+      if (!first) paint(performance.now())
     }
     const zoomAt = (x: number, y: number, f: number) => {
       const s = Math.min(Math.max(view.s * f, view.fit), view.fit * 40)
@@ -510,6 +519,9 @@ export default function OpenFront() {
         started = now
         sim.run(!document.hidden)
       }
+      paint(now)
+    }
+    const paint = (now: number) => {
       painter.flush()
       while (floats.length && now - floats[0].at > FLOAT_MS) floats.shift()
       overlay.marks.clear()
@@ -554,6 +566,7 @@ export default function OpenFront() {
           ...g.boats.filter((b) => b.to === ME && !b.trade && !b.back).map((b) => ({ id: b.id, name: nameOf(g, b.owner), troops: b.troops, boat: true })),
         ],
         boats: boatsOf(g, ME),
+        traitor: Math.max(0, (me.traitorUntil - g.tick) * TICK_MS),
       })
       // une alerte à chaque nouvelle attaque ou débarquement contre toi
       for (const a of g.attacks)
@@ -855,6 +868,11 @@ export default function OpenFront() {
             </ul>
           )}
           {message && <div className="of-msg">{message}</div>}
+          {phase === 'jeu' && hud && hud.traitor > 0 && (
+            <div className="of-traitor" role="status">
+              {t('Traître encore {time} : ta défense est affaiblie', { time: formatTime(hud.traitor) })}
+            </div>
+          )}
           {steering && phase === 'jeu' && (
             <div className="of-placing">
               <span>{t('Touche la mer où envoyer ton navire de guerre')}</span>
