@@ -14,14 +14,18 @@ import {
   donateGold,
   donateTroops,
   launch,
+  moveWarship,
   player,
   refuse,
   requestAlliance,
   recallBoat,
   retreat,
   sendBoat,
+  sendEmoji,
+  setTarget,
   spawn,
   step,
+  toggleEmbargo,
   type Game,
 } from './engine'
 import { anchors } from './labels'
@@ -87,6 +91,7 @@ function snapshot(full: boolean): Snapshot {
     requests: g.requests,
     events,
     labels: full || g.tick % 10 === 0 ? anchors(g) : undefined,
+    me: { target: player(g, ME).target, embargo: [...player(g, ME).embargo] },
   }
 }
 
@@ -143,6 +148,16 @@ function run(c: Command): Reply {
     case 'recall':
       recallBoat(g, c.boat)
       return true
+    case 'emoji':
+      return sendEmoji(g, ME, c.to, c.emoji)
+    case 'target':
+      setTarget(g, ME, c.other)
+      return true
+    case 'embargo':
+      toggleEmbargo(g, ME, c.other)
+      return true
+    case 'move':
+      return moveWarship(g, ME, c.unit, c.tile)
   }
 }
 
@@ -150,7 +165,7 @@ self.onmessage = (e: MessageEvent<ToSim>) => {
   const m = e.data
   switch (m.type) {
     case 'init': {
-      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level)
+      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level, Math.random, true, m.options)
       addPlayer(g, m.name, 'human')
       brains = populate(g, m.seats, m.nations, m.tribes, (code) => m.names[code] ?? code)
       const snap = snapshot(true)
