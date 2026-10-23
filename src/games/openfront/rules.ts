@@ -27,6 +27,8 @@ export const RETREAT_LOSS = 0.25
 export const SILO_COOLDOWN = 90
 export const SAM_COOLDOWN = 90
 export const NUKE_ALLY_BREAK = 100
+// une bombe n'est interceptable qu'à moins de 150 cases de son silo ou de sa cible
+export const NUKE_EXPOSED_RANGE = 150
 export const WARSHIP_HP = 1000
 // un navire de guerre patrouille à 100 cases de son point d'attache et tire jusqu'à 130 ; près d'un port à son
 // pays (150 cases), il se répare d'un point par tour
