@@ -37,8 +37,8 @@ import type { Lobby, Start } from './net'
 import Salon from './Salon'
 import { skinById, type Skin } from './progress'
 import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
-import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Overlay, type View } from './render'
-import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
+import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Ghost, type Overlay, type View } from './render'
+import { BLAST, DEFENSE_RANGE, EXTEND_WINDOW, goldPerTick, MAX_BOATS, RAIL_RANGE, samRange, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
 // le numéro du joueur de cet écran : 1 en solo, sa place dans le salon en ligne (fixé au lancement d'une partie)
@@ -84,6 +84,27 @@ const BAR: [Action, Buyable][] = [
   ['buildHydrogenBomb', 'hbombe'],
   ['buildMIRV', 'mirv'],
 ]
+
+// en préparant ces constructions, OpenFront montre les zones des défenses antiaériennes
+const SAM_VIEW = new Set<Buyable>(['silo', 'dca', 'ville', 'bombe', 'hbombe'])
+
+// Le fantôme du bâtiment sous la souris : sa place réelle, s'il peut s'y poser, son prix et sa portée
+// (défense antiaérienne, poste de défense, ou rails pour une gare).
+function ghostAt(g: Game, type: UnitType, tile: number, infinite: boolean): Ghost {
+  const spot = buildSpot(g, ME, type, tile)
+  const placed = typeof spot === 'string' ? null : spot
+  const cost = priceOf(g, ME, type)
+  const level = placed?.upgrade ? placed.upgrade.level + 1 : 1
+  const range = type === 'dca' ? samRange(level) : type === 'poste' ? DEFENSE_RANGE : type === 'ville' || type === 'port' || type === 'usine' ? RAIL_RANGE : 0
+  return { tile: placed?.tile ?? tile, type, cost, afford: infinite || player(g, ME).gold >= cost, place: !!placed, range }
+}
+
+// le silo qui tirerait sur cette case : le plus proche des prêts, comme au lancement
+function siloFor(g: Game, tile: number): number | undefined {
+  const ready = unitsOf(g, ME, 'silo').filter((u) => u.ready <= g.tick && u.slots.some((c) => c <= g.tick))
+  if (!ready.length) return undefined
+  return ready.reduce((a, b) => (distance(g, a.tile, tile) <= distance(g, b.tile, tile) ? a : b)).tile
+}
 
 // ce que bâtissent les touches de construction
 const BUILDS: Partial<Record<Action, Buyable>> = {
@@ -353,6 +374,8 @@ export default function OpenFront() {
   // navire de guerre qu'on s'apprête à envoyer ailleurs
   const [steering, setSteering] = useState(false)
   const hoverRef = useRef<HTMLDivElement>(null)
+  // le bâtiment survolé dans la barre de construction
+  const barHover = useRef<Buyable | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [message, setMessage] = useState('')
   const [result, setResult] = useState<Result | null>(null)
@@ -458,7 +481,7 @@ export default function OpenFront() {
     let aim = -1
     const labels = new Labels()
     const view: View & { fit: number } = { s: 1, x: 0, y: 0, fit: 1 }
-    const overlay: Overlay = { preview: null, floats: [], marks: new Map(), ship: 0, fx: sim.fx }
+    const overlay: Overlay = { preview: null, floats: [], marks: new Map(), ship: 0, fx: sim.fx, ghost: null, sams: false, highlight: null }
     const floats: Float[] = overlay.floats
     // dernier emoji de chaque joueur, affiché au-dessus de son nom
     const shouts = new Map<number, { emoji: string; until: number }>()
@@ -578,6 +601,12 @@ export default function OpenFront() {
     // chaque tour arrive du Worker : on lit ce qui s'est passé, et on regarde si la partie est finie
     sim.onTick = () => {
       readEvents()
+      // les postes de défense gardent leur zone ; alliés et embargos teintent les bordures
+      painter.setPosts(g.units.filter((u) => u.type === 'poste' && u.ready <= g.tick).map((u) => ({ tile: u.tile, owner: u.owner })))
+      painter.setRelations(
+        g.players.filter((p) => p.id !== ME && allied(g, ME, p.id)).map((p) => p.id),
+        [...me.embargo],
+      )
       if (live.current.phase !== 'jeu') return
       best = Math.max(best, me.tiles / g.land)
       const w = winner(g)
@@ -602,6 +631,12 @@ export default function OpenFront() {
     const paint = (now: number) => {
       painter.flush()
       while (floats.length && now - floats[0].at > FLOAT_MS) floats.shift()
+      // comme sur OpenFront : les zones antiaériennes en préparant silo, défense, ville ou bombe, ou en survolant la défense
+      const buying = live.current.placing
+      const hovered = barHover.current
+      overlay.sams = (!!buying && SAM_VIEW.has(buying)) || hovered === 'dca'
+      overlay.highlight = hovered && !isNuke(hovered) ? hovered : null
+      if (!buying) overlay.ghost = null
       overlay.marks.clear()
       if (me.target) overlay.marks.set(me.target, '🎯')
       for (const [id, shout] of shouts)
@@ -742,9 +777,10 @@ export default function OpenFront() {
         const p = pos(e)
         const tile = cellAt(p.x, p.y)
         aim = tile
-        // en visant avec une bombe, la zone touchée suit la souris
+        // en visant avec une bombe, la zone touchée suit la souris ; un bâtiment montre son fantôme
         const buying = live.current.placing
-        overlay.preview = buying && isNuke(buying) && tile >= 0 ? { tile, ...BLAST[buying === 'mirv' ? 'ogive' : buying] } : null
+        overlay.preview = buying && isNuke(buying) && tile >= 0 ? { tile, ...BLAST[buying === 'mirv' ? 'ogive' : buying], from: siloFor(g, tile) } : null
+        overlay.ghost = buying && !isNuke(buying) && tile >= 0 ? ghostAt(g, buying, tile, settings.infiniteGold) : null
         const id = tile >= 0 && live.current.phase !== 'chargement' ? g.owner[tile] : 0
         const card = hoverRef.current
         if (card) card.style.transform = `translate(${p.x > cw - 240 ? p.x - 236 : p.x + 16}px, ${p.y > ch - 170 ? p.y - 150 : p.y + 16}px)`
@@ -822,6 +858,10 @@ export default function OpenFront() {
         case 'zoomIn':
           zoomAt(cw / 2, ch / 2, 1.4)
           break
+        // tant que la touche est tenue, chaque territoire prend la couleur de son camp
+        case 'toggleView':
+          painter.setAlt(ME)
+          break
         case 'centerCamera': {
           const home = sim.labels.find((a) => a.id === ME)
           if (!home) return
@@ -869,11 +909,14 @@ export default function OpenFront() {
       e.preventDefault()
       clamp()
     }
+    const release = (e: KeyboardEvent) => actionFor(keymap, e.code) === 'toggleView' && painter.setAlt(0)
     window.addEventListener('keydown', keys)
+    window.addEventListener('keyup', release)
     canvas.addEventListener('pointerdown', down)
     canvas.addEventListener('pointermove', move)
     const leave = () => {
       overlay.preview = null
+      overlay.ghost = null
       setHover((hovered = 0))
     }
     canvas.addEventListener('pointerleave', leave)
@@ -894,6 +937,7 @@ export default function OpenFront() {
       themes.disconnect()
       document.removeEventListener('visibilitychange', visibility)
       window.removeEventListener('keydown', keys)
+      window.removeEventListener('keyup', release)
       sim.onTick = () => {}
       canvas.removeEventListener('pointerleave', leave)
       canvas.removeEventListener('pointerdown', down)
@@ -1159,6 +1203,8 @@ export default function OpenFront() {
                       aria-label={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
                       disabled={(!settings.infiniteGold && hud.gold < price) || !armed}
                       onClick={() => setPlacing(placing === type ? null : type)}
+                      onMouseEnter={() => (barHover.current = type)}
+                      onMouseLeave={() => (barHover.current = null)}
                     >
                       <kbd>{keyName(keymap[action])}</kbd>
                       <Glyph src={ICON[type]} size={20} />

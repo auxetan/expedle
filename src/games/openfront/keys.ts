@@ -11,6 +11,7 @@ export type Action =
   | 'zoomOut'
   | 'zoomIn'
   | 'centerCamera'
+  | 'toggleView'
   | 'attackRatioDown'
   | 'attackRatioUp'
   | 'groundAttack'
@@ -43,6 +44,7 @@ export const DEFAULT_KEYS: Keys = {
   zoomOut: 'KeyQ',
   zoomIn: 'KeyE',
   centerCamera: 'KeyC',
+  toggleView: 'Space',
   attackRatioDown: 'KeyT',
   attackRatioUp: 'KeyY',
   groundAttack: 'KeyG',
@@ -89,6 +91,7 @@ export const KEY_GROUPS: { title: string; actions: [Action, string][] }[] = [
       ['zoomOut', msg('Dézoomer')],
       ['zoomIn', msg('Zoomer')],
       ['centerCamera', msg('Te retrouver')],
+      ['toggleView', msg('Vue des camps (maintenir)')],
     ],
   },
   {

@@ -14,6 +14,7 @@ import {
   maxTroops,
   neutralCost,
   NUKE_ALLY_BREAK,
+  NUKE_EXPOSED_RANGE,
   nukeDeaths,
   PORT_RANGE,
   priority,
@@ -1253,15 +1254,21 @@ export function nukeAt(g: Game, n: Nuke, tick = g.tick): number {
 
 // Une défense antiaérienne tire sur la bombe ennemie qui entre dans sa portée en visant sa zone ;
 // son missile part de la défense et abat la bombe en vol. Les ogives d'un MIRV et le MIRV lui-même passent.
+// Comme sur OpenFront, une bombe n'est exposée aux défenses qu'à moins de 150 cases de son silo ou de sa cible :
+// au milieu d'un long vol, elle passe trop haut.
+export const nukeExposed = (g: Game, n: { from: number; dst: number }, at: number) =>
+  dist2(g, at, n.from) < NUKE_EXPOSED_RANGE * NUKE_EXPOSED_RANGE || dist2(g, at, n.dst) < NUKE_EXPOSED_RANGE * NUKE_EXPOSED_RANGE
+
 function stepSams(g: Game) {
   for (const n of g.nukes) {
     if (n.targeted || g.tick < n.start || n.type === 'ogive' || n.type === 'mirv') continue
     const at = nukeAt(g, n)
+    if (!nukeExposed(g, n, at)) continue
     for (const u of g.units) {
       if (u.type !== 'dca' || u.ready > g.tick || u.owner === n.owner || allied(g, u.owner, n.owner)) continue
       const range = samRange(u.level)
       const slot = u.slots.findIndex((c) => c <= g.tick)
-      if (slot < 0 || dist2(g, u.tile, at) > range * range || dist2(g, u.tile, n.dst) > (range + 40) * (range + 40)) continue
+      if (slot < 0 || dist2(g, u.tile, at) > range * range) continue
       u.slots[slot] = g.tick + SAM_COOLDOWN
       n.targeted = true
       g.missiles.push({ id: g.nextId++, owner: u.owner, from: u.tile, nuke: n.id, start: g.tick, ticks: Math.max(1, Math.ceil(distance(g, u.tile, at) / SAM_SPEED)) })
