@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { evaluate, levelOf } from './achievements'
 import type { Play } from './stats'
-import { balanceOf, buy, earnedOf, LEVEL_PEPITES, loadPurchases, owns, playPepites, TIER_PEPITES } from './wallet'
+import { balanceOf, buy, consume, earnedOf, LEVEL_PEPITES, loadPurchases, owns, playPepites, stockOf, TIER_PEPITES } from './wallet'
 
 const play = (p: Partial<Play> = {}): Play => ({ g: 'worldle', t: new Date('2026-10-20T12:00:00').getTime(), pts: 0, ...p })
 
@@ -40,5 +40,50 @@ describe('pépites', () => {
     expect(buy('avatar:🐉', 5)).toBe(false)
     expect(owns('avatar:🐉')).toBe(true)
     expect(loadPurchases()).toEqual([{ id: 'avatar:🐉', price: 5 }])
+  })
+})
+
+describe('jokers', () => {
+  const history = [play({ pts: 100, win: true })]
+
+  beforeEach(() => {
+    const store = new Map<string, string>([['cg:history', JSON.stringify(history)]])
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) })
+  })
+
+  it('s’achètent par lots, autant de fois qu’on veut, chaque lot à son prix', () => {
+    expect(buy('joker:essai', 5, 3)).toBe(true)
+    expect(buy('joker:essai', 8, 3)).toBe(true)
+    expect(stockOf('joker:essai')).toBe(6)
+    expect(loadPurchases()).toEqual([
+      { id: 'joker:essai', price: 5, n: 3 },
+      { id: 'joker:essai', price: 8, n: 3 },
+    ])
+    expect(balanceOf(history, loadPurchases())).toBe(earnedOf(history) - 13)
+  })
+
+  it('ne s’achètent pas au-delà du solde', () => {
+    expect(buy('joker:vie', earnedOf(history) + 1, 3)).toBe(false)
+    expect(stockOf('joker:vie')).toBe(0)
+  })
+
+  it('se consomment un par un, jamais au-delà du stock, sans rendre de pépites', () => {
+    buy('joker:vie', 5, 2)
+    const balance = balanceOf(history, loadPurchases())
+    expect(consume('joker:vie')).toBe(true)
+    expect(stockOf('joker:vie')).toBe(1)
+    expect(consume('joker:vie')).toBe(true)
+    expect(consume('joker:vie')).toBe(false)
+    expect(stockOf('joker:vie')).toBe(0)
+    expect(balanceOf(history, loadPurchases())).toBe(balance)
+  })
+
+  it('gardent un stock par sorte de joker', () => {
+    buy('joker:essai', 5, 3)
+    buy('joker:passe', 5, 3)
+    consume('joker:passe')
+    expect(stockOf('joker:essai')).toBe(3)
+    expect(stockOf('joker:passe')).toBe(2)
+    expect(consume('joker:vie')).toBe(false)
   })
 })
