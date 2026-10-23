@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Play } from '../../lib/stats'
-import { rankOf, SKINS, tallyOf, xpOf } from './progress'
+import { balanceOf, capsOf, earnedOf, rankOf, SKINS, tallyOf, xpOf } from './progress'
 
 const play = (p: Partial<Play>): Play => ({ g: 'openfront', t: 0, pts: 0, ...p })
 
@@ -24,10 +24,33 @@ describe('statistiques', () => {
   })
 })
 
+describe('capsules', () => {
+  it('rapportent 10 par partie, 50 par victoire, le double en ligne', () => {
+    expect(capsOf(play({}))).toBe(10)
+    expect(capsOf(play({ win: true }))).toBe(50)
+    expect(capsOf(play({ win: true, sub: 'multi' }))).toBe(100)
+    expect(capsOf(play({ sub: 'multi' }))).toBe(20)
+  })
+
+  it('s’ajoutent aux 100 offertes à chaque niveau gagné, pour Frontières seulement', () => {
+    // 100 points : niveau 2, soit une récompense de niveau
+    const list = [play({ pts: 60 }), play({ pts: 40, win: true }), play({ g: 'travle', pts: 100, win: true })]
+    expect(earnedOf(list)).toBe(10 + 50 + 100)
+  })
+
+  it('se dépensent dans la boutique : le solde retire le prix des motifs achetés', () => {
+    const list = [play({ pts: 100, win: true })]
+    const [, cheap] = SKINS
+    expect(balanceOf(list, [cheap.id])).toBe(earnedOf(list) - cheap.price)
+    // un motif inconnu ne coûte rien : il a pu disparaître de la boutique
+    expect(balanceOf(list, ['inconnu'])).toBe(earnedOf(list))
+  })
+})
+
 describe('boutique', () => {
-  it('propose des motifs de plus en plus rares, le premier offert', () => {
-    expect(SKINS[0]).toMatchObject({ id: 'uni', level: 1 })
-    expect(SKINS.map((s) => s.level)).toEqual([...SKINS.map((s) => s.level)].sort((a, b) => a - b))
+  it('propose des motifs de plus en plus chers, le premier offert', () => {
+    expect(SKINS[0]).toMatchObject({ id: 'uni', price: 0 })
+    expect(SKINS.map((s) => s.price)).toEqual([...SKINS.map((s) => s.price)].sort((a, b) => a - b))
     expect(new Set(SKINS.map((s) => s.id)).size).toBe(SKINS.length)
   })
 })
