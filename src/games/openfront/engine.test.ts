@@ -14,6 +14,7 @@ import {
   LAND,
   maxTroopsOf,
   moveWarship,
+  nukeExposed,
   neighbors,
   OCEAN,
   player,
@@ -548,6 +549,14 @@ describe('bombes', () => {
     expect(launch(g, a.id, 'bombe', at(g, 50, 15))).toBe('ok')
     expect(launch(g, a.id, 'bombe', at(g, 50, 16))).toBe('ok')
     expect(launch(g, a.id, 'bombe', at(g, 50, 17))).toBe('silo')
+  })
+
+  it('ne sont exposées qu’à 150 cases de leur silo ou de leur cible : au milieu d’un long vol, rien ne les abat', () => {
+    const g = createGame(map(block(1000, 40)), 'moyen')
+    const flight = { from: at(g, 10, 15), dst: at(g, 990, 15) }
+    expect(nukeExposed(g, flight, at(g, 100, 15))).toBe(true)
+    expect(nukeExposed(g, flight, at(g, 500, 15))).toBe(false)
+    expect(nukeExposed(g, flight, at(g, 900, 15))).toBe(true)
   })
 
   it('tombent sur une défense antiaérienne ennemie à portée', () => {
