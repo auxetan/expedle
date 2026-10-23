@@ -18,6 +18,7 @@ import {
   requestAlliance,
   retreat,
   sendBoat,
+  sendChat,
   sendEmoji,
   setTarget,
   spawn,
@@ -91,6 +92,8 @@ export function execute(g: Game, id: number, c: Command, turn = Infinity): Reply
       return true
     case 'emoji':
       return sendEmoji(g, id, c.to, c.emoji)
+    case 'chat':
+      return sendChat(g, id, c.to, c.phrase, c.about)
     case 'target':
       return setTarget(g, id, c.other)
     case 'embargo':
