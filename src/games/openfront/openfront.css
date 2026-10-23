@@ -1037,3 +1037,135 @@
   color: var(--bad);
   font-size: 13px;
 }
+
+/* les capsules, la monnaie qu'on gagne en jouant */
+.of-caps {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--or);
+  font-variant-numeric: tabular-nums;
+}
+
+.of-gain {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.of-skins button.confirm {
+  border-color: var(--or);
+}
+
+/* les réglages : le son par voie, puis les touches */
+.of-settings {
+  display: grid;
+  gap: 18px;
+}
+
+.of-sound {
+  display: grid;
+  gap: 6px;
+}
+
+.of-sound h4 {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.of-sound label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 1.4fr) 4.5em;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.of-sound input {
+  width: 100%;
+  accent-color: var(--fg);
+}
+
+.of-sound button {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+/* les réglages du son ouverts pendant la partie */
+.of-sheet {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  display: grid;
+  gap: 12px;
+  width: min(340px, calc(100% - 20px));
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.of-sheet .of-back {
+  justify-self: end;
+}
+
+/* le cadre d'alerte d'OpenFront : rouge quand on est trahi, orange quand une vraie offensive arrive */
+.of-alert {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  border: clamp(8px, 1.6vw, 17px) solid;
+  opacity: 0;
+  pointer-events: none;
+  animation: of-alert 1.6s ease-in-out 2;
+}
+
+.of-alert.trahison {
+  border-color: #ee0000;
+}
+
+.of-alert.attaque {
+  border-color: #ffa500;
+}
+
+@keyframes of-alert {
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of-alert {
+    animation-iteration-count: 1;
+  }
+}
+
+/* en ligne, la phase de placement s'écoule le long du haut de la carte */
+.of-spawnbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 6px;
+  background: color-mix(in srgb, var(--fg) 25%, transparent);
+  pointer-events: none;
+}
+
+.of-spawnbar i {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, #3b82f6 85%, transparent);
+  transition: width 0.25s linear;
+}
