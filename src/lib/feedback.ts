@@ -83,3 +83,8 @@ export function feedback(cue: Cue): void {
   }
   if (settings.haptics) navigator.vibrate?.(VIBRATIONS[cue])
 }
+
+// la vibration seule, pour un jeu qui joue ses propres sons
+export function buzz(cue: Cue): void {
+  if (typeof window !== 'undefined' && feedbackSettings().haptics) navigator.vibrate?.(VIBRATIONS[cue])
+}
