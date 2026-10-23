@@ -7,6 +7,7 @@ import { copyText, load, save, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
+import Joker from '../../ui/Joker'
 import { evaluate, squares } from '../worldle/game'
 import '../worldle/worldle.css'
 import { dailyTarget, flagUrl, MAX_GUESSES, revealOrder, score, TILES, visibleTiles } from './game'
@@ -19,6 +20,8 @@ const tilesLabel = (n: number) => plural(n, '{n} tuile', '{n} tuiles')
 interface Saved {
   guesses: string[]
   ms?: number
+  // essais ajoutés par des jokers
+  extra?: number
 }
 
 function Flag({ code, shown, order }: { code: string; shown: number; order: number[] }) {
@@ -46,6 +49,7 @@ function Flag({ code, shown, order }: { code: string; shown: number; order: numb
 export default function Flagle({ mode }: { mode?: string }) {
   const [challenge] = useState(readChallenge)
   const practice = mode === 'libre' || !!challenge
+  const jokers = practice && !challenge
   const atlas = worldAtlas()
   const day = todayKey()
   const storageKey = practice ? null : `flagle:${day}`
@@ -57,17 +61,18 @@ export default function Flagle({ mode }: { mode?: string }) {
 
   const order = useMemo(() => revealOrder(seed), [seed])
   const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c)), [state.guesses, atlas, target])
+  const max = MAX_GUESSES + (state.extra ?? 0)
   const won = state.guesses.includes(target)
-  const over = won || state.guesses.length >= MAX_GUESSES
+  const over = won || state.guesses.length >= max
   const wrong = state.guesses.filter((c) => c !== target).length
   const shown = visibleTiles(wrong, over)
 
   function guess(code: string) {
     const win = code === target
     const n = state.guesses.length + 1
-    const over = win || n >= MAX_GUESSES
+    const over = win || n >= max
     const ms = elapsed()
-    const next = { guesses: [...state.guesses, code], ...(over ? { ms } : {}) }
+    const next = { ...state, guesses: [...state.guesses, code], ...(over ? { ms } : {}) }
     setState(next)
     if (storageKey) save(storageKey, next)
     if (!over) return
@@ -78,7 +83,7 @@ export default function Flagle({ mode }: { mode?: string }) {
 
   async function share() {
     const tiles = t('{n}/{total} tuiles vues', { n: visibleTiles(won ? state.guesses.length - 1 : MAX_GUESSES, false), total: TILES })
-    const text = `Flagle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES} · ${tiles}\n${rows
+    const text = `Flagle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${max} · ${tiles}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
@@ -101,7 +106,7 @@ export default function Flagle({ mode }: { mode?: string }) {
         </div>
 
         <ol className="wd-rows">
-          {Array.from({ length: MAX_GUESSES }, (_, i) => {
+          {Array.from({ length: max }, (_, i) => {
             const r = rows[i]
             return r ? (
               <li key={i} className="wd-row filled">
@@ -117,14 +122,17 @@ export default function Flagle({ mode }: { mode?: string }) {
         </ol>
 
         {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('À quel pays est ce drapeau ?')} button={t('Deviner')} />}
+        {!over && jokers && max - state.guesses.length === 1 && <Joker id="joker:essai" onUse={() => setState({ ...state, extra: (state.extra ?? 0) + 1 })} />}
 
         {over && (
           <section className="wd-end">
             <b>{won ? t('Bravo ! C’est {name}.', { name: atlas.name(target) }) : t('Perdu : c’était {name}.', { name: atlas.name(target) })}</b>
             <span className="muted">
               {won
-                ? t('Trouvé en {n}/{max}, avec {tiles} sur {total}.', { n: state.guesses.length, max: MAX_GUESSES, tiles: tilesLabel(visibleTiles(state.guesses.length - 1, false)), total: TILES })
-                : t('Six essais, pas un de plus.')}
+                ? t('Trouvé en {n}/{max}, avec {tiles} sur {total}.', { n: state.guesses.length, max, tiles: tilesLabel(visibleTiles(state.guesses.length - 1, false)), total: TILES })
+                : state.extra
+                  ? t('{n} essais, pas un de plus.', { n: max })
+                  : t('Six essais, pas un de plus.')}
             </span>
             <div className="wd-actions">
               <button className="ui-btn" onClick={share}>
@@ -147,12 +155,14 @@ export default function Flagle({ mode }: { mode?: string }) {
                 </a>
               )}
             </div>
-            <ChallengeBox
-              game="flagle"
-              path="/flagle"
-              seed={seed}
-              result={{ pts: score(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
-            />
+            {!state.extra && (
+              <ChallengeBox
+                game="flagle"
+                path="/flagle"
+                seed={seed}
+                result={{ pts: score(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+              />
+            )}
           </section>
         )}
       </main>
