@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { HISTORY_CHANGED } from '../lib/cloud'
 import { fmt, t } from '../lib/i18n'
 import { plays, PLAYED } from '../lib/stats'
-import { balanceOf, loadPurchases, WALLET_CHANGED } from '../lib/wallet'
+import { balanceOf, loadConsumed, loadPurchases, stockOf, WALLET_CHANGED } from '../lib/wallet'
 
 // une pépite d'or, taillée en facettes
 export function PepiteIcon({ size = 16 }: { size?: number }) {
@@ -27,11 +27,15 @@ export function Pepites({ n, size = 14 }: { n: number; size?: number }) {
 export interface Wallet {
   balance: number
   owned: Set<string>
+  // ce qui reste de chaque joker acheté
+  stock: Map<string, number>
 }
 
 const read = (): Wallet => {
   const bought = loadPurchases()
-  return { balance: balanceOf(plays(), bought), owned: new Set(bought.map((p) => p.id)) }
+  const consumed = loadConsumed()
+  const stock = new Map(bought.filter((p) => p.n).map((p) => [p.id, stockOf(p.id, bought, consumed)]))
+  return { balance: balanceOf(plays(), bought), owned: new Set(bought.map((p) => p.id)), stock }
 }
 
 // Le solde et les achats, relus à chaque partie terminée, synchronisation ou achat.
