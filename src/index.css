@@ -89,6 +89,11 @@ a {
   user-select: none;
 }
 
+/* l'édition dorée d'une icône, achetée dans la boutique */
+.game-icon.dore {
+  filter: sepia(1) saturate(2.6) hue-rotate(-8deg) brightness(1.05);
+}
+
 .page-loading {
   min-height: 100vh;
   display: grid;
