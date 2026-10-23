@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { countryName, flagEmoji } from '../../geo/countries'
 import { feedback } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
+import { cloudEnabled } from '../../lib/cloud'
 import { recordPlay } from '../../lib/stats'
 import { copyText, formatTime, load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
@@ -27,20 +28,21 @@ import {
   type Options,
 } from './engine'
 import { worldMap } from './map'
+import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TRIBES } from './choices'
 import { ICON } from './icons'
 import { actionFor, loadKeys, type Action } from './keys'
+import { SPAWN_TURNS } from './lockstep'
 import Menu, { loadSkin } from './Menu'
-import { skinById } from './progress'
+import type { Lobby, Start } from './net'
+import Salon from './Salon'
+import { skinById, type Skin } from './progress'
 import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
 import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Overlay, type View } from './render'
 import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
-const ME = 1
-const NATIONS = 50
-const TRIBES = 250
-const LEVELS: Level[] = ['facile', 'moyen', 'difficile', 'impossible']
-const LEVEL_NAMES: Record<Level, string> = { facile: msg('Facile'), moyen: msg('Moyen'), difficile: msg('Difficile'), impossible: msg('Impossible') }
+// le numéro du joueur de cet écran : 1 en solo, sa place dans le salon en ligne (fixé au lancement d'une partie)
+let ME = 1
 const UNITS: UnitType[] = ['ville', 'port', 'usine', 'poste', 'silo', 'dca', 'navire']
 const UNIT_NAMES: Record<UnitType, string> = {
   ville: msg('Ville'),
@@ -93,7 +95,6 @@ interface Settings extends Options {
 }
 
 const DEFAULT_SETTINGS: Settings = { ...DEFAULT_OPTIONS, bots: TRIBES, nations: true }
-const BOTS = [0, 50, 100, 150, 250, 400]
 const SWITCHES: [Exclude<keyof Settings, 'bots'>, string][] = [
   ['nations', msg('Nations')],
   ['instantBuild', msg('Construction instantanée')],
@@ -102,7 +103,7 @@ const SWITCHES: [Exclude<keyof Settings, 'bots'>, string][] = [
   ['nukes', msg('Bombes')],
 ]
 
-type Phase = 'menu' | 'chargement' | 'depart' | 'jeu' | 'fin'
+type Phase = 'menu' | 'salon' | 'chargement' | 'depart' | 'jeu' | 'fin'
 
 interface Hud {
   troops: number
@@ -320,6 +321,8 @@ export default function OpenFront() {
   // une partie a été lancée depuis l'accueil
   const [playing, setPlaying] = useState(false)
   const [paused, setPaused] = useState(false)
+  // une partie en ligne : son salon, et ce que l'hôte a fixé au lancement
+  const [online, setOnline] = useState<{ lobby: Lobby; start: Start } | null>(null)
   const [countdown, setCountdown] = useState(0)
   const [ratio, setRatio] = useState(() => load('openfront-attaque', 20))
   const [speed, setSpeed] = useState(1)
@@ -355,7 +358,21 @@ export default function OpenFront() {
     const id = window.setTimeout(() => {
       const map = worldMap()
       const names = Object.fromEntries(map.seats.map((s) => [s.code, countryName(s.code)]))
-      const next = new Sim(map, level, name, names, settings.nations ? NATIONS : 0, settings.bots, settings)
+      const next = online
+        ? new Sim({
+            map,
+            names,
+            level: online.start.settings.level,
+            humans: online.start.members.map((m) => m.name),
+            me: online.lobby.playerOf(online.lobby.key),
+            seed: online.start.seed,
+            nations: online.start.settings.nations ? NATIONS : 0,
+            tribes: online.start.settings.bots,
+            options: { ...DEFAULT_OPTIONS, nukes: online.start.settings.nukes },
+            net: online.lobby,
+          })
+        : new Sim({ map, names, level, humans: [name], me: 1, seed: Math.floor(Math.random() * 2 ** 31), nations: settings.nations ? NATIONS : 0, tribes: settings.bots, options: settings })
+      ME = next.me
       next.onReady = () => {
         setReady(true)
         setPhase('depart')
@@ -363,7 +380,7 @@ export default function OpenFront() {
       setSim(next)
     }, 30)
     return () => clearTimeout(id)
-  }, [sim, playing, level, name, settings])
+  }, [sim, playing, level, name, settings, online])
 
   useEffect(() => () => sim?.stop(), [sim])
   // la pause d'OpenFront, en solo
@@ -380,6 +397,8 @@ export default function OpenFront() {
   }
 
   function home() {
+    online?.lobby.leave()
+    setOnline(null)
     setPlaying(false)
     restart()
     setPhase('menu')
@@ -412,7 +431,9 @@ export default function OpenFront() {
     const ctx = canvas.getContext('2d')!
     const me = player(g, ME)
     const painter = new Painter(g)
-    painter.setSkins(new Map([[ME, skinById(loadSkin())]]))
+    // le motif de chacun : le sien en solo, celui de chaque joueur du salon en ligne
+    const skins = new Map<number, Skin>(online ? online.start.members.map((m, i) => [i + 1, skinById(m.skin)]) : [[ME, skinById(loadSkin())]])
+    painter.setSkins(skins)
     painter.setPalette(palette(canvas, g, ME))
     // les touches choisies à l'accueil
     const keymap = loadKeys()
@@ -526,10 +547,15 @@ export default function OpenFront() {
       sim.run(false)
       const ms = performance.now() - started
       const by = win ? '' : me.killer ? player(g, me.killer).name : (g.players.find((p) => p.id === winner(g))?.name ?? '')
-      recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms })
+      recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms, ...(online && { sub: 'multi' }) })
       feedback(win ? 'win' : 'lose')
       setResult({ win, share: best, ms, by })
       setPhase('fin')
+    }
+
+    if (online) {
+      online.lobby.onClose = (reason) => note(reason === 'hote' ? t('L’hôte a quitté la partie : elle s’arrête ici.') : t('Connexion perdue avec la partie en ligne.'), undefined, 30)
+      online.lobby.onDesync = () => note(t('Ta partie s’est désynchronisée de celle des autres joueurs.'), undefined, 30)
     }
 
     // chaque tour arrive du Worker : on lit ce qui s'est passé, et on regarde si la partie est finie
@@ -547,7 +573,8 @@ export default function OpenFront() {
       raf = requestAnimationFrame(frame)
       // filet de sécurité si la taille ou la densité de pixels ont changé sans prévenir (zoom du navigateur, rotation)
       if (++frames % 30 === 0 && (canvas.clientWidth !== cw || canvas.clientHeight !== ch || canvas.width !== Math.round(cw * devicePixelRatio))) resize()
-      if (live.current.phase === 'depart' && spawnAt && now - spawnAt >= SPAWN_TICKS * TICK_MS) {
+      // en ligne, la partie démarre au tour fixé pour tous ; en solo, dix secondes après son placement
+      if (live.current.phase === 'depart' && (online ? sim.turn >= SPAWN_TURNS : spawnAt && now - spawnAt >= SPAWN_TICKS * TICK_MS)) {
         live.current.phase = 'jeu'
         setPhase('jeu')
         started = now
@@ -573,7 +600,8 @@ export default function OpenFront() {
     document.addEventListener('visibilitychange', visibility)
 
     const hudTimer = window.setInterval(() => {
-      if (spawnAt && live.current.phase === 'depart') setCountdown(Math.max(1, Math.ceil((SPAWN_TICKS * TICK_MS - (performance.now() - spawnAt)) / 1000)))
+      if (live.current.phase === 'depart' && online) setCountdown(Math.max(1, Math.ceil(((SPAWN_TURNS - Math.max(0, sim.turn)) * TICK_MS) / 1000)))
+      else if (spawnAt && live.current.phase === 'depart') setCountdown(Math.max(1, Math.ceil((SPAWN_TICKS * TICK_MS - (performance.now() - spawnAt)) / 1000)))
       if (live.current.phase !== 'jeu') return
       const now = performance.now()
       const stale = (n: Note) => n.until < now || (!!n.request && !g.requests.some((r) => r.from === n.request && r.to === ME))
@@ -807,12 +835,13 @@ export default function OpenFront() {
         case 'emojiMenu':
           if (target && target !== ME) setInfo(target)
           break
+        // en ligne, la partie avance au rythme de l'hôte
         case 'pauseGame':
-          if (playing) setPaused((p) => !p)
+          if (playing && !online) setPaused((p) => !p)
           break
         case 'gameSpeedDown':
         case 'gameSpeedUp':
-          setSpeed((v) => Math.min(3, Math.max(1, v + (action === 'gameSpeedDown' ? -1 : 1))))
+          if (!online) setSpeed((v) => Math.min(3, Math.max(1, v + (action === 'gameSpeedDown' ? -1 : 1))))
           break
         default: {
           const build = BUILDS[action]
@@ -882,7 +911,7 @@ export default function OpenFront() {
         tools={
           phase !== 'menu' && (
             <>
-              {phase === 'jeu' && (
+              {phase === 'jeu' && !online && (
                 <button className="ui-tool" onClick={() => restart()} aria-label={t('Recommencer')}>
                   ↺
                 </button>
@@ -900,12 +929,24 @@ export default function OpenFront() {
           {phase === 'menu' && (
             <Menu
               name={name}
-              multi={false}
+              multi={cloudEnabled}
               onSolo={() => {
                 setPlaying(true)
                 setPhase('chargement')
               }}
-              onMulti={() => {}}
+              onMulti={() => setPhase('salon')}
+            />
+          )}
+          {phase === 'salon' && (
+            <Salon
+              name={name}
+              skin={loadSkin()}
+              onBack={() => setPhase('menu')}
+              onStart={(lobby, start) => {
+                setOnline({ lobby, start })
+                setPlaying(true)
+                setPhase('chargement')
+              }}
             />
           )}
           {paused && phase === 'jeu' && <div className="of-paused">{t('Pause')}</div>}
@@ -919,31 +960,37 @@ export default function OpenFront() {
             <div className="of-intro">
               <b>{countdown ? t('La partie commence dans {n} s', { n: countdown }) : t('Touche la carte pour choisir ton point de départ.')}</b>
               <span>{coarse ? t('Ensuite, touche la carte pour ouvrir la roue d’action.') : t('Ensuite : clic gauche pour attaquer, clic droit pour la roue d’action.')}</span>
-              <div className="of-levels" role="radiogroup" aria-label={t('Difficulté')}>
-                {LEVELS.map((l) => (
-                  <button key={l} role="radio" aria-checked={l === level} className={l === level ? 'on' : ''} onClick={() => restart(l)}>
-                    {t(LEVEL_NAMES[l])}
-                  </button>
-                ))}
-              </div>
-              <div className="of-options">
-                <label>
-                  {t('Bots')}
-                  <select value={settings.bots} onChange={(e) => configure({ bots: Number(e.target.value) })}>
-                    {BOTS.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
+              {online ? (
+                <span>{t('Partie en ligne · {n} joueurs', { n: online.start.members.length })}</span>
+              ) : (
+                <>
+                  <div className="of-levels" role="radiogroup" aria-label={t('Difficulté')}>
+                    {LEVELS.map((l) => (
+                      <button key={l} role="radio" aria-checked={l === level} className={l === level ? 'on' : ''} onClick={() => restart(l)}>
+                        {t(LEVEL_NAMES[l])}
+                      </button>
                     ))}
-                  </select>
-                </label>
-                {SWITCHES.map(([key, label]) => (
-                  <label key={key}>
-                    <input type="checkbox" checked={settings[key]} onChange={(e) => configure({ [key]: e.target.checked })} />
-                    {t(label)}
-                  </label>
-                ))}
-              </div>
+                  </div>
+                  <div className="of-options">
+                    <label>
+                      {t('Bots')}
+                      <select value={settings.bots} onChange={(e) => configure({ bots: Number(e.target.value) })}>
+                        {BOTS.map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {SWITCHES.map(([key, label]) => (
+                      <label key={key}>
+                        <input type="checkbox" checked={settings[key]} onChange={(e) => configure({ [key]: e.target.checked })} />
+                        {t(label)}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
               <small className="of-keys">{t('D’après OpenFront')} · © OpenFront and Contributors</small>
               {!coarse && <small className="of-keys">{t('Clavier : WASD ou flèches pour se déplacer, Q et E pour zoomer, C pour te retrouver, T et Y pour la part envoyée, 1 à 0 pour bâtir, Échap pour annuler.')}</small>}
             </div>
@@ -1032,9 +1079,15 @@ export default function OpenFront() {
                     : t('Après avoir tenu {pct} % des terres.', { pct: percent(result.share) })}
               </span>
               <div className="of-end-actions">
-                <button className="ui-btn" onClick={() => restart()}>
-                  {t('Rejouer')}
-                </button>
+                {online ? (
+                  <button className="ui-btn" onClick={() => setResult(null)}>
+                    {t('Regarder la suite')}
+                  </button>
+                ) : (
+                  <button className="ui-btn" onClick={() => restart()}>
+                    {t('Rejouer')}
+                  </button>
+                )}
                 <button className="ui-btn line" onClick={share}>
                   {t('Partager')}
                 </button>
@@ -1122,9 +1175,11 @@ export default function OpenFront() {
                 <Glyph src={ICON.construire} size={18} />
                 {t('Acheter')}
               </button>
-              <button className="of-speed" onClick={() => setSpeed((speed % 3) + 1)} aria-label={t('Vitesse')}>
-                ×{speed}
-              </button>
+              {!online && (
+                <button className="of-speed" onClick={() => setSpeed((speed % 3) + 1)} aria-label={t('Vitesse')}>
+                  ×{speed}
+                </button>
+              )}
             </div>
           </>
         )}
