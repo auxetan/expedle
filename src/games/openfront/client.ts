@@ -7,6 +7,7 @@ import type { Anchor } from './labels'
 import type { WorldMap } from './map'
 import type { Net } from './net'
 import { PLAYER_FIELDS, type Command, type FromSim, type Reply, type Snapshot } from './protocol'
+import { cuesOf, type Cue } from './sounds'
 import { nukeFx, oneShot, type Fx } from './sprites'
 import type { Level } from './rules'
 
@@ -39,6 +40,8 @@ export class Sim {
   readonly net: Net | undefined
   // les effets d'OpenFront en cours, que l'affichage joue puis retire
   fx: Fx[] = []
+  // les sons du dernier tour, que l'affichage joue
+  cues: Cue[] = []
   private worker: Worker
   private asked = 0
   private waiting = new Map<number, (value: Reply) => void>()
@@ -73,6 +76,7 @@ export class Sim {
   private effects(s: Snapshot) {
     const g = this.g
     const now = performance.now()
+    this.cues.push(...cuesOf(g, s, this.me))
     for (const b of s.blasts)
       if (b.tick === s.tick) {
         if (b.radius > 4) this.fx.push(...nukeFx(b.tile, b.radius >= 80 ? 160 : 70, g.w, now))
