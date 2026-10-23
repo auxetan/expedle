@@ -83,7 +83,8 @@ export function shareLine(r: Row): string {
   return [yesNo(r.continent.hit), yesNo(r.hemisphere.hit), HEAT_SQUARE[r.pop.heat], HEAT_SQUARE[r.area.heat], HEAT_SQUARE[r.gdp.heat]].join('') + r.arrow
 }
 
-export const score = (won: boolean, guesses: number) => (won ? Math.round((100 * (MAX_GUESSES + 1 - guesses)) / MAX_GUESSES) : 0)
+// une victoire sur l'essai bonus d'un joker compte comme sur le dernier essai
+export const score = (won: boolean, guesses: number) => (won ? Math.round((100 * (MAX_GUESSES + 1 - Math.min(guesses, MAX_GUESSES))) / MAX_GUESSES) : 0)
 
 // Population en millions, superficie en milliers de km², PIB en milliards de dollars.
 export function formatPop(m: number): string {
