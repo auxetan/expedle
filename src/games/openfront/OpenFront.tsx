@@ -441,7 +441,7 @@ export default function OpenFront() {
     let aim = -1
     const labels = new Labels()
     const view: View & { fit: number } = { s: 1, x: 0, y: 0, fit: 1 }
-    const overlay: Overlay = { preview: null, floats: [], marks: new Map(), ship: 0 }
+    const overlay: Overlay = { preview: null, floats: [], marks: new Map(), ship: 0, fx: sim.fx }
     const floats: Float[] = overlay.floats
     // dernier emoji de chaque joueur, affiché au-dessus de son nom
     const shouts = new Map<number, { emoji: string; until: number }>()
