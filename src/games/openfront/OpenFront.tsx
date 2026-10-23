@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { countryName, flagEmoji } from '../../geo/countries'
-import { feedback } from '../../lib/feedback'
+import { buzz } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { cloudEnabled } from '../../lib/cloud'
-import { recordPlay } from '../../lib/stats'
+import { plays, recordPlay } from '../../lib/stats'
 import { copyText, formatTime, load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import { loadProfile } from '../../ui/Panels'
@@ -32,10 +32,11 @@ import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TRIBES } from './choices'
 import { ICON } from './icons'
 import { actionFor, keyName, loadKeys, type Action } from './keys'
 import { SPAWN_TURNS } from './lockstep'
-import Menu, { loadSkin } from './Menu'
+import Menu, { Caps, SoundPanel } from './Menu'
 import type { Lobby, Start } from './net'
-import Salon from './Salon'
-import { skinById, type Skin } from './progress'
+import Salon, { type SalonKind } from './Salon'
+import { earnedOf, loadSkin, skinById, type Skin } from './progress'
+import { ambience, ambienceAt, ambienceGain, play } from './sounds'
 import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
 import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Ghost, type Overlay, type View } from './render'
 import { BLAST, DEFENSE_RANGE, EXTEND_WINDOW, goldPerTick, MAX_BOATS, RAIL_RANGE, samRange, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
@@ -171,7 +172,12 @@ interface Result {
   share: number
   ms: number
   by: string
+  // les capsules gagnées par la partie, récompenses de niveau comprises
+  caps: number
 }
+
+// quinze secondes entre deux cadres d'alerte, et pour qu'une attaque passe pour une riposte
+const ALERT_TICKS = 150
 
 const isNuke = (type: Buyable): type is NukeType => NUKES.includes(type as NukeType)
 
@@ -251,7 +257,7 @@ function menuFor(sim: Sim, tile: number, ratio: number, say: (text: string) => v
       note: compact(price),
       danger: true,
       disabled: !silo || me.gold < price,
-      act: () => sim.send({ op: 'launch', nuke: type, tile }).then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'tot' ? TOO_SOON : r === 'silo' ? NO_SILO : BUILD_ERRORS.or)))),
+      act: () => sim.send({ op: 'launch', nuke: type, tile }).then((r) => (r === 'ok' ? buzz('tap') : say(t(r === 'tot' ? TOO_SOON : r === 'silo' ? NO_SILO : BUILD_ERRORS.or)))),
     }
   })
   return {
@@ -355,6 +361,8 @@ export default function OpenFront() {
   const [level, setLevel] = useState<Level>(() => load<Level>('openfront-niveau', 'moyen'))
   const [settings, setSettings] = useState<Settings>(() => ({ ...DEFAULT_SETTINGS, ...load<Partial<Settings>>('openfront-options', {}) }))
   const [name] = useState(() => loadProfile().name || t('Toi'))
+  // en ligne, un joueur sans nom en prend un au hasard, comme les « Anon » d'OpenFront
+  const [netName] = useState(() => loadProfile().name || `Anon${Math.floor(100 + Math.random() * 900)}`)
   const [sim, setSim] = useState<Sim | null>(null)
   const [ready, setReady] = useState(false)
   const [phase, setPhase] = useState<Phase>('menu')
@@ -363,7 +371,14 @@ export default function OpenFront() {
   const [paused, setPaused] = useState(false)
   // une partie en ligne : son salon, et ce que l'hôte a fixé au lancement
   const [online, setOnline] = useState<{ lobby: Lobby; start: Start } | null>(null)
+  const [salon, setSalon] = useState<SalonKind>('public')
+  // les réglages du son, ouverts pendant la partie
+  const [sound, setSound] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  // en ligne, la part écoulée de la phase de placement, comme la barre d'OpenFront
+  const [spawnShare, setSpawnShare] = useState(0)
+  // le cadre qui clignote quand on est trahi ou vraiment attaqué ; `n` relance l'animation
+  const [alert, setAlert] = useState<{ kind: 'trahison' | 'attaque'; n: number } | null>(null)
   const [ratio, setRatio] = useState(() => load('openfront-attaque', 20))
   const [speed, setSpeed] = useState(1)
   const [hud, setHud] = useState<Hud | null>(null)
@@ -492,6 +507,9 @@ export default function OpenFront() {
     let best = 0
     let key = 0
     const warned = new Set<number>()
+    // la dernière attaque du joueur contre chacun : une riposte ne déclenche pas d'alerte
+    const attacked = new Map<number, number>()
+    let alertTick = -Infinity
 
     const clamp = () => {
       view.s = Math.min(Math.max(view.s, view.fit), view.fit * 40)
@@ -560,9 +578,13 @@ export default function OpenFront() {
         else if (e.type === 'extend' && (e.from === ME || e.to === ME))
           note(t('L’alliance avec {name} touche à sa fin', { name: who }), (close) => [{ label: t('Prolonger'), act: () => (sim.send({ op: 'extend', other }), close()) }], 30)
         else if (e.type === 'expired' && (e.from === ME || e.to === ME)) note(t('Fin de l’alliance avec {name}', { name: who }))
-        else if (e.type === 'betrayed' && e.to === ME) note(t('{name} t’a trahi !', { name: who }))
+        else if (e.type === 'betrayed' && e.to === ME) {
+          note(t('{name} t’a trahi !', { name: who }))
+          alertTick = g.tick
+          setAlert((a) => ({ kind: 'trahison', n: (a?.n ?? 0) + 1 }))
+        }
         else if (e.type === 'nuke' && e.to === ME) {
-          feedback('bad')
+          buzz('bad')
           note(t('Bombe lancée par {name} !', { name: who }))
         } else if (e.type === 'intercepted' && e.from === ME) note(t('Ta défense a abattu une bombe de {name}', { name: nameOf(g, e.to) }))
         else if (e.type === 'intercepted' && e.to === ME) note(t('Ta bombe a été abattue'))
@@ -587,9 +609,11 @@ export default function OpenFront() {
       sim.run(false)
       const ms = performance.now() - started
       const by = win ? '' : me.killer ? player(g, me.killer).name : (g.players.find((p) => p.id === winner(g))?.name ?? '')
+      const before = earnedOf(plays())
       recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms, ...(online && { sub: 'multi' }) })
-      feedback(win ? 'win' : 'lose')
-      setResult({ win, share: best, ms, by })
+      play(win ? 'victory' : 'defeat')
+      buzz(win ? 'win' : 'lose')
+      setResult({ win, share: best, ms, by, caps: earnedOf(plays()) - before })
       setPhase('fin')
     }
 
@@ -601,6 +625,7 @@ export default function OpenFront() {
     // chaque tour arrive du Worker : on lit ce qui s'est passé, et on regarde si la partie est finie
     sim.onTick = () => {
       readEvents()
+      for (const cue of sim.cues.splice(0)) play(cue)
       // les postes de défense gardent leur zone ; alliés et embargos teintent les bordures
       painter.setPosts(g.units.filter((u) => u.type === 'poste' && u.ready <= g.tick).map((u) => ({ tile: u.tile, owner: u.owner })))
       painter.setRelations(
@@ -623,10 +648,15 @@ export default function OpenFront() {
       if (live.current.phase === 'depart' && (online ? sim.turn >= SPAWN_TURNS : spawnAt && now - spawnAt >= SPAWN_TICKS * TICK_MS)) {
         live.current.phase = 'jeu'
         setPhase('jeu')
+        play('game-start')
         started = now
         sim.run(!document.hidden)
       }
       paint(now)
+      // de près, un bâtiment fait entendre son ambiance
+      const center = { x: (cw / 2 - view.x) / view.s, y: (ch / 2 - view.y) / view.s }
+      const track = view.s >= 8 ? ambienceAt(g.units, g.w, center.x, center.y) : null
+      ambience(track, ambienceGain(view.s, view.fit * 40))
     }
     const paint = (now: number) => {
       painter.flush()
@@ -648,11 +678,17 @@ export default function OpenFront() {
     raf = requestAnimationFrame(frame)
 
     // un onglet en arrière-plan met la partie en pause
-    const visibility = () => live.current.phase === 'jeu' && sim.run(!document.hidden && !live.current.paused)
+    const visibility = () => {
+      if (document.hidden) ambience(null, 0)
+      if (live.current.phase === 'jeu') sim.run(!document.hidden && !live.current.paused)
+    }
     document.addEventListener('visibilitychange', visibility)
 
     const hudTimer = window.setInterval(() => {
-      if (live.current.phase === 'depart' && online) setCountdown(Math.max(1, Math.ceil(((SPAWN_TURNS - Math.max(0, sim.turn)) * TICK_MS) / 1000)))
+      if (live.current.phase === 'depart' && online) {
+        setCountdown(Math.max(1, Math.ceil(((SPAWN_TURNS - Math.max(0, sim.turn)) * TICK_MS) / 1000)))
+        setSpawnShare(Math.max(0, sim.turn) / SPAWN_TURNS)
+      }
       else if (spawnAt && live.current.phase === 'depart') setCountdown(Math.max(1, Math.ceil((SPAWN_TICKS * TICK_MS - (performance.now() - spawnAt)) / 1000)))
       if (live.current.phase !== 'jeu') return
       const now = performance.now()
@@ -683,16 +719,24 @@ export default function OpenFront() {
         traitor: Math.max(0, (me.traitorUntil - g.tick) * TICK_MS),
       })
       // une alerte à chaque nouvelle attaque ou débarquement contre toi
+      for (const a of g.attacks) if (a.from === ME) attacked.set(a.to, g.tick)
       for (const a of g.attacks)
         if (a.to === ME && !warned.has(a.id)) {
           warned.add(a.id)
-          feedback('bad')
+          buzz('bad')
           note(t('{name} t’attaque avec {n} troupes', { name: nameOf(g, a.from), n: troopsText(a.troops) }), undefined, 6)
+          // le cadre d'OpenFront : une vraie offensive, ni riposte, ni escarmouche, ni bot, pas plus d'une fois en quinze secondes
+          const serious = player(g, a.from).kind !== 'bot' && a.troops >= me.troops / 5
+          const riposte = g.tick - (attacked.get(a.from) ?? -Infinity) < ALERT_TICKS
+          if (serious && !riposte && g.tick - alertTick >= ALERT_TICKS) {
+            alertTick = g.tick
+            setAlert((x) => ({ kind: 'attaque', n: (x?.n ?? 0) + 1 }))
+          }
         }
       for (const b of g.boats)
         if (b.to === ME && !b.trade && !warned.has(b.id)) {
           warned.add(b.id)
-          feedback('bad')
+          buzz('bad')
           note(t('Débarquement de {name} en approche : {n} troupes', { name: nameOf(g, b.owner), n: troopsText(b.troops) }), undefined, 6)
         }
     }, 250)
@@ -718,7 +762,8 @@ export default function OpenFront() {
         if (!passable(g, tile) || (g.owner[tile] && g.owner[tile] !== ME)) return say(t('Choisis une terre libre.'))
         sim.spawn(tile)
         spawnAt ||= performance.now()
-        feedback('tap')
+        play('spawn')
+        buzz('tap')
         return
       }
       if (live.current.phase !== 'jeu') return
@@ -727,7 +772,7 @@ export default function OpenFront() {
         setPlacing(null)
         overlay.preview = null
         const order = isNuke(buying) ? sim.send({ op: 'launch', nuke: buying, tile }) : sim.send({ op: 'build', unit: buying, tile })
-        order.then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'silo' ? NO_SILO : r === 'tot' ? TOO_SOON : BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))))
+        order.then((r) => (r === 'ok' ? buzz('tap') : say(t(r === 'silo' ? NO_SILO : r === 'tot' ? TOO_SOON : BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))))
         return
       }
       // un navire de guerre sélectionné file vers la mer touchée ; toucher la terre le relâche
@@ -743,7 +788,7 @@ export default function OpenFront() {
       if (mine) return steer(mine.id)
       if (touch) return openMenu(x, y)
       primary(sim, tile, live.current.ratio).then((r) => {
-        if (r.ok) feedback('tap')
+        if (r.ok) buzz('tap')
         say(r.text)
       })
     }
@@ -932,6 +977,7 @@ export default function OpenFront() {
 
     return () => {
       cancelAnimationFrame(raf)
+      ambience(null, 0)
       clearInterval(hudTimer)
       observer.disconnect()
       themes.disconnect()
@@ -956,6 +1002,7 @@ export default function OpenFront() {
   }
 
   function changeRatio(n: number) {
+    play('slider')
     setRatio(n)
     save('openfront-attaque', n)
   }
@@ -979,6 +1026,9 @@ export default function OpenFront() {
                   ↺
                 </button>
               )}
+              <button className="ui-tool" onClick={() => setSound(!sound)} aria-label={t('Son')} aria-expanded={sound}>
+                ♪
+              </button>
               <button className="ui-tool" onClick={home} aria-label={t('Accueil du jeu')}>
                 ⌂
               </button>
@@ -997,12 +1047,16 @@ export default function OpenFront() {
                 setPlaying(true)
                 setPhase('chargement')
               }}
-              onMulti={() => setPhase('salon')}
+              onMulti={(kind) => {
+                setSalon(kind)
+                setPhase('salon')
+              }}
             />
           )}
           {phase === 'salon' && (
             <Salon
-              name={name}
+              kind={salon}
+              name={netName}
               skin={loadSkin()}
               onBack={() => setPhase('menu')}
               onStart={(lobby, start) => {
@@ -1131,6 +1185,20 @@ export default function OpenFront() {
               </>
             )}
           </div>
+          {alert && <div key={alert.n} className={`of-alert ${alert.kind}`} onAnimationEnd={() => setAlert(null)} />}
+          {online && phase === 'depart' && (
+            <div className="of-spawnbar" aria-hidden>
+              <i style={{ width: `${spawnShare * 100}%` }} />
+            </div>
+          )}
+          {sound && phase !== 'menu' && phase !== 'salon' && (
+            <div className="of-sheet">
+              <SoundPanel />
+              <button className="of-back" onClick={() => setSound(false)}>
+                {t('Fermer')}
+              </button>
+            </div>
+          )}
           {phase === 'fin' && result && (
             <section className="of-end">
               <b>{result.win ? t('Le monde est à toi.') : t('Éliminé')}</b>
@@ -1140,6 +1208,9 @@ export default function OpenFront() {
                   : result.by
                     ? t('Par {name}, après avoir tenu {pct} % des terres.', { name: result.by, pct: percent(result.share) })
                     : t('Après avoir tenu {pct} % des terres.', { pct: percent(result.share) })}
+              </span>
+              <span className="of-gain">
+                {t('Gagné')} <Caps n={result.caps} />
               </span>
               <div className="of-end-actions">
                 {online ? (
@@ -1202,7 +1273,10 @@ export default function OpenFront() {
                       title={`${t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])} · ${compact(price)} ${t('or')}`}
                       aria-label={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
                       disabled={(!settings.infiniteGold && hud.gold < price) || !armed}
-                      onClick={() => setPlacing(placing === type ? null : type)}
+                      onClick={() => {
+                        play('click')
+                        setPlacing(placing === type ? null : type)
+                      }}
                       onMouseEnter={() => (barHover.current = type)}
                       onMouseLeave={() => (barHover.current = null)}
                     >
