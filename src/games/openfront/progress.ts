@@ -2,6 +2,7 @@
 import { msg } from '../../lib/i18n'
 import type { Play } from '../../lib/stats'
 import { load } from '../../lib/util'
+import { owns } from '../../lib/wallet'
 
 export const GAME = 'openfront'
 
@@ -48,21 +49,7 @@ export function tallyOf(list: Play[]): Tally {
 
 export const xpOf = (list: Play[]) => list.filter((p) => p.g === GAME).reduce((s, p) => s + p.pts, 0)
 
-// Les capsules, la monnaie d'OpenFront qu'on gagne en jouant : chaque partie en rapporte, une victoire bien plus,
-// une partie en ligne le double ; chaque niveau gagné en offre cent de plus. Elles ne s'achètent pas.
-export const capsOf = (p: Play) => (p.win ? 50 : 10) * (p.sub === 'multi' ? 2 : 1)
-
-const LEVEL_CAPS = 100
-
-export function earnedOf(list: Play[]): number {
-  const mine = list.filter((p) => p.g === GAME)
-  return mine.reduce((s, p) => s + capsOf(p), 0) + LEVEL_CAPS * (rankOf(xpOf(mine)).level - 1)
-}
-
-// Ce qu'il reste à dépenser, une fois payés les motifs achetés.
-export const balanceOf = (list: Play[], owned: string[]) => earnedOf(list) - owned.reduce((s, id) => s + (SKINS.find((k) => k.id === id)?.price ?? 0), 0)
-
-// Les motifs de territoire de la boutique, payés en capsules : des classiques, et des drôles.
+// Les motifs de territoire, achetés en pépites dans la boutique : des classiques, et des drôles.
 export interface Skin {
   id: string
   name: string
@@ -282,10 +269,8 @@ export const SKINS: Skin[] = [
 
 export const skinById = (id: string) => SKINS.find((s) => s.id === id) ?? SKINS[0]
 
-export const loadOwned = () => load<string[]>('openfront-achats', [])
-
 // le motif porté, s'il est toujours à soi
 export function loadSkin() {
   const id = load<string>('openfront-motif', 'uni')
-  return skinById(id).price === 0 || loadOwned().includes(id) ? id : 'uni'
+  return skinById(id).price === 0 || owns(`motif:${id}`) ? id : 'uni'
 }
