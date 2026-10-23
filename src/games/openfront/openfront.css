@@ -272,6 +272,41 @@
   font-size: 18px;
 }
 
+/* le tchat rapide : les thèmes, puis leurs phrases */
+.of-chat {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.of-chat nav,
+.of-chat-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.of-chat-list {
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.of-chat button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+  text-align: left;
+}
+
+.of-chat nav button.on {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
 /* messages de la partie : alliances à trancher, trahisons, bombes */
 .of-notes {
   position: absolute;
@@ -1040,7 +1075,7 @@
   margin: 0;
 }
 
-.of-balance .of-caps {
+.of-balance .pepites {
   flex: none;
   font-size: 24px;
 }
@@ -1159,15 +1194,6 @@
   margin: 0;
   color: var(--bad);
   font-size: 13px;
-}
-
-/* les capsules, la monnaie qu'on gagne en jouant */
-.of-caps {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--or);
-  font-variant-numeric: tabular-nums;
 }
 
 .of-gain {
