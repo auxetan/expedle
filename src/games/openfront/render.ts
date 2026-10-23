@@ -5,6 +5,7 @@ import { flagEmoji } from '../../geo/countries'
 import { allied, isBorder, isLand, isTraitor, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
 import type { Skin } from './progress'
+import { drawFx, FLICKER, sprite, stamp, type Fx } from './sprites'
 import { ICON } from './icons'
 import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type UnitType } from './rules'
 
@@ -365,84 +366,6 @@ function structure(ctx: CanvasRenderingContext2D, u: Unit, x: number, y: number,
   }
 }
 
-type BoatKind = 'transport' | 'commerce' | 'guerre'
-
-// Un bateau vu du dessus, la proue vers `angle`, avec un sillage en V quand il avance.
-function boat(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, length: number, fill: RGB, pal: Palette, kind: BoatKind) {
-  const w = length * (kind === 'commerce' ? 0.36 : 0.42)
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(angle)
-  // sillage
-  ctx.beginPath()
-  ctx.moveTo(-length * 0.45, -w * 0.3)
-  ctx.lineTo(-length * 1.05, -w * 0.9)
-  ctx.moveTo(-length * 0.45, w * 0.3)
-  ctx.lineTo(-length * 1.05, w * 0.9)
-  ctx.strokeStyle = css(pal.fg, 0.35)
-  ctx.lineWidth = 1
-  ctx.stroke()
-  // coque
-  const hull = kind === 'guerre' ? mix(fill, pal.bg, 0.25) : fill
-  ctx.beginPath()
-  ctx.moveTo(length * 0.55, 0)
-  ctx.quadraticCurveTo(length * 0.32, -w / 2, 0, -w / 2)
-  ctx.lineTo(-length * 0.4, -w / 2)
-  ctx.quadraticCurveTo(-length * 0.5, 0, -length * 0.4, w / 2)
-  ctx.lineTo(0, w / 2)
-  ctx.quadraticCurveTo(length * 0.32, w / 2, length * 0.55, 0)
-  ctx.closePath()
-  ctx.fillStyle = css(hull)
-  ctx.fill()
-  ctx.lineWidth = 1.2
-  ctx.strokeStyle = css(pal.bg)
-  ctx.stroke()
-  if (kind === 'transport') {
-    // le pont des troupes
-    ctx.fillStyle = css(mix(fill, pal.fg, 0.45))
-    ctx.fillRect(-length * 0.28, -w * 0.24, length * 0.45, w * 0.48)
-    ctx.strokeRect(-length * 0.28, -w * 0.24, length * 0.45, w * 0.48)
-  } else if (kind === 'commerce') {
-    // trois conteneurs de couleurs différentes
-    const colors = [pal.gold, pal.info, pal.bad]
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = css(colors[i])
-      ctx.fillRect(-length * 0.32 + i * length * 0.2, -w * 0.28, length * 0.17, w * 0.56)
-    }
-  } else {
-    // tourelle et canon
-    ctx.fillStyle = css(pal.bg)
-    ctx.beginPath()
-    ctx.arc(-length * 0.05, 0, w * 0.3, 0, 2 * Math.PI)
-    ctx.fill()
-    ctx.fillRect(-length * 0.05, -w * 0.07, length * 0.45, w * 0.14)
-  }
-  ctx.restore()
-}
-
-// Une bombe en vol : ogive, corps et ailerons.
-function missile(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, length: number, fill: RGB, outline: RGB) {
-  const w = length * 0.3
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(angle)
-  ctx.beginPath()
-  ctx.moveTo(length / 2, 0)
-  ctx.lineTo(length * 0.2, -w / 2)
-  ctx.lineTo(-length * 0.4, -w / 2)
-  ctx.lineTo(-length * 0.55, -w)
-  ctx.lineTo(-length * 0.55, w)
-  ctx.lineTo(-length * 0.4, w / 2)
-  ctx.lineTo(length * 0.2, w / 2)
-  ctx.closePath()
-  ctx.fillStyle = css(fill)
-  ctx.fill()
-  ctx.lineWidth = 1.2
-  ctx.strokeStyle = css(outline)
-  ctx.stroke()
-  ctx.restore()
-}
-
 // Où est une bombe à l'écran : en ligne droite du silo à la cible, relevée en arc.
 function nukePos(n: Nuke, tick: number, alpha: number, sx: (t: number) => number, sy: (t: number) => number) {
   return arcAt(n, Math.min(1, Math.max(0, (tick - n.start + alpha) / n.ticks)), sx, sy)
@@ -474,6 +397,8 @@ export interface Overlay {
   floats: Float[]
   marks: Map<number, string>
   ship: number
+  // explosions, naufrages, débris et conquêtes en cours
+  fx: Fx[]
 }
 
 export interface Preview {
@@ -497,7 +422,7 @@ export function draw(
   now: number,
   overlay: Overlay,
 ) {
-  const { preview, floats, marks, ship } = overlay
+  const { preview, floats, marks, ship, fx } = overlay
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
   ctx.fillStyle = css(pal.water)
@@ -587,23 +512,18 @@ export function draw(
     if (visible(x, y)) structure(ctx, u, x, y, size, dots, pal, g.tick, devicePixelRatio)
   }
 
-  // trains : trois voitures qui suivent la voie
-  const car = Math.max(3, view.s * 2)
-  for (const tr of g.trains) {
+  // les unités d'OpenFront, à un pixel par case (jamais moins d'un pixel d'écran), aux couleurs de leur pays
+  const px = Math.max(1, view.s)
+  const light = (owner: number) => pal.players[owner - 1]
+  const dark = (owner: number) => shade(pal.players[owner - 1], 0.45)
+
+  // trains : une locomotive et deux wagons qui suivent la voie
+  for (const tr of g.trains)
     for (let i = 0; i < 3; i++) {
-      const p = at(tr.path, Math.max(0, tr.at + alpha * 2 - i * 2.2))
-      if (!visible(p.x, p.y)) continue
-      ctx.save()
-      ctx.translate(p.x, p.y)
-      ctx.rotate(p.angle)
-      ctx.fillStyle = css(i === 0 ? mix(pal.players[tr.owner - 1], pal.bg, 0.3) : pal.players[tr.owner - 1])
-      ctx.fillRect(-car, -car * 0.45, car * 1.8, car * 0.9)
-      ctx.lineWidth = 1
-      ctx.strokeStyle = css(pal.bg)
-      ctx.strokeRect(-car, -car * 0.45, car * 1.8, car * 0.9)
-      ctx.restore()
+      const p = at(tr.path, Math.max(0, tr.at + alpha * 2 - i * 5))
+      const image = sprite(i ? 'wagon' : 'loco', light(tr.owner), dark(tr.owner))
+      if (image && visible(p.x, p.y)) stamp(ctx, image, p.x, p.y, px)
     }
-  }
 
   // le sillage des bateaux de débarquement, case par case ; rouge s'ils viennent sur toi
   const wake = Math.max(1.5, view.s * 0.6)
@@ -619,113 +539,108 @@ export function draw(
     }
   }
 
-  // les bateaux, aux couleurs de leur pays et tournés dans leur sens de marche
-  const hull = Math.min(30, Math.max(14, view.s * 5.5))
+  // bateaux de débarquement et navires marchands, avec les troupes à bord
   for (const b of g.boats) {
     const p = at(b.path, Math.min(b.at + alpha, b.path.length - 1))
     if (!visible(p.x, p.y)) continue
-    boat(ctx, p.x, p.y, p.angle, b.trade ? hull * 0.85 : hull, pal.players[b.owner - 1], pal, b.trade ? 'commerce' : 'transport')
+    const image = sprite(b.trade ? 'commerce' : 'transport', light(b.owner), dark(b.owner))
+    if (image) stamp(ctx, image, p.x, p.y, px)
     if (b.trade || view.s < 1) continue
     const owner = player(g, b.owner)
-    ctx.font = `600 ${Math.round(hull * 0.65)}px Ubuntu, system-ui, sans-serif`
+    ctx.font = `600 ${Math.round(Math.max(11, px * 3))}px Ubuntu, system-ui, sans-serif`
     ctx.textAlign = 'center'
     const text = `${owner.code ? flagEmoji(owner.code) + ' ' : ''}${troopsText(b.troops)}`
     ctx.lineWidth = 3
     ctx.lineJoin = 'round'
     ctx.strokeStyle = css(pal.bg)
-    ctx.strokeText(text, p.x, p.y - hull * 0.75)
+    ctx.strokeText(text, p.x, p.y - px * 3.5)
     ctx.fillStyle = css(b.to === me ? pal.bad : b.owner === me ? pal.info : pal.fg)
-    ctx.fillText(text, p.x, p.y - hull * 0.75)
+    ctx.fillText(text, p.x, p.y - px * 3.5)
   }
+
+  // navires de guerre, leur coque abîmée, et celui qu'on dirige
   for (const u of g.units) {
     if (u.type !== 'navire') continue
     const x = sx(u.tile)
     const y = sy(u.tile)
     if (!visible(x, y)) continue
-    const ahead = u.route ? u.route[Math.min((u.step ?? 0) + 1, u.route.length - 1)] : u.goal
-    const angle = ahead >= 0 && ahead !== u.tile ? Math.atan2(sy(ahead) - y, sx(ahead) - x) : 0
-    boat(ctx, x, y, angle, hull * 1.25, pal.players[u.owner - 1], pal, 'guerre')
-    if (u.hp < WARSHIP_HP) bar(ctx, x, y - hull * 0.9, hull * 0.9, 3, u.hp / WARSHIP_HP, pal)
+    const image = sprite('guerre', light(u.owner), dark(u.owner))
+    if (image) stamp(ctx, image, x, y, px)
+    if (u.hp < WARSHIP_HP) bar(ctx, x, y - px * 7, px * 11, Math.max(3, px * 3), u.hp / WARSHIP_HP, pal)
     if (u.id === ship) {
       ctx.beginPath()
-      ctx.arc(x, y, hull, 0, 2 * Math.PI)
+      ctx.arc(x, y, px * 7, 0, 2 * Math.PI)
       ctx.lineWidth = 2
       ctx.strokeStyle = css(pal.info)
       ctx.stroke()
     }
   }
 
-  // obus
-  ctx.fillStyle = css(pal.fg)
+  // obus : un point à la couleur du tireur
   for (const s of g.shells) {
     const k = Math.min(1, 1 - (s.hit - g.tick - alpha) / 4)
-    ctx.fillRect(sx(s.from) + (sx(s.tile) - sx(s.from)) * k - 1, sy(s.from) + (sy(s.tile) - sy(s.from)) * k - 1, 2, 2)
+    ctx.fillStyle = css(light(s.owner))
+    ctx.fillRect(sx(s.from) + (sx(s.tile) - sx(s.from)) * k - px / 2, sy(s.from) + (sy(s.tile) - sy(s.from)) * k - px / 2, px, px)
   }
 
-  // bombes : la trajectoire, la zone visée cerclée, l'engin sur sa courbe ; les tiennes en bleu
+  // bombes : la zone visée (verte pour toi, jaune pour un allié, rouge sinon) cerclée de pointillés qui tournent,
+  // la trajectoire, puis l'engin qui clignote
   for (const n of g.nukes) {
     if (g.tick < n.start) continue
-    const color = n.owner === me ? pal.info : pal.bad
+    const color = n.owner === me ? pal.good : allied(g, n.owner, me) ? pal.gold : pal.bad
     const p = nukePos(n, g.tick, alpha, sx, sy)
     if (n.type !== 'ogive') {
       const blast = BLAST[n.type === 'mirv' ? 'ogive' : n.type]
-      ctx.setLineDash([4, 4])
-      ctx.lineWidth = 1.2
-      ctx.strokeStyle = css(color, 0.7)
+      ctx.setLineDash([12, 6])
+      ctx.lineDashOffset = -(now / 1000) * 20
+      ctx.lineWidth = 1.5
+      ctx.strokeStyle = css(color, 0.85 + 0.1 * Math.sin((now / 1000) * 3))
       ctx.beginPath()
       ctx.arc(sx(n.dst), sy(n.dst), blast.outer * view.s, 0, 2 * Math.PI)
       ctx.stroke()
       ctx.setLineDash([])
+      ctx.lineDashOffset = 0
       ctx.beginPath()
       ctx.arc(sx(n.dst), sy(n.dst), blast.inner * view.s, 0, 2 * Math.PI)
-      ctx.fillStyle = css(color, 0.12)
+      ctx.fillStyle = css(color, 0.15)
       ctx.fill()
+      ctx.beginPath()
+      for (let i = 0; i <= 16; i++) {
+        const q = arcAt(n, (p.k * i) / 16, sx, sy)
+        if (i) ctx.lineTo(q.x, q.y)
+        else ctx.moveTo(q.x, q.y)
+      }
+      ctx.setLineDash([2, 3])
+      ctx.lineWidth = 1.2
+      ctx.strokeStyle = css(color, 0.5)
+      ctx.stroke()
+      ctx.setLineDash([])
     }
-    // la traînée du trajet déjà fait, puis l'engin pointé dans le sens de sa course
-    ctx.beginPath()
-    for (let i = 0; i <= 16; i++) {
-      const q = arcAt(n, (p.k * i) / 16, sx, sy)
-      if (i) ctx.lineTo(q.x, q.y)
-      else ctx.moveTo(q.x, q.y)
+    const phase = ((g.tick + alpha) * 0.3 + n.id * 0.37) % 1
+    const hot = Math.floor(phase * 4) % 4
+    if (n.type === 'ogive') {
+      ctx.fillStyle = css(FLICKER[hot])
+      ctx.fillRect(p.x - px * 1.5, p.y - px * 1.5, px * 3, px * 3)
+    } else {
+      const image = sprite(n.type, FLICKER[hot], FLICKER[(hot + 2) % 4])
+      if (image) stamp(ctx, image, p.x, p.y, px)
     }
-    ctx.setLineDash([2, 3])
-    ctx.lineWidth = 1.2
-    ctx.strokeStyle = css(color, 0.5)
-    ctx.stroke()
-    ctx.setLineDash([])
-    const ahead = arcAt(n, Math.min(1, p.k + 0.01), sx, sy)
-    const behind = arcAt(n, Math.max(0, p.k - 0.01), sx, sy)
-    missile(ctx, p.x, p.y, Math.atan2(ahead.y - behind.y, ahead.x - behind.x), n.type === 'ogive' ? 8 : n.type === 'hbombe' ? 15 : 12, color, pal.bg)
   }
 
-  // missiles antiaériens : du lanceur vers la bombe qu'ils vont abattre
+  // missiles antiaériens, du lanceur vers la bombe qu'ils vont abattre
   for (const m of g.missiles) {
     const n = g.nukes.find((x) => x.id === m.nuke)
     if (!n) continue
     const target = nukePos(n, g.tick, alpha, sx, sy)
     const k = Math.min(1, (g.tick - m.start + alpha) / m.ticks)
-    const x = sx(m.from) + (target.x - sx(m.from)) * k
-    const y = sy(m.from) + (target.y - sy(m.from)) * k
-    ctx.beginPath()
-    ctx.moveTo(sx(m.from), sy(m.from))
-    ctx.lineTo(x, y)
-    ctx.strokeStyle = css(pal.info, 0.5)
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.arc(x, y, 2.5, 0, 2 * Math.PI)
-    ctx.fillStyle = css(pal.fg)
-    ctx.fill()
+    const image = sprite('sam', light(m.owner), dark(m.owner))
+    if (image) stamp(ctx, image, sx(m.from) + (target.x - sx(m.from)) * k, sy(m.from) + (target.y - sy(m.from)) * k, px)
   }
 
-  // explosions : un anneau qui s'efface en une seconde et demie
-  for (const b of g.blasts) {
-    const k = (g.tick - b.tick + alpha) / 15
-    ctx.beginPath()
-    ctx.arc(sx(b.tile), sy(b.tile), b.radius * view.s * (0.6 + 0.4 * k), 0, 2 * Math.PI)
-    ctx.fillStyle = css(pal.fg, Math.max(0, 0.35 * (1 - k)))
-    ctx.fill()
-  }
+  // effets d'OpenFront : explosions, naufrages, débris, conquêtes ; ceux qui sont finis s'en vont
+  let kept = 0
+  for (const f of fx) if (drawFx(ctx, f, now, sx(f.tile), sy(f.tile), view.s)) fx[kept++] = f
+  fx.length = kept
 
   // la zone que toucherait la bombe qu'on s'apprête à lancer
   if (preview) {
