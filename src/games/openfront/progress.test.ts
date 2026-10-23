@@ -48,9 +48,23 @@ describe('capsules', () => {
 })
 
 describe('boutique', () => {
-  it('propose des motifs de plus en plus chers, le premier offert', () => {
-    expect(SKINS[0]).toMatchObject({ id: 'uni', price: 0 })
-    expect(SKINS.map((s) => s.price)).toEqual([...SKINS.map((s) => s.price)].sort((a, b) => a - b))
+  it('range ses motifs en classiques puis drôles, chacun de plus en plus cher, le premier offert', () => {
+    expect(SKINS[0]).toMatchObject({ id: 'uni', price: 0, group: 'classique' })
+    for (const group of ['classique', 'drole'] as const) {
+      const prices = SKINS.filter((s) => s.group === group).map((s) => s.price)
+      expect(prices.length).toBeGreaterThan(5)
+      expect(prices).toEqual([...prices].sort((a, b) => a - b))
+    }
     expect(new Set(SKINS.map((s) => s.id)).size).toBe(SKINS.length)
+  })
+
+  it('dessine des motifs drôles qu’on voit sans qu’ils noient le territoire', () => {
+    for (const skin of SKINS.filter((s) => s.group === 'drole')) {
+      let painted = 0
+      for (let y = 0; y < 60; y++) for (let x = 0; x < 60; x++) if (skin.at(x, y)) painted++
+      const share = painted / 3600
+      expect(share, skin.id).toBeGreaterThan(0.1)
+      expect(share, skin.id).toBeLessThan(0.6)
+    }
   })
 })
