@@ -3,7 +3,7 @@
 // et l'affichage ne reçoit à chaque tour que ce qui a changé. Un calcul long ne fige donc jamais l'image.
 import { mulberry32 } from '../../lib/util'
 import { populate, runAi, type Brain } from './ai'
-import { addPlayer, createGame, player, spawn, step, targetOf, type Game } from './engine'
+import { addPlayer, assignTeams, createGame, player, spawn, step, targetOf, type Game } from './engine'
 import { anchors } from './labels'
 import { execute, hashOf, playTurn, type Turn } from './lockstep'
 import { PLAYER_FIELDS, type FromSim, type Snapshot, type ToSim } from './protocol'
@@ -111,9 +111,10 @@ self.onmessage = (e: MessageEvent<ToSim>) => {
       g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level, mulberry32(m.seed), true, m.options)
       for (const name of m.humans) addPlayer(g, name, 'human')
       me = m.me
-      brains = populate(g, m.seats, m.nations, m.tribes, (code) => m.names[code] ?? code)
+      brains = populate(g, m.seats, m.nations, m.tribes)
+      assignTeams(g)
       const snap = snapshot(true)
-      post({ type: 'ready', players: g.players.map((p) => ({ id: p.id, name: p.name, kind: p.kind, code: p.code })), snap }, [snap.tiles.buffer, snap.players.buffer])
+      post({ type: 'ready', players: g.players.map((p) => ({ id: p.id, name: p.name, kind: p.kind, code: p.code, team: p.team })), snap }, [snap.tiles.buffer, snap.players.buffer])
       break
     }
     case 'spawn':
