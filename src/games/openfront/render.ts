@@ -4,6 +4,7 @@
 import { flagEmoji } from '../../geo/countries'
 import { allied, isBorder, isLand, isTraitor, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
+import type { Skin } from './progress'
 import { ICON } from './icons'
 import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type UnitType } from './rules'
 
@@ -86,7 +87,11 @@ export class Painter {
   private data: ImageData
   private px: Uint32Array
   private fill: number[] = []
+  // teinte secondaire des motifs de territoire
+  private alt: number[] = []
   private edge: number[] = []
+  // le motif de chaque joueur qui en porte un
+  private skins = new Map<number, Skin>()
   private base: number[] = []
   pal!: Palette
   private g: Game
@@ -104,6 +109,7 @@ export class Painter {
   setPalette(pal: Palette) {
     this.pal = pal
     this.fill = pal.players.map((c) => pack(mix(pal.land, c, 0.78)))
+    this.alt = pal.players.map((c) => pack(mix(pal.land, c, 0.5)))
     this.edge = pal.players.map((c) => pack(mix(c, pal.bg, 0.3)))
     this.base = [pack(pal.water), pack(pal.shallow), pack(pal.land), pack(pal.coast), pack(pal.fallout)]
     const g = this.g
@@ -113,10 +119,17 @@ export class Painter {
     this.ctx.putImageData(this.data, 0, 0)
   }
 
+  // change les motifs portés ; la carte se repeint à la palette suivante
+  setSkins(skins: Map<number, Skin>) {
+    this.skins = skins
+    if (this.pal) this.setPalette(this.pal)
+  }
+
   private tile(t: number) {
     const g = this.g
     const o = g.owner[t]
-    if (o) this.px[t] = isBorder(g, t) ? this.edge[o - 1] : this.fill[o - 1]
+    const skin = o ? this.skins.get(o) : undefined
+    if (o) this.px[t] = isBorder(g, t) ? this.edge[o - 1] : skin?.at(t % g.w, Math.floor(t / g.w)) ? this.alt[o - 1] : this.fill[o - 1]
     else if (!isLand(g, t)) this.px[t] = this.base[g.terrain[t] & SHORE ? 1 : 0]
     else this.px[t] = this.base[g.fallout[t] ? 4 : g.terrain[t] & SHORE ? 3 : 2]
   }
