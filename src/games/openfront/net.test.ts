@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { joinable, PUBLIC_MAX, ranked, type Listing } from './net'
+import { joinable, pickPublicTeams, PUBLIC_MAX, ranked, type Listing } from './net'
 
-const listing = (code: string, players: number, startsAt: number): Listing => ({ code, players, startsAt })
+const listing = (code: string, players: number, startsAt: number): Listing => ({ code, players, startsAt, map: 'world', teams: 0 })
 
 describe('parties publiques', () => {
   it('rejoignent celle qui part le plus tôt, s’il y reste de la place et du temps', () => {
@@ -22,5 +22,12 @@ describe('parties publiques', () => {
     expect(ranked(a, b)).toBeLessThan(0)
     expect(ranked(b, a)).toBeGreaterThan(0)
     expect(ranked(listing('ZZZZZ', 1, 50_000), a)).toBeLessThan(0)
+  })
+
+  it('se jouent une fois sur trois par équipes, de deux à quatre', () => {
+    const rolls = (...values: number[]) => () => values.shift()!
+    expect(pickPublicTeams(rolls(0.5))).toBe(0)
+    expect(pickPublicTeams(rolls(0.1, 0))).toBe(2)
+    expect(pickPublicTeams(rolls(0.1, 0.99))).toBe(4)
   })
 })
