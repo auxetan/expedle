@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react'
 import { feedbackSettings } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { plays } from '../../lib/stats'
-import { formatTime, save } from '../../lib/util'
+import { formatTime, load, save } from '../../lib/util'
 import { buy } from '../../lib/wallet'
 import { Pepites, useWallet } from '../../ui/Pepites'
+import { DEFAULT_MAP, GROUPS as MAP_GROUPS, mapById, MAPS } from './cartes'
+import { teamMode } from './choices'
 import { KEY_GROUPS, keyName, loadKeys, rebind, saveKeys, type Action } from './keys'
 import { Directory, joinable, PUBLIC_MAX, type Listing } from './net'
 import { loadSkin, rankOf, skinById, SKINS, tallyOf, xpOf, type Skin } from './progress'
@@ -139,13 +141,46 @@ function KeysPanel() {
   )
 }
 
+// Les cartes d'OpenFront, rangées comme dans son choix de carte, avec leur vignette et leur taille en cases.
+function MapPicker({ onPick, onBack }: { onPick: (map: string) => void; onBack: () => void }) {
+  const last = load('openfront-carte', DEFAULT_MAP)
+  return (
+    <div className="of-maps">
+      <header>
+        <h3>{t('Choisis ta carte')}</h3>
+        <button className="of-back" onClick={onBack}>
+          {t('Retour')}
+        </button>
+      </header>
+      {MAP_GROUPS.map(([group, title]) => (
+        <section key={group}>
+          <h4>{t(title)}</h4>
+          <div className="of-map-grid">
+            {MAPS.filter((m) => m.group === group).map((m) => (
+              <button key={m.id} className={m.id === last ? 'on' : ''} onClick={() => onPick(m.id)}>
+                {m.thumb ? <img src={m.thumb} alt="" loading="lazy" /> : <span className="of-map-blank" />}
+                <b>{t(m.name)}</b>
+                <small>
+                  {fmt(m.w)} × {fmt(m.h)}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 const GROUPS: [Skin['group'], string][] = [
   ['classique', msg('Classiques')],
   ['drole', msg('Drôles')],
 ]
 
-export default function Menu({ name, onSolo, onMulti, multi }: { name: string; onSolo: () => void; onMulti: (kind: SalonKind) => void; multi: boolean }) {
+export default function Menu({ name, onSolo, onMulti, multi }: { name: string; onSolo: (map: string) => void; onMulti: (kind: SalonKind) => void; multi: boolean }) {
   const [tab, setTab] = useState<Tab>('jouer')
+  // le choix de la carte avant une partie solo, comme sur OpenFront
+  const [picking, setPicking] = useState(false)
   const [list] = useState(plays)
   const [skin, setSkin] = useState(loadSkin)
   const wallet = useWallet()
@@ -205,14 +240,15 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
           </button>
         ))}
       </nav>
-      {tab === 'jouer' && (
+      {tab === 'jouer' && picking && <MapPicker onPick={onSolo} onBack={() => setPicking(false)} />}
+      {tab === 'jouer' && !picking && (
         <div className="of-play">
           {multi ? (
             // la prochaine partie publique en grand, comme la carte d'OpenFront
             <button className="of-featured" onClick={() => onMulti('public')}>
               <span>
                 <b>{t('Partie publique')}</b>
-                <small>{t('Carte du monde · jusqu’à {max} joueurs', { max: PUBLIC_MAX })}</small>
+                <small>{next ? t('{map} · {mode} · jusqu’à {max} joueurs', { map: t(mapById(next.map).name), mode: teamMode(next.teams), max: PUBLIC_MAX }) : t('Une carte tirée au sort · jusqu’à {max} joueurs', { max: PUBLIC_MAX })}</small>
               </span>
               <span className="of-featured-time">
                 {next ? (
@@ -226,7 +262,7 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
               </span>
             </button>
           ) : (
-            <button className="of-featured" onClick={onSolo}>
+            <button className="of-featured" onClick={() => setPicking(true)}>
               <span>
                 <b>{t('Solo')}</b>
                 <small>{t('Contre des nations et des bots')}</small>
@@ -235,7 +271,7 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
           )}
           <div className="of-modes">
             {multi && (
-              <button onClick={onSolo}>
+              <button onClick={() => setPicking(true)}>
                 <b>{t('Solo')}</b>
                 <small>{t('Contre des nations et des bots')}</small>
               </button>
