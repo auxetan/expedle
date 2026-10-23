@@ -62,26 +62,222 @@ export function earnedOf(list: Play[]): number {
 // Ce qu'il reste à dépenser, une fois payés les motifs achetés.
 export const balanceOf = (list: Play[], owned: string[]) => earnedOf(list) - owned.reduce((s, id) => s + (SKINS.find((k) => k.id === id)?.price ?? 0), 0)
 
-// Les motifs de territoire de la boutique, payés en capsules.
+// Les motifs de territoire de la boutique, payés en capsules : des classiques, et des drôles.
 export interface Skin {
   id: string
   name: string
   price: number
+  group: 'classique' | 'drole'
   // vrai pour les cases peintes de la teinte secondaire
   at: (x: number, y: number) => boolean
 }
 
+// Un petit dessin répété sur tout le territoire, une rangée sur deux décalée d'un demi-dessin ; une marge
+// autour de chacun l'empêche de toucher ses voisins.
+function drawing(rows: string[]): Skin['at'] {
+  const w = rows[0].length + 4
+  const h = rows.length + 3
+  return (x, y) => {
+    const shift = (Math.floor(y / h) % 2) * (w >> 1)
+    return rows[(y % h) - 1]?.[((x + shift) % w) - 2] === '#'
+  }
+}
+
 export const SKINS: Skin[] = [
-  { id: 'uni', name: msg('Uni'), price: 0, at: () => false },
-  { id: 'rayures', name: msg('Rayures'), price: 150, at: (x, y) => (x + y) % 6 < 2 },
-  { id: 'damier', name: msg('Damier'), price: 250, at: (x, y) => ((x >> 2) + (y >> 2)) % 2 === 0 },
-  { id: 'pois', name: msg('Pois'), price: 400, at: (x, y) => ((x % 6) - 2.5) ** 2 + ((y % 6) - 2.5) ** 2 < 2.5 },
-  { id: 'grille', name: msg('Grille'), price: 600, at: (x, y) => x % 5 === 0 || y % 5 === 0 },
-  { id: 'briques', name: msg('Briques'), price: 800, at: (x, y) => y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 4) % 8 === 0 },
-  { id: 'vagues', name: msg('Vagues'), price: 1000, at: (x, y) => (y + Math.round(2 * Math.sin(x / 3)) + 60) % 6 < 2 },
-  { id: 'losanges', name: msg('Losanges'), price: 1200, at: (x, y) => Math.abs((x % 8) - 3.5) + Math.abs((y % 8) - 3.5) < 2 },
-  { id: 'chevrons', name: msg('Chevrons'), price: 1500, at: (x, y) => (Math.abs((x % 8) - 4) + y) % 6 < 2 },
-  { id: 'ecailles', name: msg('Écailles'), price: 2000, at: (x, y) => ((x % 6) - 3) ** 2 + ((y % 4) * 1.5) ** 2 > 9 },
+  { id: 'uni', name: msg('Uni'), price: 0, group: 'classique', at: () => false },
+  { id: 'rayures', name: msg('Rayures'), price: 150, group: 'classique', at: (x, y) => (x + y) % 6 < 2 },
+  { id: 'damier', name: msg('Damier'), price: 250, group: 'classique', at: (x, y) => ((x >> 2) + (y >> 2)) % 2 === 0 },
+  { id: 'pois', name: msg('Pois'), price: 400, group: 'classique', at: (x, y) => ((x % 6) - 2.5) ** 2 + ((y % 6) - 2.5) ** 2 < 2.5 },
+  { id: 'grille', name: msg('Grille'), price: 600, group: 'classique', at: (x, y) => x % 5 === 0 || y % 5 === 0 },
+  { id: 'briques', name: msg('Briques'), price: 800, group: 'classique', at: (x, y) => y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 4) % 8 === 0 },
+  { id: 'vagues', name: msg('Vagues'), price: 1000, group: 'classique', at: (x, y) => (y + Math.round(2 * Math.sin(x / 3)) + 60) % 6 < 2 },
+  { id: 'losanges', name: msg('Losanges'), price: 1200, group: 'classique', at: (x, y) => Math.abs((x % 8) - 3.5) + Math.abs((y % 8) - 3.5) < 2 },
+  { id: 'chevrons', name: msg('Chevrons'), price: 1500, group: 'classique', at: (x, y) => (Math.abs((x % 8) - 4) + y) % 6 < 2 },
+  { id: 'ecailles', name: msg('Écailles'), price: 2000, group: 'classique', at: (x, y) => ((x % 6) - 3) ** 2 + ((y % 4) * 1.5) ** 2 > 9 },
+  {
+    id: 'coeurs',
+    name: msg('Cœurs'),
+    price: 300,
+    group: 'drole',
+    at: drawing([
+      '.##..##.',
+      '########',
+      '########',
+      '########',
+      '.######.',
+      '..####..',
+      '...##...',
+    ]),
+  },
+  {
+    id: 'smileys',
+    name: msg('Smileys'),
+    price: 500,
+    group: 'drole',
+    at: drawing([
+      '....####....',
+      '..########..',
+      '.##########.',
+      '.##.####.##.',
+      '###.####.###',
+      '############',
+      '##.######.##',
+      '.##.####.##.',
+      '.###....###.',
+      '..########..',
+      '....####....',
+    ]),
+  },
+  {
+    id: 'canards',
+    name: msg('Canards'),
+    price: 700,
+    group: 'drole',
+    at: drawing([
+      '.....###..',
+      '....#####.',
+      '....##.##.',
+      '....######',
+      '....####..',
+      '...####...',
+      '#########.',
+      '.#######..',
+      '..#####...',
+    ]),
+  },
+  {
+    id: 'bananes',
+    name: msg('Bananes'),
+    price: 800,
+    group: 'drole',
+    at: drawing([
+      '.........#',
+      '........##',
+      '........##',
+      '.......###',
+      '......###.',
+      '#...####..',
+      '.######...',
+      '..####....',
+    ]),
+  },
+  {
+    id: 'pizzas',
+    name: msg('Pizzas'),
+    price: 1000,
+    group: 'drole',
+    at: drawing([
+      '##########',
+      '#.##..#.##',
+      '.##..####.',
+      '.#.####.#.',
+      '..######..',
+      '..#.##.#..',
+      '...####...',
+      '....##....',
+    ]),
+  },
+  {
+    id: 'champignons',
+    name: msg('Champignons'),
+    price: 1200,
+    group: 'drole',
+    at: drawing([
+      '...####...',
+      '.##.##.##.',
+      '#..####..#',
+      '##.####.##',
+      '##########',
+      '...#..#...',
+      '...#..#...',
+      '...####...',
+    ]),
+  },
+  {
+    id: 'chats',
+    name: msg('Chats'),
+    price: 1500,
+    group: 'drole',
+    at: drawing([
+      '#........#',
+      '##......##',
+      '###....###',
+      '##########',
+      '#.##..##.#',
+      '#.##..##.#',
+      '####..####',
+      '.###..###.',
+      '..##..##..',
+      '...####...',
+    ]),
+  },
+  {
+    id: 'fantomes',
+    name: msg('Fantômes'),
+    price: 1800,
+    group: 'drole',
+    at: drawing([
+      '...####...',
+      '.########.',
+      '##########',
+      '##..##..##',
+      '##..##..##',
+      '##########',
+      '##########',
+      '##########',
+      '##.##.##.#',
+      '#..#..#..#',
+    ]),
+  },
+  {
+    id: 'poulpes',
+    name: msg('Poulpes'),
+    price: 2200,
+    group: 'drole',
+    at: drawing([
+      '...####...',
+      '..######..',
+      '.##.##.##.',
+      '.##.##.##.',
+      '.########.',
+      '##########',
+      '#.#.##.#.#',
+      '#.#.##.#.#',
+      '.#..#..#.#',
+    ]),
+  },
+  {
+    id: 'moustaches',
+    name: msg('Moustaches'),
+    price: 2600,
+    group: 'drole',
+    at: drawing([
+      '...##..##...',
+      '.##########.',
+      '#####..#####',
+      '.####..####.',
+      '..##....##..',
+      '#..........#',
+      '.##......##.',
+    ]),
+  },
+  {
+    id: 'pirates',
+    name: msg('Pirates'),
+    price: 3000,
+    group: 'drole',
+    at: drawing([
+      '..######..',
+      '.########.',
+      '##########',
+      '##..##..##',
+      '##..##..##',
+      '####..####',
+      '.###..###.',
+      '..######..',
+      '..#.##.#..',
+    ]),
+  },
 ]
 
 export const skinById = (id: string) => SKINS.find((s) => s.id === id) ?? SKINS[0]
