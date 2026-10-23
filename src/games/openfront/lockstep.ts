@@ -28,8 +28,9 @@ import {
 import type { Command, Reply } from './protocol'
 import { SPAWN_TICKS } from './rules'
 
-// les premiers tours servent à choisir son point de départ ; la partie ne tourne qu'ensuite
-export const SPAWN_TURNS = SPAWN_TICKS
+// les premiers tours servent à choisir son point de départ ; la partie ne tourne qu'ensuite.
+// Comme sur OpenFront, on laisse deux fois plus de temps qu'en solo pour se placer à plusieurs.
+export const SPAWN_TURNS = 2 * SPAWN_TICKS
 
 // un ordre, au nom d'un joueur ; `id` permet à son seul auteur de retrouver la réponse
 export interface Intent {
@@ -91,8 +92,7 @@ export function execute(g: Game, id: number, c: Command, turn = Infinity): Reply
     case 'emoji':
       return sendEmoji(g, id, c.to, c.emoji)
     case 'target':
-      setTarget(g, id, c.other)
-      return true
+      return setTarget(g, id, c.other)
     case 'embargo':
       toggleEmbargo(g, id, c.other)
       return true
