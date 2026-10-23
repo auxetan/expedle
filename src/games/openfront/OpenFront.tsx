@@ -28,6 +28,9 @@ import {
 } from './engine'
 import { worldMap } from './map'
 import { ICON } from './icons'
+import { actionFor, loadKeys, type Action } from './keys'
+import Menu, { loadSkin } from './Menu'
+import { skinById } from './progress'
 import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
 import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Overlay, type View } from './render'
 import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
@@ -65,8 +68,19 @@ const NO_SILO = msg('Il faut un silo prêt à tirer.')
 const NUCLEAR: Buyable[] = ['silo', 'dca', ...NUKES]
 const allowed = (g: Game, type: Buyable) => g.options.nukes || !NUCLEAR.includes(type)
 
-// raccourcis de construction, dans l'ordre d'OpenFront
-const HOTKEYS: Record<string, Buyable> = { 1: 'ville', 2: 'usine', 3: 'port', 4: 'poste', 5: 'silo', 6: 'dca', 7: 'navire', 8: 'bombe', 9: 'hbombe', 0: 'mirv' }
+// ce que bâtissent les touches de construction
+const BUILDS: Partial<Record<Action, Buyable>> = {
+  buildCity: 'ville',
+  buildFactory: 'usine',
+  buildPort: 'port',
+  buildDefensePost: 'poste',
+  buildMissileSilo: 'silo',
+  buildSamLauncher: 'dca',
+  buildWarship: 'navire',
+  buildAtomBomb: 'bombe',
+  buildHydrogenBomb: 'hbombe',
+  buildMIRV: 'mirv',
+}
 
 const EMOJIS = ['😀', '😂', '😭', '😡', '🤝', '👍', '💀', '❤️']
 // un emoji reste quelques secondes au-dessus du nom de qui l'envoie
@@ -88,7 +102,7 @@ const SWITCHES: [Exclude<keyof Settings, 'bots'>, string][] = [
   ['nukes', msg('Bombes')],
 ]
 
-type Phase = 'chargement' | 'depart' | 'jeu' | 'fin'
+type Phase = 'menu' | 'chargement' | 'depart' | 'jeu' | 'fin'
 
 interface Hud {
   troops: number
@@ -302,7 +316,10 @@ export default function OpenFront() {
   const [name] = useState(() => loadProfile().name || t('Toi'))
   const [sim, setSim] = useState<Sim | null>(null)
   const [ready, setReady] = useState(false)
-  const [phase, setPhase] = useState<Phase>('chargement')
+  const [phase, setPhase] = useState<Phase>('menu')
+  // une partie a été lancée depuis l'accueil
+  const [playing, setPlaying] = useState(false)
+  const [paused, setPaused] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [ratio, setRatio] = useState(() => load('openfront-attaque', 20))
   const [speed, setSpeed] = useState(1)
@@ -320,8 +337,8 @@ export default function OpenFront() {
   const [result, setResult] = useState<Result | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // les gestes et la boucle d'affichage lisent ces valeurs sans se relancer
-  const live = useRef({ phase, ratio, placing })
-  live.current = { phase, ratio, placing }
+  const live = useRef({ phase, ratio, placing, paused })
+  live.current = { phase, ratio, placing, paused }
   const sayTimer = useRef(0)
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 
@@ -334,7 +351,7 @@ export default function OpenFront() {
 
   // la carte se construit après le premier affichage, pour montrer le chargement ; la partie part dans son Worker
   useEffect(() => {
-    if (sim) return
+    if (sim || !playing) return
     const id = window.setTimeout(() => {
       const map = worldMap()
       const names = Object.fromEntries(map.seats.map((s) => [s.code, countryName(s.code)]))
@@ -346,9 +363,13 @@ export default function OpenFront() {
       setSim(next)
     }, 30)
     return () => clearTimeout(id)
-  }, [sim, level, name, settings])
+  }, [sim, playing, level, name, settings])
 
   useEffect(() => () => sim?.stop(), [sim])
+  // la pause d'OpenFront, en solo
+  useEffect(() => {
+    if (sim && phase === 'jeu') sim.run(!paused && !document.hidden)
+  }, [sim, phase, paused])
   useEffect(() => sim?.setSpeed(speed), [sim, speed])
 
   function configure(change: Partial<Settings>) {
@@ -358,12 +379,19 @@ export default function OpenFront() {
     restart()
   }
 
+  function home() {
+    setPlaying(false)
+    restart()
+    setPhase('menu')
+  }
+
   function restart(next: Level = level) {
     setLevel(next)
     save('openfront-niveau', next)
     setSim(null)
     setReady(false)
-    setPhase('chargement')
+    setPaused(false)
+    setPhase(playing ? 'chargement' : 'menu')
     setCountdown(0)
     setResult(null)
     setMenu(null)
@@ -384,7 +412,12 @@ export default function OpenFront() {
     const ctx = canvas.getContext('2d')!
     const me = player(g, ME)
     const painter = new Painter(g)
+    painter.setSkins(new Map([[ME, skinById(loadSkin())]]))
     painter.setPalette(palette(canvas, g, ME))
+    // les touches choisies à l'accueil
+    const keymap = loadKeys()
+    // la case sous la souris, que visent les raccourcis d'attaque et de diplomatie
+    let aim = -1
     const labels = new Labels()
     const view: View & { fit: number } = { s: 1, x: 0, y: 0, fit: 1 }
     const overlay: Overlay = { preview: null, floats: [], marks: new Map(), ship: 0 }
@@ -536,7 +569,7 @@ export default function OpenFront() {
     raf = requestAnimationFrame(frame)
 
     // un onglet en arrière-plan met la partie en pause
-    const visibility = () => live.current.phase === 'jeu' && sim.run(!document.hidden)
+    const visibility = () => live.current.phase === 'jeu' && sim.run(!document.hidden && !live.current.paused)
     document.addEventListener('visibilitychange', visibility)
 
     const hudTimer = window.setInterval(() => {
@@ -663,6 +696,7 @@ export default function OpenFront() {
         if (e.pointerType !== 'mouse') return
         const p = pos(e)
         const tile = cellAt(p.x, p.y)
+        aim = tile
         // en visant avec une bombe, la zone touchée suit la souris
         const buying = live.current.placing
         overlay.preview = buying && isNuke(buying) && tile >= 0 ? { tile, ...BLAST[buying === 'mirv' ? 'ogive' : buying] } : null
@@ -710,30 +744,82 @@ export default function OpenFront() {
       // une molette à crans (deltaMode 1) avance par lignes : on la ramène en pixels
       zoomAt(p.x, p.y, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 33 : 1) * 0.006))
     }
-    // les raccourcis d'OpenFront : se déplacer, zoomer, se recentrer, doser l'attaque, bâtir
+    // les raccourcis d'OpenFront, avec les touches choisies à l'accueil
     const keys = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
-      const k = e.key.toLowerCase()
-      const step = 80
-      if (k === 'w' || k === 'arrowup') view.y += step
-      else if (k === 's' || k === 'arrowdown') view.y -= step
-      else if (k === 'a' || k === 'arrowleft') view.x += step
-      else if (k === 'd' || k === 'arrowright') view.x -= step
-      else if (k === 'q' || k === '-') zoomAt(cw / 2, ch / 2, 1 / 1.4)
-      else if (k === 'e' || k === '+' || k === '=') zoomAt(cw / 2, ch / 2, 1.4)
-      else if (k === 'c') {
-        const home = sim.labels.find((a) => a.id === ME)
-        if (!home) return
-        view.s = Math.max(view.s, view.fit * 4)
-        view.x = cw / 2 - (home.x + 0.5) * view.s
-        view.y = ch / 2 - (home.y + 0.5) * view.s
-      } else if (k === 't' || k === 'y') changeRatio(Math.min(100, Math.max(1, live.current.ratio + (k === 't' ? -10 : 10))))
-      else if (k === 'escape') {
+      if (e.code === 'Escape') {
         steer(0)
         overlay.preview = null
         setPlacing(null)
-      } else if (HOTKEYS[k] && live.current.phase === 'jeu' && allowed(g, HOTKEYS[k])) setPlacing(HOTKEYS[k])
-      else return
+        return
+      }
+      const action = actionFor(keymap, e.code)
+      if (!action) return
+      const step = 80
+      const target = aim >= 0 ? g.owner[aim] : 0
+      const playing = live.current.phase === 'jeu'
+      switch (action) {
+        case 'moveUp':
+          view.y += step
+          break
+        case 'moveDown':
+          view.y -= step
+          break
+        case 'moveLeft':
+          view.x += step
+          break
+        case 'moveRight':
+          view.x -= step
+          break
+        case 'zoomOut':
+          zoomAt(cw / 2, ch / 2, 1 / 1.4)
+          break
+        case 'zoomIn':
+          zoomAt(cw / 2, ch / 2, 1.4)
+          break
+        case 'centerCamera': {
+          const home = sim.labels.find((a) => a.id === ME)
+          if (!home) return
+          view.s = Math.max(view.s, view.fit * 4)
+          view.x = cw / 2 - (home.x + 0.5) * view.s
+          view.y = ch / 2 - (home.y + 0.5) * view.s
+          break
+        }
+        case 'attackRatioDown':
+        case 'attackRatioUp':
+          changeRatio(Math.min(100, Math.max(1, live.current.ratio + (action === 'attackRatioDown' ? -10 : 10))))
+          break
+        case 'groundAttack':
+          if (playing && aim >= 0) primary(sim, aim, live.current.ratio).then((r) => say(r.text))
+          break
+        case 'boatAttack':
+          if (playing && aim >= 0) sim.send({ op: 'boat', tile: aim, ratio: live.current.ratio }).then((ok) => say(ok ? t('Bateau en route') : t('Aucune route ne mène là.')))
+          break
+        case 'requestAlliance':
+          if (playing && target && target !== ME) sim.send({ op: 'ally', to: target })
+          break
+        case 'breakAlliance':
+          if (playing && target && allied(g, ME, target)) sim.send({ op: 'betray', other: target })
+          break
+        case 'targetPlayer':
+          if (playing && target && target !== ME) sim.send({ op: 'target', other: target })
+          break
+        case 'emojiMenu':
+          if (target && target !== ME) setInfo(target)
+          break
+        case 'pauseGame':
+          if (playing) setPaused((p) => !p)
+          break
+        case 'gameSpeedDown':
+        case 'gameSpeedUp':
+          setSpeed((v) => Math.min(3, Math.max(1, v + (action === 'gameSpeedDown' ? -1 : 1))))
+          break
+        default: {
+          const build = BUILDS[action]
+          if (!build || !playing || !allowed(g, build)) return
+          setPlacing(build)
+        }
+      }
       e.preventDefault()
       clamp()
     }
@@ -794,16 +880,35 @@ export default function OpenFront() {
       <AppBar
         title="Frontières"
         tools={
-          phase === 'jeu' && (
-            <button className="ui-tool" onClick={() => restart()} aria-label={t('Recommencer')}>
-              ↺
-            </button>
+          phase !== 'menu' && (
+            <>
+              {phase === 'jeu' && (
+                <button className="ui-tool" onClick={() => restart()} aria-label={t('Recommencer')}>
+                  ↺
+                </button>
+              )}
+              <button className="ui-tool" onClick={home} aria-label={t('Accueil du jeu')}>
+                ⌂
+              </button>
+            </>
           )
         }
       />
       <main className="of-main">
         <div className="of-map">
           <canvas ref={canvasRef} />
+          {phase === 'menu' && (
+            <Menu
+              name={name}
+              multi={false}
+              onSolo={() => {
+                setPlaying(true)
+                setPhase('chargement')
+              }}
+              onMulti={() => {}}
+            />
+          )}
+          {paused && phase === 'jeu' && <div className="of-paused">{t('Pause')}</div>}
           {phase === 'chargement' && (
             <p className="of-loading">
               {t('Chargement de la carte…')}
@@ -932,6 +1037,9 @@ export default function OpenFront() {
                 </button>
                 <button className="ui-btn line" onClick={share}>
                   {t('Partager')}
+                </button>
+                <button className="ui-btn line" onClick={home}>
+                  {t('Accueil du jeu')}
                 </button>
               </div>
             </section>
