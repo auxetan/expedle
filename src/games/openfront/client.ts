@@ -1,11 +1,28 @@
 // Côté affichage : une copie légère de la partie, tenue à jour par les envois du Worker, sur laquelle
-// on dessine et on prépare les menus ; les ordres du joueur partent vers le Worker, qui répond.
+// on dessine et on prépare les menus. En solo, les ordres du joueur partent vers le Worker, qui répond ;
+// en ligne, ils partent vers l'hôte et reviennent dans un tour, joué chez tous.
 import { addPlayer, createGame, markDirty, player, type Attack, type Game, type Options } from './engine'
 import type { Heap } from './heap'
 import type { Anchor } from './labels'
 import type { WorldMap } from './map'
+import type { Net } from './net'
 import { PLAYER_FIELDS, type Command, type FromSim, type Reply, type Snapshot } from './protocol'
 import type { Level } from './rules'
+
+export interface Setup {
+  map: WorldMap
+  level: Level
+  // tous les humains dans l'ordre de leur numéro, et celui de cet écran
+  humans: string[]
+  me: number
+  seed: number
+  names: Record<string, string>
+  nations: number
+  tribes: number
+  options: Options
+  // en ligne seulement
+  net?: Net
+}
 
 export class Sim {
   readonly g: Game
@@ -15,16 +32,23 @@ export class Sim {
   speed = 1
   onTick: () => void = () => {}
   onReady: () => void = () => {}
+  readonly me: number
+  // en ligne, le dernier tour joué ; la partie ne tourne qu'après la phase de placement
+  turn = -1
+  readonly net: Net | undefined
   private worker: Worker
   private asked = 0
   private waiting = new Map<number, (value: Reply) => void>()
   private paths = new Map<number, Int32Array>()
 
-  constructor(map: WorldMap, level: Level, name: string, names: Record<string, string>, nations: number, tribes: number, options: Options) {
+  constructor({ map, level, humans, me, seed, names, nations, tribes, options, net }: Setup) {
     this.g = createGame(map, level, Math.random, false, options)
+    this.me = me
+    this.net = net
     this.worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
     this.worker.onmessage = (e: MessageEvent<FromSim>) => this.receive(e.data)
-    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, name, seats: map.seats, names, nations, tribes, options })
+    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, humans, me, seed, seats: map.seats, names, nations, tribes, options })
+    net?.attach((turns) => this.worker.postMessage({ type: 'turns', turns }))
   }
 
   private receive(m: FromSim) {
@@ -33,6 +57,7 @@ export class Sim {
       this.waiting.delete(m.id)
       return
     }
+    if (m.type === 'hash') return this.net?.hash(m.n, m.h)
     if (m.type === 'ready') for (const p of m.players) addPlayer(this.g, p.name, p.kind, p.code)
     this.apply(m.snap)
     this.lastTick = performance.now()
@@ -80,26 +105,31 @@ export class Sim {
     g.requests = s.requests
     g.events.push(...s.events)
     if (s.labels) this.labels = s.labels
-    const me = player(g, 1)
+    this.turn = s.turn
+    const me = player(g, this.me)
     me.target = s.me.target
     me.embargo = new Set(s.me.embargo)
   }
 
   send(cmd: Command): Promise<Reply> {
     const id = ++this.asked
-    this.worker.postMessage({ type: 'cmd', id, cmd })
+    if (this.net) this.net.intent(id, cmd)
+    else this.worker.postMessage({ type: 'cmd', id, cmd })
     return new Promise((resolve) => this.waiting.set(id, resolve))
   }
 
   spawn(tile: number) {
-    this.worker.postMessage({ type: 'spawn', tile })
+    if (this.net) this.send({ op: 'spawn', tile })
+    else this.worker.postMessage({ type: 'spawn', tile })
   }
 
+  // en ligne, la partie avance au rythme de l'hôte : ni pause ni vitesse
   run(running: boolean) {
-    this.worker.postMessage({ type: 'run', running })
+    if (!this.net) this.worker.postMessage({ type: 'run', running })
   }
 
   setSpeed(value: number) {
+    if (this.net) return
     this.speed = value
     this.worker.postMessage({ type: 'speed', value })
   }
