@@ -1,5 +1,6 @@
 // Les cartes d'OpenFront (© OpenFront and Contributors, CC BY-SA 4.0, voir cartes/LICENSE.md), avec leur relief :
 // chaque carte se télécharge, compressée, au lancement d'une partie ; sa vignette sert à la choisir.
+import { countryName } from '../../geo/countries'
 import { msg } from '../../lib/i18n'
 import catalog from './cartes/catalog.json'
 import { MAP_H, MAP_W, worldMap, type Seat, type WorldMap } from './map'
@@ -71,6 +72,15 @@ export function seatsOf({ w, nations }: { w: number; nations: (Nation | (string 
     const [x, y, flag, name] = n as Nation
     return { code: flag.length === 2 ? flag.toUpperCase() : '', name, cell: y * w + x, size: nations.length - i }
   })
+}
+
+const english = new Intl.DisplayNames(['en'], { type: 'region', fallback: 'none' })
+
+// Le nom d'une nation : celui de son pays dans la langue du joueur quand elle est ce pays (ou que la carte ne
+// donne que le drapeau), celui de la carte sinon, pour une région sous le drapeau de son pays ou un drapeau d'emprunt.
+export function nationName(s: Seat): string {
+  if (!s.code) return s.name
+  return !s.name || english.of(s.code)?.toLowerCase() === s.name.toLowerCase() ? countryName(s.code) : s.name
 }
 
 // La carte d'une partie publique, tirée selon les fréquences d'OpenFront.

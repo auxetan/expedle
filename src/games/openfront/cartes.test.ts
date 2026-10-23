@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAPS, pickPublicMap, seatsOf } from './cartes'
+import { MAPS, nationName, pickPublicMap, seatsOf } from './cartes'
 
 describe('cartes d’OpenFront', () => {
   it('ont toutes un nom, une vignette et des dimensions, plus le monde sans relief d’Expedle', () => {
@@ -18,6 +18,16 @@ describe('cartes d’OpenFront', () => {
       { code: 'FR', name: 'France', cell: 210, size: 2 },
       { code: '', name: 'Kingdom of Sardinia', cell: 705, size: 1 },
     ])
+  })
+
+  it('nomment une nation dans la langue du joueur seulement quand elle est le pays de son drapeau', () => {
+    expect(nationName({ code: 'US', name: 'United States', cell: 0, size: 1 })).toBe('États-Unis')
+    // la carte maison ne donne que le code du pays
+    expect(nationName({ code: 'FR', name: '', cell: 0, size: 1 })).toBe('France')
+    // une région sous le drapeau de son pays, ou un drapeau d'emprunt, garde le nom de la carte
+    expect(nationName({ code: 'JP', name: 'Hokkaido', cell: 0, size: 1 })).toBe('Hokkaido')
+    expect(nationName({ code: 'DZ', name: 'Libya', cell: 0, size: 1 })).toBe('Libya')
+    expect(nationName({ code: '', name: 'Kingdom of Sardinia', cell: 0, size: 1 })).toBe('Kingdom of Sardinia')
   })
 
   it('tirent la carte des parties publiques selon le poids que leur donne OpenFront', () => {
