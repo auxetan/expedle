@@ -4,9 +4,11 @@ import { buzz } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { cloudEnabled } from '../../lib/cloud'
 import { plays, recordPlay } from '../../lib/stats'
+import { earnedOf } from '../../lib/wallet'
 import { copyText, formatTime, load, save } from '../../lib/util'
 import AppBar from '../../ui/AppBar'
 import { loadProfile } from '../../ui/Panels'
+import { Pepites } from '../../ui/Pepites'
 import { Sim } from './client'
 import {
   allianceOf,
@@ -28,18 +30,19 @@ import {
   type Options,
 } from './engine'
 import { worldMap } from './map'
+import { CHAT, phraseText } from './chat'
 import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TRIBES } from './choices'
 import { ICON } from './icons'
 import { actionFor, keyName, loadKeys, type Action } from './keys'
 import { SPAWN_TURNS } from './lockstep'
-import Menu, { Caps, SoundPanel } from './Menu'
+import Menu, { SoundPanel } from './Menu'
 import type { Lobby, Start } from './net'
 import Salon, { type SalonKind } from './Salon'
-import { earnedOf, loadSkin, skinById, type Skin } from './progress'
+import { loadSkin, skinById, type Skin } from './progress'
 import { ambience, ambienceAt, ambienceGain, play } from './sounds'
 import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
 import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Ghost, type Overlay, type View } from './render'
-import { BLAST, DEFENSE_RANGE, EXTEND_WINDOW, goldPerTick, MAX_BOATS, RAIL_RANGE, samRange, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
+import { BLAST, DEFENSE_RANGE, EXTEND_WINDOW, goldPerTick, MAX_BOATS, PHRASES, RAIL_RANGE, samRange, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
 
 // le numéro du joueur de cet écran : 1 en solo, sa place dans le salon en ligne (fixé au lancement d'une partie)
@@ -172,8 +175,8 @@ interface Result {
   share: number
   ms: number
   by: string
-  // les capsules gagnées par la partie, récompenses de niveau comprises
-  caps: number
+  // les pépites gagnées par la partie, récompenses de succès et de niveau comprises
+  pepites: number
 }
 
 // quinze secondes entre deux cadres d'alerte, et pour qu'une attaque passe pour une riposte
@@ -297,6 +300,8 @@ function menuFor(sim: Sim, tile: number, ratio: number, say: (text: string) => v
 // La fiche d'un joueur : ses chiffres, et ce qu'on peut faire envers lui, comme sur OpenFront.
 function PlayerCard({ g, sim, id, ratio, say, onClose }: { g: Game; sim: Sim; id: number; ratio: number; say: (text: string) => void; onClose: () => void }) {
   const [emojis, setEmojis] = useState(false)
+  // le tchat rapide ouvert : le thème choisi, et la phrase qui attend le joueur qu'elle désigne
+  const [chat, setChat] = useState<{ topic: number; phrase?: string } | null>(null)
   const p = player(g, id)
   const me = player(g, ME)
   const ally = allied(g, ME, id)
@@ -321,8 +326,23 @@ function PlayerCard({ g, sim, id, ratio, say, onClose }: { g: Game; sim: Sim; id
       <p>{status(g, id)}</p>
       {id !== ME && (
         <div className="of-acts">
-          <button onClick={() => setEmojis(!emojis)} aria-expanded={emojis}>
+          <button
+            onClick={() => {
+              setEmojis(!emojis)
+              setChat(null)
+            }}
+            aria-expanded={emojis}
+          >
             {t('Emoji')}
+          </button>
+          <button
+            onClick={() => {
+              setChat(chat ? null : { topic: 0 })
+              setEmojis(false)
+            }}
+            aria-expanded={!!chat}
+          >
+            {t('Message')}
           </button>
           {!ally && (
             <button onClick={() => sim.send({ op: 'target', other: id }).then((ok) => !ok && say(t('Une nouvelle cible dans quelques secondes.')))}>
@@ -338,6 +358,7 @@ function PlayerCard({ g, sim, id, ratio, say, onClose }: { g: Game; sim: Sim; id
           {ally && <button onClick={() => sim.send({ op: 'gold', to: id, share: 0.25 })}>{t('Don d’or')}</button>}
         </div>
       )}
+      {chat && <QuickChat g={g} sim={sim} to={id} chat={chat} setChat={setChat} say={say} />}
       {emojis && (
         <div className="of-emojis">
           {EMOJIS.map((e) => (
@@ -354,6 +375,63 @@ function PlayerCard({ g, sim, id, ratio, say, onClose }: { g: Game; sim: Sim; id
         </div>
       )}
     </section>
+  )
+}
+
+// Le tchat rapide d'OpenFront : un thème, une phrase, et pour certaines le joueur dont on parle.
+function QuickChat({
+  g,
+  sim,
+  to,
+  chat,
+  setChat,
+  say,
+}: {
+  g: Game
+  sim: Sim
+  to: number
+  chat: { topic: number; phrase?: string }
+  setChat: (chat: { topic: number; phrase?: string } | null) => void
+  say: (text: string) => void
+}) {
+  const send = (phrase: string, about?: number) => {
+    setChat(null)
+    sim.send({ op: 'chat', to, phrase, about }).then((ok) => say(ok ? t('Message envoyé à {name}', { name: nameOf(g, to) }) : t('Attends un peu avant le prochain message.')))
+  }
+  const named = g.players
+    .filter((o) => o.alive && o.tiles && o.id !== ME)
+    .sort((a, b) => b.tiles - a.tiles)
+    .slice(0, 12)
+  return (
+    <div className="of-chat">
+      <nav>
+        {CHAT.map((c, i) => (
+          <button key={c.title} className={i === chat.topic && !chat.phrase ? 'on' : ''} onClick={() => setChat({ topic: i })}>
+            {t(c.title)}
+          </button>
+        ))}
+      </nav>
+      {chat.phrase ? (
+        <>
+          <p className="of-hint">{t(phraseText(chat.phrase), { name: '…' })}</p>
+          <div className="of-chat-list">
+            {named.map((o) => (
+              <button key={o.id} onClick={() => send(chat.phrase!, o.id)}>
+                {o.name}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="of-chat-list">
+          {CHAT[chat.topic].phrases.map((p) => (
+            <button key={p.id} onClick={() => (PHRASES[p.id] ? setChat({ ...chat, phrase: p.id }) : send(p.id))}>
+              {t(p.text, { name: '…' })}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -593,6 +671,7 @@ export default function OpenFront() {
         else if (e.type === 'captured' && e.to === ME) note(t('{name} a pris ton navire marchand', { name: who }))
         else if (e.type === 'captured' && e.from === ME) note(t('Tu as pris un navire marchand de {name}', { name: who }))
         else if (e.type === 'embargo' && e.to === ME) note(t('{name} cesse de commercer avec toi', { name: who }))
+        if (e.type === 'chat' && e.phrase && e.to === ME && e.from !== ME) note(`${who} : ${t(phraseText(e.phrase), { name: e.about ? nameOf(g, e.about) : '' })}`, undefined, 8)
         if (e.type === 'emoji' && e.emoji) {
           shouts.set(e.from, { emoji: e.emoji, until: performance.now() + SHOUT_MS })
           if (e.to === ME && e.from !== ME) note(`${who} : ${e.emoji}`, undefined, 5)
@@ -613,7 +692,7 @@ export default function OpenFront() {
       recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms, ...(online && { sub: 'multi' }) })
       play(win ? 'victory' : 'defeat')
       buzz(win ? 'win' : 'lose')
-      setResult({ win, share: best, ms, by, caps: earnedOf(plays()) - before })
+      setResult({ win, share: best, ms, by, pepites: earnedOf(plays()) - before })
       setPhase('fin')
     }
 
@@ -1212,7 +1291,7 @@ export default function OpenFront() {
                     : t('Après avoir tenu {pct} % des terres.', { pct: percent(result.share) })}
               </span>
               <span className="of-gain">
-                {t('Gagné')} <Caps n={result.caps} />
+                {t('Gagné')} <Pepites n={result.pepites} />
               </span>
               <div className="of-end-actions">
                 {online ? (
