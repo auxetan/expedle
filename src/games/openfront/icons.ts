@@ -5,7 +5,6 @@ import prolonger from './icons/AllianceRequestWhiteIcon.svg'
 import retour from './icons/BackIconWhite.svg'
 import navire from './icons/BattleshipIconWhite.svg'
 import bateau from './icons/BoatIconWhite.svg'
-import capsule from './icons/BottleCapIcon.svg'
 import construire from './icons/BuildIconWhite.svg'
 import ville from './icons/CityIconWhite.svg'
 import or from './icons/DonateGoldIconWhite.svg'
@@ -51,5 +50,4 @@ export const ICON = {
   bombe,
   hbombe,
   mirv,
-  capsule,
 }
