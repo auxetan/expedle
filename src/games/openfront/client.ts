@@ -7,6 +7,7 @@ import type { Anchor } from './labels'
 import type { WorldMap } from './map'
 import type { Net } from './net'
 import { PLAYER_FIELDS, type Command, type FromSim, type Reply, type Snapshot } from './protocol'
+import { nukeFx, oneShot, type Fx } from './sprites'
 import type { Level } from './rules'
 
 export interface Setup {
@@ -36,6 +37,8 @@ export class Sim {
   // en ligne, le dernier tour joué ; la partie ne tourne qu'après la phase de placement
   turn = -1
   readonly net: Net | undefined
+  // les effets d'OpenFront en cours, que l'affichage joue puis retire
+  fx: Fx[] = []
   private worker: Worker
   private asked = 0
   private waiting = new Map<number, (value: Reply) => void>()
@@ -65,8 +68,33 @@ export class Sim {
     else this.onTick()
   }
 
+  // Ce qui a changé d'un tour à l'autre déclenche les effets d'OpenFront : une explosion nouvelle (bombe ou
+  // missile abattu), une unité disparue (navire coulé, bâtiment détruit), un obus arrivé, un joueur conquis.
+  private effects(s: Snapshot) {
+    const g = this.g
+    const now = performance.now()
+    for (const b of s.blasts)
+      if (b.tick === s.tick) {
+        if (b.radius > 4) this.fx.push(...nukeFx(b.tile, b.radius >= 80 ? 160 : 70, g.w, now))
+        else this.fx.push(oneShot('sam', b.tile, now), { kind: 'samshock', tile: b.tile, at: now, life: 800, fadeIn: 0, fadeOut: 1, radius: 40 })
+      }
+    const left = new Set(s.units.map((u) => u.id))
+    for (const u of g.units)
+      if (!left.has(u.id)) {
+        if (u.type === 'navire') this.fx.push(oneShot('unit', u.tile, now), oneShot('sinking', u.tile, now))
+        else this.fx.push(oneShot('building', u.tile, now))
+      }
+    for (const shell of g.shells) if (shell.hit <= s.tick) this.fx.push(oneShot('mini', shell.tile, now))
+    for (const e of s.events)
+      if (e.type === 'eliminated' && e.from) {
+        const where = this.labels.find((a) => a.id === e.to)
+        if (where) this.fx.push({ ...oneShot('conquest', Math.round(where.y) * g.w + Math.round(where.x), now), life: 2500, fadeIn: 0.1, fadeOut: 0.6 })
+      }
+  }
+
   private apply(s: Snapshot) {
     const g = this.g
+    if (g.players.length) this.effects(s)
     g.tick = s.tick
     g.mirvs = s.mirvs
     g.falloutTiles = s.falloutTiles
