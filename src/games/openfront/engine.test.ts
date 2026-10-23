@@ -26,6 +26,7 @@ import {
   toggleEmbargo,
   requestAlliance,
   sendBoat,
+  sendChat,
   spawn,
   startAttack,
   step,
@@ -390,6 +391,23 @@ describe('diplomatie', () => {
     run(g, 20)
     expect(sendEmoji(g, a.id, b.id, '😂')).toBe(true)
     expect(g.events.filter((e) => e.type === 'emoji').map((e) => e.emoji)).toEqual(['😡', '😂'])
+  })
+
+  it('envoie une phrase du tchat rapide, qui désigne un joueur quand elle le demande', () => {
+    const { g, a, b } = duel()
+    // une phrase inconnue, ou qui demande un joueur sans en avoir, ne part pas
+    expect(sendChat(g, a.id, b.id, 'inventée')).toBe(false)
+    expect(sendChat(g, a.id, b.id, 'attaque')).toBe(false)
+    expect(sendChat(g, a.id, 99, 'salut')).toBe(false)
+    expect(sendChat(g, a.id, b.id, 'attaque', b.id)).toBe(true)
+    // le tchat partage le délai des emojis
+    expect(sendChat(g, a.id, b.id, 'salut')).toBe(false)
+    run(g, 20)
+    expect(sendChat(g, a.id, b.id, 'salut', b.id)).toBe(true)
+    expect(g.events.filter((e) => e.type === 'chat').map((e) => [e.phrase, e.about])).toEqual([
+      ['attaque', b.id],
+      ['salut', undefined],
+    ])
   })
 
   it('un embargo coupe le commerce entre deux ports', () => {
