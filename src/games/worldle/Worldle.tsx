@@ -10,6 +10,7 @@ import { copyText, load, save, seededRng, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
+import Joker from '../../ui/Joker'
 import { cssColor, useTheme } from '../../ui/theme'
 import GlobeView from '../globle/GlobeView'
 import { evaluate, MAX_GUESSES, pickTarget, squares, stateBonus, targets, worldBonus, type BonusRound } from './game'
@@ -24,6 +25,8 @@ interface Saved {
   bonus?: Record<string, string>
   flag?: string
   capital?: string
+  // essais ajoutés par des jokers
+  extra?: number
 }
 
 // Worldle sur la carte du monde, Statele sur celle des États-Unis : même jeu, autre atlas.
@@ -51,7 +54,8 @@ type Variant = keyof typeof VARIANTS
 
 const SIZE = 300
 
-const points = (win: boolean, n: number) => (win ? Math.round((100 * (MAX_GUESSES + 1 - n)) / MAX_GUESSES) : 0)
+// une victoire sur l'essai bonus d'un joker compte comme sur le dernier essai
+const points = (win: boolean, n: number) => (win ? Math.round((100 * (MAX_GUESSES + 1 - Math.min(n, MAX_GUESSES))) / MAX_GUESSES) : 0)
 
 function Silhouette({ atlas, code, color, label }: { atlas: Atlas; code: string; color: string; label: string }) {
   const d = useMemo(() => {
@@ -92,6 +96,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
   const v = VARIANTS[variant]
   const [challenge] = useState(readChallenge)
   const practice = mode === 'libre' || !!challenge
+  const jokers = practice && !challenge
   const day = todayKey()
   const storageKey = practice ? null : `${variant}:${day}`
   // le lieu du jour vient de la date, la partie libre et le défi d'une graine : un lien de défi rejoue le même lieu
@@ -107,8 +112,9 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
   const colors = { fg: cssColor('--fg'), good: cssColor('--good'), bad: cssColor('--bad') }
 
   const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c, v.maxKm)), [state.guesses, atlas, target, v.maxKm])
+  const max = MAX_GUESSES + (state.extra ?? 0)
   const won = state.guesses.includes(target)
-  const lost = !won && state.guesses.length >= MAX_GUESSES
+  const lost = !won && state.guesses.length >= max
   const over = won || lost
   const rounds = useMemo<BonusRound[]>(() => {
     const rng = seededRng(`${variant}-bonus-${seed}`)
@@ -126,7 +132,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
   function guess(code: string) {
     const win = code === target
     const n = state.guesses.length + 1
-    const done = win || n >= MAX_GUESSES
+    const done = win || n >= max
     const ms = elapsed()
     update({ ...state, guesses: [...state.guesses, code], ...(done ? { ms } : {}) })
     if (!done) return
@@ -144,7 +150,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
 
   async function share() {
     const stars = '⭐'.repeat(good)
-    const text = `${v.title} Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}${stars ? ' ' + stars : ''}\n${rows
+    const text = `${v.title} Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${max}${stars ? ' ' + stars : ''}\n${rows
       .map((r) => `${squares(r.proximity)}${r.arrow}`)
       .join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
@@ -171,7 +177,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
         </div>
 
         <ol className="wd-rows">
-          {Array.from({ length: MAX_GUESSES }, (_, i) => {
+          {Array.from({ length: max }, (_, i) => {
             const r = rows[i]
             return r ? (
               <li key={i} className="wd-row filled">
@@ -187,11 +193,14 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
         </ol>
 
         {!over && <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t(v.ask)} button={`🌍 ${t('Deviner')}`} />}
+        {!over && jokers && max - state.guesses.length === 1 && <Joker id="joker:essai" onUse={() => update({ ...state, extra: (state.extra ?? 0) + 1 })} />}
 
         {over && !bonus && (
           <section className="wd-end">
             <b>{won ? t('Bravo ! Réponse : {name}', { name: atlas.name(target) }) : t('Perdu. Réponse : {name}', { name: atlas.name(target) })}</b>
-            <span className="muted">{won ? t('Trouvé en {n}/{max}.', { n: state.guesses.length, max: MAX_GUESSES }) : t('Six essais, pas un de plus.')}</span>
+            <span className="muted">
+              {won ? t('Trouvé en {n}/{max}.', { n: state.guesses.length, max }) : state.extra ? t('{n} essais, pas un de plus.', { n: max }) : t('Six essais, pas un de plus.')}
+            </span>
             <div className="wd-actions">
               {rounds.length > 0 && (
                 <button className="ui-btn" onClick={() => setBonus(true)}>
@@ -212,12 +221,14 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
               )}
             </div>
             {variant === 'worldle' && <GlobeView fills={fills} focus={target} highlight={target} maxSize={300} initialZoom={2.2} />}
-            <ChallengeBox
-              game={variant}
-              path={`/${variant}`}
-              seed={seed}
-              result={{ pts: points(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
-            />
+            {!state.extra && (
+              <ChallengeBox
+                game={variant}
+                path={`/${variant}`}
+                seed={seed}
+                result={{ pts: points(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+              />
+            )}
           </section>
         )}
 
