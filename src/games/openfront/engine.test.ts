@@ -5,10 +5,12 @@ import {
   addPlayer,
   agreeExtension,
   allied,
+  assignTeams,
   attackAt,
   breakAlliance,
   build,
   createGame,
+  DEFAULT_OPTIONS,
   isTraitor,
   launch,
   LAND,
@@ -23,6 +25,7 @@ import {
   sendEmoji,
   setTarget,
   targetOf,
+  teamWinner,
   toggleEmbargo,
   requestAlliance,
   sendBoat,
@@ -33,7 +36,7 @@ import {
   winner,
   type Game,
 } from './engine'
-import { ALLIANCE_TICKS, BUILD_TICKS, CITY_TROOPS, MAX_BOATS, SPAWN_IMMUNITY_TICKS, TRAITOR_TICKS } from './rules'
+import { ALLIANCE_TICKS, BUILD_TICKS, CITY_TROOPS, MAX_BOATS, SPAWN_IMMUNITY_TICKS, TRAITOR_TICKS, WIN_SHARE } from './rules'
 
 // '#' plaine, '^' montagne, 'x' infranchissable, '.' mer
 function map(rows: string[]) {
@@ -363,7 +366,7 @@ describe('commerce', () => {
 
 describe('options de partie', () => {
   it('bâtissent sur-le-champ et donnent au joueur or et troupes sans fin', () => {
-    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: true, infiniteGold: true, infiniteTroops: true, nukes: true })
+    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: true, infiniteGold: true, infiniteTroops: true, nukes: true, teams: 0 })
     const a = addPlayer(g, 'A', 'human')
     spawn(g, a.id, at(g, 10, 15))
     step(g)
@@ -375,7 +378,7 @@ describe('options de partie', () => {
   })
 
   it('sans bombes, ni silo ni lancement', () => {
-    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: false })
+    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(4), true, { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: false, teams: 0 })
     const a = addPlayer(g, 'A', 'human')
     spawn(g, a.id, at(g, 10, 15))
     a.gold = 1e9
@@ -620,5 +623,47 @@ describe('fin de partie', () => {
     startAttack(g, big.id, 0, 1e6)
     run(g, 200)
     expect(small.alive).toBe(true)
+  })
+})
+
+describe('équipes', () => {
+  function teams(n: number) {
+    const g = createGame(map(block(80, 30)), 'moyen', mulberry32(3), true, { ...DEFAULT_OPTIONS, teams: n })
+    const humans = ['A', 'B'].map((name) => addPlayer(g, name, 'human'))
+    const nations = ['N1', 'N2'].map((name) => addPlayer(g, name, 'nation'))
+    const bot = addPlayer(g, 'Bot', 'bot')
+    assignTeams(g)
+    return { g, humans, nations, bot }
+  }
+
+  it('répartissent humains puis nations à tour de rôle, et laissent les bots sans équipe', () => {
+    const { humans, nations, bot } = teams(2)
+    expect([...humans, ...nations].map((p) => p.team)).toEqual([1, 2, 1, 2])
+    expect(bot.team).toBe(0)
+  })
+
+  it('font de chaque équipier un allié qu’on ne peut ni attaquer ni envahir', () => {
+    const { g, humans, nations } = teams(2)
+    g.tick = SPAWN_IMMUNITY_TICKS
+    spawn(g, humans[0].id, at(g, 10, 15))
+    spawn(g, nations[0].id, at(g, 18, 15))
+    expect(allied(g, humans[0].id, nations[0].id)).toBe(true)
+    expect(allied(g, humans[0].id, humans[1].id)).toBe(false)
+    expect(startAttack(g, humans[0].id, nations[0].id, 100)).toBe(false)
+  })
+
+  it('donnent la victoire à l’équipe qui tient assez de terres à elle toute seule, jamais aux bots', () => {
+    const { g, humans, nations } = teams(2)
+    expect(teamWinner(g)).toBe(0)
+    humans[0].tiles = Math.ceil(g.land * WIN_SHARE * 0.5)
+    nations[0].tiles = Math.ceil(g.land * WIN_SHARE * 0.5)
+    expect(teamWinner(g)).toBe(1)
+  })
+
+  it('n’existent pas en chacun pour soi', () => {
+    const { g } = duel()
+    assignTeams(g)
+    expect(g.players.every((p) => p.team === 0)).toBe(true)
+    expect(teamWinner(g)).toBe(0)
   })
 })
