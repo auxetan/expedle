@@ -7,7 +7,7 @@ import type { Anchor } from './labels'
 import type { Skin } from './progress'
 import { drawFx, FLICKER, sprite, stamp, type Fx } from './sprites'
 import { ICON } from './icons'
-import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type UnitType } from './rules'
+import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type Kind, type UnitType } from './rules'
 
 export interface View {
   s: number
@@ -707,9 +707,10 @@ export function draw(
 }
 
 // Noms et troupes : couronne pour le premier, alliés en vert, traîtres en rouge.
+const NAME_SHADE: Record<Kind, string> = { human: 'rgb(0,0,0)', nation: 'rgb(77,77,77)', bot: 'rgb(102,102,102)' }
+
 function names(ctx: CanvasRenderingContext2D, stamps: Stamps, g: Game, pal: Palette, view: View, cw: number, ch: number, anchors: Anchor[], me: number, dpr: number) {
   let done = true
-  const outline = css(pal.bg)
   const leader = g.players.reduce((best, p) => (p.alive && p.tiles > best.tiles ? p : best), g.players[0])
   for (const a of anchors) {
     const p = player(g, a.id)
@@ -726,9 +727,12 @@ function names(ctx: CanvasRenderingContext2D, stamps: Stamps, g: Game, pal: Pale
     // des tailles par paliers, pour retrouver les mêmes vignettes d'un zoom à l'autre
     size = size < 14 ? Math.round(size) : Math.round(size / 2) * 2
     if (size < 9) continue
-    const color = isTraitor(g, p) ? pal.bad : p.id !== me && allied(g, p.id, me) ? pal.good : pal.fg
-    if (!stamps.put(ctx, name, 500, size, css(color), outline, dpr, x, y - size * 0.35)) done = false
-    if (!stamps.put(ctx, troopsText(p.troops), 400, Math.round(size * 0.8), css(color), outline, dpr, x, y + size * 0.6)) done = false
+    // comme sur OpenFront : le texte en gris foncé (noir pour un humain, plus clair pour une nation ou une tribu),
+    // cerné de la couleur du pays ; traîtres et alliés se signalent par leur pictogramme
+    const fill = NAME_SHADE[p.kind]
+    const outline = css(pal.players[p.id - 1])
+    if (!stamps.put(ctx, name, 500, size, fill, outline, dpr, x, y - size * 0.35)) done = false
+    if (!stamps.put(ctx, troopsText(p.troops), 400, Math.round(size * 0.8), fill, outline, dpr, x, y + size * 0.6)) done = false
   }
   return done
 }
