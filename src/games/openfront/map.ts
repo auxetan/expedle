@@ -10,7 +10,9 @@ export const MAP_W = 2000
 export const MAP_H = Math.round((MAP_W * (NORTH - SOUTH)) / 360)
 
 export interface Seat {
+  // code pays ISO de la nation, vide quand son drapeau n'en est pas un
   code: string
+  name: string
   // la case la plus centrale du pays, où sa nation démarre
   cell: number
   size: number
@@ -77,7 +79,7 @@ export function worldMap(): WorldMap {
     const d = ((i % w) - s.x / s.n) ** 2 + (Math.floor(i / w) - s.y / s.n) ** 2
     if (d < best[id].d) best[id] = { cell: i, d }
   }
-  const seats = codes.map((code, id) => ({ code, cell: best[id].cell, size: sum[id].n })).filter((s) => s.size > 0)
+  const seats = codes.map((code, id) => ({ code, name: code, cell: best[id].cell, size: sum[id].n })).filter((s) => s.size > 0)
   cached = { w, h, terrain, seats }
   return cached
 }
