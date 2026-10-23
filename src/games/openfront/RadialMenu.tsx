@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { t } from '../../lib/i18n'
 import { ICON } from './icons'
+import { play } from './sounds'
 
 // Une icône d'OpenFront peinte d'une seule teinte (la couleur du texte autour) : sa forme sert de masque.
 // Les guillemets comptent : Vite intègre les petits SVG en adresse data:, qui en contient.
@@ -47,6 +48,7 @@ export default function RadialMenu({ x, y, items, center, onClose }: { x: number
 
   function pick(item: MenuItem) {
     if (item.disabled) return
+    play('click')
     if (item.sub) return setOpen(item)
     item.act?.()
     onClose()
