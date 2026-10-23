@@ -1,17 +1,18 @@
 // L'accueil de Frontières, sur le modèle de celui d'OpenFront : son nom posé sur son motif de territoire, la
 // prochaine partie publique en grand, puis le solo et les salons privés ; le son, les touches, les statistiques,
-// et la boutique où l'on dépense ses capsules en motifs.
-import { useEffect, useRef, useState } from 'react'
+// et la boutique où l'on dépense ses pépites, la monnaie d'Expedle, en motifs de territoire.
+import { useEffect, useState } from 'react'
 import { feedbackSettings } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { plays } from '../../lib/stats'
 import { formatTime, save } from '../../lib/util'
-import { ICON } from './icons'
+import { buy } from '../../lib/wallet'
+import { Pepites, useWallet } from '../../ui/Pepites'
 import { KEY_GROUPS, keyName, loadKeys, rebind, saveKeys, type Action } from './keys'
 import { Directory, joinable, PUBLIC_MAX, type Listing } from './net'
-import { balanceOf, loadOwned, loadSkin, rankOf, skinById, SKINS, tallyOf, xpOf, type Skin } from './progress'
-import { Glyph } from './RadialMenu'
+import { loadSkin, rankOf, skinById, SKINS, tallyOf, xpOf, type Skin } from './progress'
 import type { SalonKind } from './Salon'
+import SkinPreview from './SkinPreview'
 import { loadVolumes, play, setVolumes, type Cue, type Volumes } from './sounds'
 
 type Tab = 'jouer' | 'reglages' | 'stats' | 'boutique'
@@ -22,37 +23,6 @@ const TABS: [Tab, string][] = [
   ['stats', msg('Statistiques')],
   ['boutique', msg('Boutique')],
 ]
-
-// Le solde de capsules, avec l'icône d'OpenFront.
-export function Caps({ n, size = 14 }: { n: number; size?: number }) {
-  return (
-    <span className="of-caps">
-      <Glyph src={ICON.capsule} size={size} />
-      {fmt(n)}
-    </span>
-  )
-}
-
-// Un motif peint comme ton territoire en jeu : ta teinte mêlée à la terre, plus pâle sur les cases du motif.
-function SkinPreview({ skin, width = 132, height = 84 }: { skin: Skin; width?: number; height?: number }) {
-  const ref = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const canvas = ref.current!
-    const style = getComputedStyle(canvas)
-    const ctx = canvas.getContext('2d')!
-    const cell = 3
-    ctx.fillStyle = style.getPropertyValue('--line')
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = style.getPropertyValue('--fg')
-    for (let y = 0; y < canvas.height / cell; y++)
-      for (let x = 0; x < canvas.width / cell; x++) {
-        ctx.globalAlpha = skin.at(x, y) ? 0.5 : 0.78
-        ctx.fillRect(x * cell, y * cell, cell, cell)
-      }
-    ctx.globalAlpha = 1
-  }, [skin])
-  return <canvas ref={ref} width={width} height={height} aria-hidden />
-}
 
 // chaque voie, avec le son qui la fait entendre, comme les boutons d'essai d'OpenFront
 const CHANNELS: [keyof Volumes, string, Cue | null][] = [
@@ -178,13 +148,12 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
   const [tab, setTab] = useState<Tab>('jouer')
   const [list] = useState(plays)
   const [skin, setSkin] = useState(loadSkin)
-  const [owned, setOwned] = useState(loadOwned)
+  const wallet = useWallet()
   // le motif dont on confirme l'achat
   const [buying, setBuying] = useState('')
   const [now, setNow] = useState(Date.now)
   const rank = rankOf(xpOf(list))
   const tally = tallyOf(list)
-  const caps = balanceOf(list, owned)
   const next = usePublicGame(multi && tab === 'jouer')
 
   useEffect(() => {
@@ -198,11 +167,9 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
     save('openfront-motif', id)
   }
 
-  function buy(s: Skin) {
-    const list = [...owned, s.id]
-    setOwned(list)
-    save('openfront-achats', list)
+  function purchase(s: Skin) {
     setBuying('')
+    if (!buy(`motif:${s.id}`, s.price)) return
     play('ka-ching')
     wear(s.id)
   }
@@ -227,7 +194,7 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
             <i style={{ width: `${(rank.into / rank.need) * 100}%` }} />
           </span>
           <button className="of-wallet" onClick={() => setTab('boutique')} aria-label={t('Boutique')}>
-            <Caps n={caps} size={16} />
+            <Pepites n={wallet.balance} size={16} />
           </button>
         </div>
       </section>
@@ -312,33 +279,36 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
       {tab === 'boutique' && (
         <div className="of-shop">
           <p className="of-balance">
-            <Caps n={caps} size={20} />
-            <small>{t('Chaque partie rapporte des capsules, une victoire bien plus, et chaque niveau gagné en offre cent.')}</small>
+            <Pepites n={wallet.balance} size={20} />
+            <small>
+              {t('Les pépites se gagnent dans tous les jeux d’Expedle et se dépensent ici comme dans la boutique du site.')}{' '}
+              <a href="#/boutique">{t('Voir la boutique')}</a>
+            </small>
           </p>
           {GROUPS.map(([group, title]) => (
             <section key={group}>
               <h4>{t(title)}</h4>
               <div className="of-skins">
                 {SKINS.filter((s) => s.group === group).map((s) => {
-                  const mine = s.price === 0 || owned.includes(s.id)
-                  const short = !mine && caps < s.price
+                  const mine = s.price === 0 || wallet.owned.has(`motif:${s.id}`)
+                  const short = !mine && wallet.balance < s.price
                   return (
                     <button
                       key={s.id}
                       className={skin === s.id ? 'on' : buying === s.id ? 'confirm' : ''}
                       disabled={short}
-                      title={short ? t('Il te manque {n} capsules', { n: fmt(s.price - caps) }) : undefined}
+                      title={short ? t('Il te manque {n} pépites', { n: fmt(s.price - wallet.balance) }) : undefined}
                       aria-pressed={skin === s.id}
                       onClick={() => {
                         if (mine) return wear(s.id)
                         // un achat se confirme d'un second clic, comme sur OpenFront
                         if (buying !== s.id) return setBuying(s.id)
-                        buy(s)
+                        purchase(s)
                       }}
                     >
                       <SkinPreview skin={s} />
                       <b>{t(s.name)}</b>
-                      <small>{skin === s.id ? t('Porté') : mine ? t('Porter') : buying === s.id ? t('Acheter ?') : <Caps n={s.price} />}</small>
+                      <small>{skin === s.id ? t('Porté') : mine ? t('Porter') : buying === s.id ? t('Acheter ?') : <Pepites n={s.price} />}</small>
                     </button>
                   )
                 })}
