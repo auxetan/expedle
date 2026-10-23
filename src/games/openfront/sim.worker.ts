@@ -3,7 +3,7 @@
 // et l'affichage ne reçoit à chaque tour que ce qui a changé. Un calcul long ne fige donc jamais l'image.
 import { mulberry32 } from '../../lib/util'
 import { populate, runAi, type Brain } from './ai'
-import { addPlayer, createGame, player, spawn, step, type Game } from './engine'
+import { addPlayer, createGame, player, spawn, step, targetOf, type Game } from './engine'
 import { anchors } from './labels'
 import { execute, hashOf, playTurn, type Turn } from './lockstep'
 import { PLAYER_FIELDS, type FromSim, type Snapshot, type ToSim } from './protocol'
@@ -72,7 +72,7 @@ function snapshot(full: boolean): Snapshot {
     requests: g.requests,
     events,
     labels: full || g.tick % 10 === 0 ? anchors(g) : undefined,
-    me: { target: player(g, me).target, embargo: [...player(g, me).embargo] },
+    me: { target: targetOf(g, player(g, me)), embargo: [...player(g, me).embargo] },
     turn,
   }
 }
