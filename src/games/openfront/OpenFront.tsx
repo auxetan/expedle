@@ -978,6 +978,8 @@ export default function OpenFront() {
     return () => {
       cancelAnimationFrame(raf)
       ambience(null, 0)
+      // l'accueil se pose sur le canevas : il ne doit pas garder la dernière image de la partie
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       clearInterval(hudTimer)
       observer.disconnect()
       themes.disconnect()
