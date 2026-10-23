@@ -134,11 +134,11 @@ describe('mise en place', () => {
   it('place les nations sur les plus grands pays, écartées, et disperse les tribus', () => {
     const g = createGame(map(block(200, 100)), 'moyen', mulberry32(9))
     const seats = [
-      { code: 'AA', cell: at(g, 20, 20), size: 500 },
-      { code: 'BB', cell: at(g, 25, 20), size: 400 },
-      { code: 'CC', cell: at(g, 150, 70), size: 300 },
+      { code: 'AA', name: 'Pays AA', cell: at(g, 20, 20), size: 500 },
+      { code: 'BB', name: 'Pays BB', cell: at(g, 25, 20), size: 400 },
+      { code: 'CC', name: 'Pays CC', cell: at(g, 150, 70), size: 300 },
     ]
-    const brains = populate(g, seats, 5, 10, (code) => `Pays ${code}`)
+    const brains = populate(g, seats, 5, 10)
     const nations = g.players.filter((p) => p.kind === 'nation').map((p) => p.name)
     expect(nations).toEqual(['Pays AA', 'Pays CC'])
     expect(g.players.filter((p) => p.kind === 'bot').length).toBe(10)
