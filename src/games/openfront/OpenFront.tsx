@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { countryName, flagEmoji } from '../../geo/countries'
+import { flagEmoji } from '../../geo/countries'
 import { buzz } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { cloudEnabled } from '../../lib/cloud'
@@ -30,8 +30,7 @@ import {
   type Game,
   type Options,
 } from './engine'
-import { DEFAULT_MAP, loadMap, mapById, MAPS } from './cartes'
-import type { Seat } from './map'
+import { DEFAULT_MAP, loadMap, mapById, MAPS, nationName } from './cartes'
 import { CHAT, phraseText } from './chat'
 import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TEAM_COUNTS, TEAM_HUES, TEAM_NAMES, teamMode, TRIBES } from './choices'
 import { ICON } from './icons'
@@ -185,9 +184,6 @@ interface Result {
 
 // quinze secondes entre deux cadres d'alerte, et pour qu'une attaque passe pour une riposte
 const ALERT_TICKS = 150
-
-// le nom d'une nation dans la langue du joueur quand son drapeau est un pays, celui de la carte sinon
-const nationName = (s: Seat) => (s.code && countryName(s.code) !== s.code ? countryName(s.code) : s.name)
 
 const isNuke = (type: Buyable): type is NukeType => NUKES.includes(type as NukeType)
 
