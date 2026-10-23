@@ -22,6 +22,7 @@ export type Command =
   | { op: 'retreat'; attack: number }
   | { op: 'recall'; boat: number }
   | { op: 'emoji'; to: number; emoji: string }
+  | { op: 'chat'; to: number; phrase: string; about?: number }
   | { op: 'target'; other: number }
   | { op: 'embargo'; other: number }
   | { op: 'move'; unit: number; tile: number }
