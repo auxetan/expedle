@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { countryName, flagEmoji } from '../../geo/countries'
 import { feedback } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
@@ -30,7 +30,7 @@ import {
 import { worldMap } from './map'
 import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TRIBES } from './choices'
 import { ICON } from './icons'
-import { actionFor, loadKeys, type Action } from './keys'
+import { actionFor, keyName, loadKeys, type Action } from './keys'
 import { SPAWN_TURNS } from './lockstep'
 import Menu, { loadSkin } from './Menu'
 import type { Lobby, Start } from './net'
@@ -65,10 +65,25 @@ const BUILD_ERRORS: Record<Exclude<BuildResult, 'ok'>, string> = {
 }
 
 const NO_SILO = msg('Il faut un silo prêt à tirer.')
+const TOO_SOON = msg('Aucune bombe ne part pendant les cinq premières secondes.')
 
 // ce que l'option « Bombes » retire : les bombes, leurs silos et les défenses contre elles
 const NUCLEAR: Buyable[] = ['silo', 'dca', ...NUKES]
 const allowed = (g: Game, type: Buyable) => g.options.nukes || !NUCLEAR.includes(type)
+
+// la barre de construction, dans l'ordre et avec les touches d'OpenFront
+const BAR: [Action, Buyable][] = [
+  ['buildCity', 'ville'],
+  ['buildFactory', 'usine'],
+  ['buildPort', 'port'],
+  ['buildDefensePost', 'poste'],
+  ['buildMissileSilo', 'silo'],
+  ['buildSamLauncher', 'dca'],
+  ['buildWarship', 'navire'],
+  ['buildAtomBomb', 'bombe'],
+  ['buildHydrogenBomb', 'hbombe'],
+  ['buildMIRV', 'mirv'],
+]
 
 // ce que bâtissent les touches de construction
 const BUILDS: Partial<Record<Action, Buyable>> = {
@@ -215,7 +230,7 @@ function menuFor(sim: Sim, tile: number, ratio: number, say: (text: string) => v
       note: compact(price),
       danger: true,
       disabled: !silo || me.gold < price,
-      act: () => sim.send({ op: 'launch', nuke: type, tile }).then((r) => r === 'ok' && feedback('tap')),
+      act: () => sim.send({ op: 'launch', nuke: type, tile }).then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'tot' ? TOO_SOON : r === 'silo' ? NO_SILO : BUILD_ERRORS.or)))),
     }
   })
   return {
@@ -282,7 +297,11 @@ function PlayerCard({ g, sim, id, ratio, say, onClose }: { g: Game; sim: Sim; id
           <button onClick={() => setEmojis(!emojis)} aria-expanded={emojis}>
             {t('Emoji')}
           </button>
-          {!ally && <button onClick={() => sim.send({ op: 'target', other: id })}>{me.target === id ? t('Ne plus cibler') : t('Cibler')}</button>}
+          {!ally && (
+            <button onClick={() => sim.send({ op: 'target', other: id }).then((ok) => !ok && say(t('Une nouvelle cible dans quelques secondes.')))}>
+              {me.target === id ? t('Ne plus cibler') : t('Cibler')}
+            </button>
+          )}
           <button onClick={() => sim.send({ op: 'embargo', other: id })}>{me.embargo.has(id) ? t('Lever l’embargo') : t('Embargo')}</button>
           {ally && (
             <button onClick={() => sim.send({ op: 'troops', to: id, ratio }).then(() => say(t('Troupes envoyées à {name}', { name: p.name })))}>
@@ -329,7 +348,6 @@ export default function OpenFront() {
   const [hud, setHud] = useState<Hud | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; tile: number } | null>(null)
   const [info, setInfo] = useState(0)
-  const [shop, setShop] = useState(false)
   const [placing, setPlacing] = useState<Buyable | null>(null)
   const [hover, setHover] = useState(0)
   // navire de guerre qu'on s'apprête à envoyer ailleurs
@@ -418,7 +436,6 @@ export default function OpenFront() {
     setNotes([])
     setHud(null)
     setSpeed(1)
-    setShop(false)
     setPlacing(null)
     setHover(0)
     setSteering(false)
@@ -675,7 +692,7 @@ export default function OpenFront() {
         setPlacing(null)
         overlay.preview = null
         const order = isNuke(buying) ? sim.send({ op: 'launch', nuke: buying, tile }) : sim.send({ op: 'build', unit: buying, tile })
-        order.then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'silo' ? NO_SILO : BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))))
+        order.then((r) => (r === 'ok' ? feedback('tap') : say(t(r === 'silo' ? NO_SILO : r === 'tot' ? TOO_SOON : BUILD_ERRORS[r as Exclude<BuildResult, 'ok'>]))))
         return
       }
       // un navire de guerre sélectionné file vers la mer touchée ; toucher la terre le relâche
@@ -899,6 +916,8 @@ export default function OpenFront() {
     save('openfront-attaque', n)
   }
 
+  // les touches choisies à l'accueil, relues à chaque changement d'écran
+  const keymap = useMemo(loadKeys, [phase])
   const g = ready ? sim?.g : undefined
   const radial = g && sim && menu ? menuFor(sim, menu.tile, ratio, say, setInfo) : null
   const shown = g && info ? player(g, info) : null
@@ -1124,9 +1143,10 @@ export default function OpenFront() {
                 ))}
               </ul>
             )}
-            {shop && g && (
-              <div className="of-shop">
-                {[...UNITS, ...NUKES].filter((type) => allowed(g, type)).map((type: Buyable) => {
+            {g && (
+              // la barre de construction d'OpenFront : la touche, l'icône, combien on en a ; grisée faute d'or
+              <div className="of-build">
+                {BAR.filter(([, type]) => allowed(g, type)).map(([action, type]) => {
                   const nuke = NUKES.includes(type as NukeType)
                   const price = priceOf(g, ME, type)
                   const owned = nuke ? 0 : unitsOf(g, ME, type as UnitType).length
@@ -1134,18 +1154,15 @@ export default function OpenFront() {
                   return (
                     <button
                       key={type}
-                      title={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
-                      disabled={hud.gold < price || !armed}
-                      onClick={() => {
-                        setPlacing(type)
-                        setShop(false)
-                      }}
+                      className={placing === type ? 'on' : ''}
+                      title={`${t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])} · ${compact(price)} ${t('or')}`}
+                      aria-label={t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_NAMES[type as UnitType])}
+                      disabled={(!settings.infiniteGold && hud.gold < price) || !armed}
+                      onClick={() => setPlacing(placing === type ? null : type)}
                     >
-                      <Glyph src={ICON[type]} size={22} />
-                      <span>
-                        {t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_SHORT[type as UnitType])}
-                        {owned > 0 && <small> ×{owned}</small>}
-                      </span>
+                      <kbd>{keyName(keymap[action])}</kbd>
+                      <Glyph src={ICON[type]} size={20} />
+                      {owned > 0 && <small>{owned}</small>}
                       <b className="of-gold">{compact(price)}</b>
                     </button>
                   )
@@ -1171,10 +1188,6 @@ export default function OpenFront() {
                 <span>{t('Attaque {n} %', { n: ratio })}</span>
                 <input type="range" min={1} max={100} value={ratio} onChange={(e) => changeRatio(Number(e.target.value))} />
               </label>
-              <button className={shop ? 'of-buy on' : 'of-buy'} onClick={() => setShop(!shop)} aria-expanded={shop}>
-                <Glyph src={ICON.construire} size={18} />
-                {t('Acheter')}
-              </button>
               {!online && (
                 <button className="of-speed" onClick={() => setSpeed((speed % 3) + 1)} aria-label={t('Vitesse')}>
                   ×{speed}
