@@ -23,6 +23,7 @@ import {
   sendEmoji,
   spawn,
   startAttack,
+  targetOf,
   unitsOf,
   type Game,
   type Player,
@@ -146,7 +147,7 @@ function attack(g: Game, p: Player, b: Brain) {
   if (!ready) return
   const traitor = enemies.find((e) => isTraitor(g, e))
   // la cible désignée par un allié passe avant le voisin le plus faible
-  const wanted = enemies.find((e) => g.players.some((q) => q.alive && q.target === e.id && allied(g, q.id, p.id)))
+  const wanted = enemies.find((e) => g.players.some((q) => q.alive && targetOf(g, q) === e.id && allied(g, q.id, p.id)))
   const target = traitor ?? wanted ?? enemies[0]
   if (traitor || wanted || p.troops > target.troops * (p.kind === 'bot' ? 2 : 1.2)) startAttack(g, p.id, target.id, spare(g, p, b))
 }
@@ -235,7 +236,12 @@ function tribeName(g: Game): string {
 // Les nations prennent les plus grands pays, assez loin les unes des autres ; les tribus se dispersent sur le reste.
 export function populate(g: Game, seats: SeatLike[], nations: number, tribes: number, name: (code: string) => string): Brain[] {
   const centers: number[] = []
-  const far = (t: number, d: number) => centers.every((c) => ((c % g.w) - (t % g.w)) ** 2 + (Math.floor(c / g.w) - Math.floor(t / g.w)) ** 2 >= d * d)
+  const far = (t: number, d: number) =>
+    centers.every((c) => {
+      const dx = (c % g.w) - (t % g.w)
+      const dy = Math.floor(c / g.w) - Math.floor(t / g.w)
+      return dx * dx + dy * dy >= d * d
+    })
   for (const s of [...seats].sort((a, b) => b.size - a.size)) {
     if (centers.length >= nations) break
     if (s.cell < 0 || !passable(g, s.cell) || !far(s.cell, 30)) continue
