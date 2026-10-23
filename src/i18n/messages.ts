@@ -1381,4 +1381,11 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Dorée": ["Golden", "Dorado", "Golden", "Dorata", "Dourado"],
   "D’autres avatars t’attendent dans la boutique.": ["More avatars await you in the shop.", "Más avatares te esperan en la tienda.", "Weitere Avatare warten im Shop auf dich.", "Altri avatar ti aspettano nel negozio.", "Mais avatares esperam por ti na loja."],
   "Boutique : {n} pépites": ["Shop: {n} nuggets", "Tienda: {n} pepitas", "Shop: {n} Nuggets", "Negozio: {n} pepite", "Loja: {n} pepitas"],
+  "Jokers": ["Jokers", "Comodines", "Joker", "Jolly", "Jokers"],
+  "En partie libre, jamais au classement du jour ni dans un défi": ["In free play, never in the daily leaderboard or a challenge", "En partida libre, nunca en la clasificación del día ni en un desafío", "Im freien Spiel, nie in der Tageswertung oder einer Herausforderung", "In partita libera, mai nella classifica del giorno né in una sfida", "Em jogo livre, nunca na classificação do dia nem num desafio"],
+  "Essai en plus": ["Extra guess", "Intento extra", "Extra-Versuch", "Tentativo in più", "Tentativa extra"],
+  "Vie en plus": ["Extra life", "Vida extra", "Extra-Leben", "Vita in più", "Vida extra"],
+  "Passer la question": ["Skip the question", "Saltar la pregunta", "Frage überspringen", "Salta la domanda", "Saltar a pergunta"],
+  "En réserve : {n}": ["In stock: {n}", "En reserva: {n}", "Vorrat: {n}", "Di scorta: {n}", "Em reserva: {n}"],
+  "Joker ×{n}": ["Joker ×{n}", "Comodín ×{n}", "Joker ×{n}", "Jolly ×{n}", "Joker ×{n}"],
 }
