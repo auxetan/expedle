@@ -21,6 +21,7 @@ import {
   recallBoat,
   sendEmoji,
   setTarget,
+  targetOf,
   toggleEmbargo,
   requestAlliance,
   sendBoat,
@@ -30,7 +31,7 @@ import {
   winner,
   type Game,
 } from './engine'
-import { ALLIANCE_TICKS, BUILD_TICKS, CITY_TROOPS, MAX_BOATS, TRAITOR_TICKS } from './rules'
+import { ALLIANCE_TICKS, BUILD_TICKS, CITY_TROOPS, MAX_BOATS, SPAWN_IMMUNITY_TICKS, TRAITOR_TICKS } from './rules'
 
 // '#' plaine, '^' montagne, 'x' infranchissable, '.' mer
 function map(rows: string[]) {
@@ -126,6 +127,7 @@ describe('attaques', () => {
     y.gold = 1000
     y.troops = 50
     x.troops = 100_000
+    small.tick = SPAWN_IMMUNITY_TICKS
     startAttack(small, x.id, y.id, 50_000)
     run(small, 50)
     expect(y.alive).toBe(false)
@@ -140,6 +142,7 @@ describe('attaques', () => {
     const y = addPlayer(g, 'Y', 'nation')
     spawn(g, x.id, at(g, 2, 0))
     spawn(g, y.id, at(g, 9, 0))
+    g.tick = SPAWN_IMMUNITY_TICKS
     startAttack(g, x.id, y.id, 3000)
     startAttack(g, y.id, x.id, 5000)
     expect(g.attacks).toHaveLength(1)
@@ -238,6 +241,7 @@ describe('bâtiments', () => {
         run(g, BUILD_TICKS.poste)
       }
       x.troops = 20_000
+      g.tick = Math.max(g.tick, SPAWN_IMMUNITY_TICKS)
       startAttack(g, x.id, y.id, 10_000)
       run(g, 5)
       return x.tiles
@@ -416,7 +420,7 @@ describe('diplomatie', () => {
     expect(a.target).toBe(b.id)
     expect(g.events.some((e) => e.type === 'target' && e.from === a.id && e.to === b.id)).toBe(true)
     setTarget(g, a.id, b.id)
-    expect(a.target).toBe(0)
+    expect(targetOf(g, a)).toBe(0)
   })
 })
 
@@ -438,6 +442,56 @@ describe('navires de guerre', () => {
     expect(moveWarship(g, a.id, ship.id, at(g, 45, 10))).toBe(true)
     run(g, 55)
     expect(Math.abs((ship.tile % g.w) - 45) + Math.abs(Math.floor(ship.tile / g.w) - 10)).toBeLessThan(14)
+  })
+})
+
+describe('début de partie', () => {
+  it('protège humains et nations pendant cinq secondes, pas les tribus, et interdit les bombes', () => {
+    const g = createGame(map(block(60, 30)), 'moyen', mulberry32(1))
+    const a = addPlayer(g, 'A', 'human')
+    const b = addPlayer(g, 'B', 'nation')
+    const c = addPlayer(g, 'C', 'bot')
+    spawn(g, a.id, at(g, 21, 15))
+    spawn(g, b.id, at(g, 30, 15))
+    spawn(g, c.id, at(g, 39, 15))
+    expect(startAttack(g, b.id, a.id, 1000)).toBe(false)
+    expect(startAttack(g, a.id, b.id, 1000)).toBe(false)
+    expect(startAttack(g, b.id, c.id, 1000)).toBe(true)
+    run(g, SPAWN_IMMUNITY_TICKS)
+    expect(startAttack(g, b.id, a.id, 1000)).toBe(true)
+  })
+})
+
+describe('bombes et alliés', () => {
+  it('une bombe qui frappe un allié rompt l’alliance', () => {
+    const { g, a, b } = duel(block(200, 60))
+    run(g, SPAWN_IMMUNITY_TICKS)
+    a.troops = 1e7
+    startAttack(g, a.id, 0, 4e6)
+    b.troops = 1e7
+    startAttack(g, b.id, 0, 4e6)
+    run(g, 150)
+    requestAlliance(g, a.id, b.id)
+    accept(g, a.id, b.id)
+    a.gold = 1e9
+    build(g, a.id, 'silo', at(g, 10, 15))
+    run(g, BUILD_TICKS.silo)
+    expect(launch(g, a.id, 'bombe', at(g, 150, 30))).toBe('ok')
+    expect(allied(g, a.id, b.id)).toBe(false)
+    expect(isTraitor(g, a)).toBe(true)
+  })
+})
+
+describe('cible', () => {
+  it('dure dix secondes, et ne peut être reprise qu’après quinze', () => {
+    const { g, a, b } = duel()
+    expect(setTarget(g, a.id, b.id)).toBe(true)
+    expect(a.target).toBe(b.id)
+    run(g, 100)
+    expect(targetOf(g, a)).toBe(0)
+    expect(setTarget(g, a.id, b.id)).toBe(false)
+    run(g, 50)
+    expect(setTarget(g, a.id, b.id)).toBe(true)
   })
 })
 

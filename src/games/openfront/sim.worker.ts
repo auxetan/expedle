@@ -1,38 +1,16 @@
 /// <reference lib="webworker" />
 // La simulation d'OpenFront, hors du fil de l'affichage : le moteur et l'IA tournent ici à dix tours par seconde,
 // et l'affichage ne reçoit à chaque tour que ce qui a changé. Un calcul long ne fige donc jamais l'image.
+import { mulberry32 } from '../../lib/util'
 import { populate, runAi, type Brain } from './ai'
-import {
-  accept,
-  addPlayer,
-  agreeExtension,
-  attackAt,
-  breakAlliance,
-  build,
-  createGame,
-  demolish,
-  donateGold,
-  donateTroops,
-  launch,
-  moveWarship,
-  player,
-  refuse,
-  requestAlliance,
-  recallBoat,
-  retreat,
-  sendBoat,
-  sendEmoji,
-  setTarget,
-  spawn,
-  step,
-  toggleEmbargo,
-  type Game,
-} from './engine'
+import { addPlayer, createGame, player, spawn, step, targetOf, type Game } from './engine'
 import { anchors } from './labels'
-import { PLAYER_FIELDS, type Command, type FromSim, type Reply, type Snapshot, type ToSim } from './protocol'
+import { execute, hashOf, playTurn, type Turn } from './lockstep'
+import { PLAYER_FIELDS, type FromSim, type Snapshot, type ToSim } from './protocol'
 import { TICK_MS } from './rules'
 
-const ME = 1
+// le joueur de cet écran : le seul humain en solo, sa place dans le salon en ligne
+let me = 1
 let g: Game
 let brains: Brain[] = []
 let running = false
@@ -41,6 +19,9 @@ let timer = 0
 // chemin de chaque bateau et train tel qu'envoyé à l'affichage : un bateau pris ou rappelé en change
 let sent = new Map<number, Int32Array>()
 let railKey = ''
+// en ligne : les tours reçus, joués un par un au rythme du jeu, et le dernier joué
+const queue: Turn[] = []
+let turn = -1
 
 const post = (msg: FromSim, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(msg, transfer)
 
@@ -82,7 +63,7 @@ function snapshot(full: boolean): Snapshot {
     trains: g.trains.map((t) => ({ id: t.id, owner: t.owner, at: t.at })),
     rails,
     // le front n'intéresse l'affichage que pour les combats du joueur, pas pour la terre libre
-    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.to && (a.from === ME || a.to === ME) ? Int32Array.from(a.front) : null })),
+    attacks: g.attacks.map((a) => ({ id: a.id, from: a.from, to: a.to, troops: a.troops, source: a.source, front: a.to && (a.from === me || a.to === me) ? Int32Array.from(a.front) : null })),
     nukes: g.nukes,
     missiles: g.missiles,
     shells: g.shells,
@@ -91,7 +72,8 @@ function snapshot(full: boolean): Snapshot {
     requests: g.requests,
     events,
     labels: full || g.tick % 10 === 0 ? anchors(g) : undefined,
-    me: { target: player(g, ME).target, embargo: [...player(g, ME).embargo] },
+    me: { target: targetOf(g, player(g, me)), embargo: [...player(g, me).embargo] },
+    turn,
   }
 }
 
@@ -109,72 +91,38 @@ function loop() {
   timer = self.setTimeout(loop, Math.max(0, TICK_MS / speed - (performance.now() - start)))
 }
 
-function run(c: Command): Reply {
-  const me = player(g, ME)
-  switch (c.op) {
-    case 'attack':
-      return attackAt(g, ME, c.tile, (me.troops * c.ratio) / 100)
-    case 'boat':
-      return sendBoat(g, ME, c.tile, (me.troops * c.ratio) / 100)
-    case 'build':
-      return build(g, ME, c.unit, c.tile)
-    case 'launch':
-      return launch(g, ME, c.nuke, c.tile)
-    case 'demolish':
-      return demolish(g, ME, c.tile)
-    case 'ally':
-      return requestAlliance(g, ME, c.to)
-    case 'accept':
-      accept(g, c.from, ME)
-      return true
-    case 'refuse':
-      refuse(g, c.from, ME)
-      return true
-    case 'betray':
-      breakAlliance(g, ME, c.other)
-      return true
-    case 'extend':
-      agreeExtension(g, ME, c.other)
-      return true
-    case 'troops':
-      donateTroops(g, ME, c.to, (me.troops * c.ratio) / 100)
-      return true
-    case 'gold':
-      donateGold(g, ME, c.to, me.gold * c.share)
-      return true
-    case 'retreat':
-      retreat(g, c.attack)
-      return true
-    case 'recall':
-      recallBoat(g, c.boat)
-      return true
-    case 'emoji':
-      return sendEmoji(g, ME, c.to, c.emoji)
-    case 'target':
-      setTarget(g, ME, c.other)
-      return true
-    case 'embargo':
-      toggleEmbargo(g, ME, c.other)
-      return true
-    case 'move':
-      return moveWarship(g, ME, c.unit, c.tile)
-  }
+// En ligne, un tour par dixième de seconde ; avec du retard en file, on rattrape sans attendre.
+function pump() {
+  timer = 0
+  const next = queue.shift()
+  if (!next) return
+  playTurn(g, brains, next, (intent, value) => intent.player === me && post({ type: 'reply', id: intent.id, value }))
+  turn = next.n
+  if (turn % 50 === 0) post({ type: 'hash', n: turn, h: hashOf(g) })
+  send()
+  timer = self.setTimeout(pump, queue.length > 2 ? 0 : TICK_MS)
 }
 
 self.onmessage = (e: MessageEvent<ToSim>) => {
   const m = e.data
   switch (m.type) {
     case 'init': {
-      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level, Math.random, true, m.options)
-      addPlayer(g, m.name, 'human')
+      // la même graine partout : en ligne, chaque joueur fait tourner exactement la même partie
+      g = createGame({ w: m.w, h: m.h, terrain: m.terrain }, m.level, mulberry32(m.seed), true, m.options)
+      for (const name of m.humans) addPlayer(g, name, 'human')
+      me = m.me
       brains = populate(g, m.seats, m.nations, m.tribes, (code) => m.names[code] ?? code)
       const snap = snapshot(true)
       post({ type: 'ready', players: g.players.map((p) => ({ id: p.id, name: p.name, kind: p.kind, code: p.code })), snap }, [snap.tiles.buffer, snap.players.buffer])
       break
     }
     case 'spawn':
-      spawn(g, ME, m.tile)
+      spawn(g, me, m.tile)
       send()
+      break
+    case 'turns':
+      queue.push(...m.turns)
+      if (!timer) timer = self.setTimeout(pump, 0)
       break
     case 'run':
       running = m.running
@@ -185,7 +133,7 @@ self.onmessage = (e: MessageEvent<ToSim>) => {
       speed = m.value
       break
     case 'cmd':
-      post({ type: 'reply', id: m.id, value: run(m.cmd) })
+      post({ type: 'reply', id: m.id, value: execute(g, me, m.cmd) })
       break
   }
 }

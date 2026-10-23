@@ -1,10 +1,12 @@
 // Ce que l'affichage et la simulation (dans son Worker) s'échangent.
 import type { AskResult, Alliance, Blast, BuildResult, GameEvent, LaunchResult, Missile, Nuke, Options, Order, Request, Shell, Unit } from './engine'
 import type { Anchor } from './labels'
+import type { Turn } from './lockstep'
 import type { Level, NukeType, UnitType } from './rules'
 import type { Seat } from './map'
 
 export type Command =
+  | { op: 'spawn'; tile: number }
   | { op: 'attack'; tile: number; ratio: number }
   | { op: 'boat'; tile: number; ratio: number }
   | { op: 'build'; unit: UnitType; tile: number }
@@ -27,11 +29,28 @@ export type Command =
 export type Reply = Order | BuildResult | LaunchResult | AskResult | boolean | null
 
 export type ToSim =
-  | { type: 'init'; w: number; h: number; terrain: Uint8Array; level: Level; name: string; seats: Seat[]; names: Record<string, string>; nations: number; tribes: number; options: Options }
+  | {
+      type: 'init'
+      w: number
+      h: number
+      terrain: Uint8Array
+      level: Level
+      // tous les humains, dans l'ordre de leur numéro ; `me` est celui de cet écran
+      humans: string[]
+      me: number
+      seed: number
+      seats: Seat[]
+      names: Record<string, string>
+      nations: number
+      tribes: number
+      options: Options
+    }
   | { type: 'spawn'; tile: number }
   | { type: 'run'; running: boolean }
   | { type: 'speed'; value: number }
   | { type: 'cmd'; id: number; cmd: Command }
+  // en ligne : les tours à jouer, avec les ordres de tous les joueurs
+  | { type: 'turns'; turns: Turn[] }
 
 // L'état des joueurs voyage en un seul tableau de nombres, huit par joueur :
 // troupes, or, cases, en vie, apparu, fin de trahison, tombeur, niveaux de villes.
@@ -61,9 +80,13 @@ export interface Snapshot {
   labels?: Anchor[]
   // la diplomatie du joueur : sa cible et ses embargos
   me: { target: number; embargo: number[] }
+  // en ligne, le dernier tour joué (-1 en solo)
+  turn: number
 }
 
 export type FromSim =
   | { type: 'ready'; players: { id: number; name: string; kind: 'human' | 'nation' | 'bot'; code: string }[]; snap: Snapshot }
   | { type: 'tick'; snap: Snapshot }
   | { type: 'reply'; id: number; value: Reply }
+  // en ligne, l'empreinte de la partie à un tour donné, pour repérer un joueur qui décroche
+  | { type: 'hash'; n: number; h: number }

@@ -1,5 +1,6 @@
 // Moteur d'OpenFront : la carte, les joueurs, les attaques case par case, les bateaux, les bâtiments,
 // les bombes et les alliances. Dix tours par seconde, tout en tableaux typés pour tenir 2 millions de cases.
+import { atan2 } from './detmath'
 import { Heap } from './heap'
 import {
   ALLIANCE_TICKS,
@@ -31,11 +32,20 @@ import {
   terrainOf,
   TRAIN_CAP,
   TRAIN_SPEED,
+  SPAWN_IMMUNITY_TICKS,
+  TARGET_COOLDOWN,
+  TARGET_TICKS,
   trainGold,
+  trainSpawnOdds,
+  tradeGold,
+  tradeSpawnOdds,
   TRAITOR_TICKS,
   troopGrowth,
   unitCost,
+  WARSHIP_HEAL_RANGE,
   WARSHIP_HP,
+  WARSHIP_PATROL,
+  WARSHIP_RANGE,
   WIN_SHARE,
   type Buyable,
   type Kind,
@@ -78,8 +88,10 @@ export interface Player {
   cityLevels: number
   killer: number
   spawn: number[]
-  // le joueur désigné à ses alliés, ou 0
+  // le joueur désigné à ses alliés, jusqu'à quand, et depuis quand
   target: number
+  targetUntil: number
+  targetAt: number
   // ceux avec qui ce joueur refuse de commercer
   embargo: Set<number>
   // dernier emoji envoyé, pour en limiter le flot
@@ -129,6 +141,8 @@ export interface Unit {
   goal: number
   route?: Int32Array
   step?: number
+  // ports : essais de commerce ratés d'affilée
+  refusals?: number
 }
 
 export interface Rail {
@@ -400,6 +414,8 @@ export function addPlayer(g: Game, name: string, kind: Kind, code = ''): Player 
     killer: 0,
     spawn: [],
     target: 0,
+    targetUntil: 0,
+    targetAt: -TARGET_COOLDOWN,
     embargo: new Set(),
     emojiAt: -EMOJI_TICKS,
   }
@@ -569,9 +585,12 @@ function hostility(g: Game, from: number, to: number) {
   if (g.level === 'facile' || relation(g, to, from) > -50) changeRelation(g, to, from, ANGER[g.level])
 }
 
+// Au début de la partie, humains et nations sont protégés quelques secondes ; les tribus, jamais.
+export const immune = (g: Game, p: Player) => p.kind !== 'bot' && g.tick < SPAWN_IMMUNITY_TICKS
+
 export function startAttack(g: Game, from: number, to: number, troops: number, source = -1, deduct = true): boolean {
   const p = player(g, from)
-  if (from === to || !p.alive || (to && (allied(g, from, to) || !player(g, to).alive))) return false
+  if (from === to || !p.alive || (to && (allied(g, from, to) || !player(g, to).alive || immune(g, player(g, to))))) return false
   const sent = deduct ? Math.min(troops, p.troops) : troops
   if (sent < 1) return false
   if (deduct) p.troops -= sent
@@ -876,7 +895,7 @@ function stepBoat(g: Game, b: Boat): boolean {
   }
   const to = g.owner[b.dst]
   if (to === b.owner) p.troops += b.troops * (1 - RETREAT_LOSS)
-  else if (to && allied(g, b.owner, to)) p.troops += b.troops
+  else if (to && (allied(g, b.owner, to) || immune(g, player(g, to)))) p.troops += b.troops
   else {
     conquer(g, b.owner, b.dst)
     if (to && player(g, to).tiles === 0 && player(g, to).alive) eliminate(g, player(g, to), b.owner)
@@ -1008,12 +1027,18 @@ function portRoute(g: Game, from: number, to: number): Int32Array | null {
 function spawnTrade(g: Game) {
   const ports = g.units.filter((u) => u.type === 'port' && u.ready <= g.tick)
   if (ports.length < 2) return
-  // chaque joueur a sa propre flotte marchande : les ports des autres ne bouchent pas la mer pour toi
-  const afloat = new Map<number, number>()
-  for (const b of g.boats) if (b.trade) afloat.set(b.owner, (afloat.get(b.owner) ?? 0) + 1)
+  const afloat = g.boats.filter((b) => b.trade).length
+  const owned = new Map<number, number>()
+  for (const u of ports) owned.set(u.owner, (owned.get(u.owner) ?? 0) + 1)
   let charted = false
   for (const port of ports) {
-    if (g.rng() * 12 > port.level || (afloat.get(port.owner) ?? 0) >= 3 + port.level) continue
+    // les chances d'OpenFront : un essai par niveau, chaque refus rapproche le suivant, la mer finit saturée
+    let go = false
+    for (let i = 0; i < port.level && !go; i++) {
+      go = g.rng() * tradeSpawnOdds(port.refusals ?? 0, afloat, owned.get(port.owner)!) < 1
+      port.refusals = go ? 0 : (port.refusals ?? 0) + 1
+    }
+    if (!go) continue
     const partners = ports.filter(
       (q) =>
         q.owner !== port.owner &&
@@ -1035,13 +1060,13 @@ function spawnTrade(g: Game) {
     }
     const path = g.routes.get(key)
     if (!path) continue
-    g.boats.push({ id: g.nextId++, owner: port.owner, to: dest.owner, troops: 0, path, at: 0, dst: dest.tile, trade: true, gold: Math.min(150_000, 20_000 + 100 * path.length), port: dest.id, back: false })
-    afloat.set(port.owner, (afloat.get(port.owner) ?? 0) + 1)
+    g.boats.push({ id: g.nextId++, owner: port.owner, to: dest.owner, troops: 0, path, at: 0, dst: dest.tile, trade: true, gold: tradeGold(path.length), port: dest.id, back: false })
   }
 }
 
 // Navires de guerre : patrouille autour du port d'attache, tirs sur les bateaux et navires ennemis à portée.
 function stepWarship(g: Game, u: Unit) {
+  if (u.hp < WARSHIP_HP && g.units.some((p) => p.type === 'port' && p.owner === u.owner && dist2(g, p.tile, u.tile) <= WARSHIP_HEAL_RANGE * WARSHIP_HEAL_RANGE)) u.hp++
   if (u.route) {
     u.step = (u.step ?? 0) + 1
     u.tile = u.route[Math.min(u.step, u.route.length - 1)]
@@ -1053,8 +1078,8 @@ function stepWarship(g: Game, u: Unit) {
     const hx = u.home % g.w
     const hy = Math.floor(u.home / g.w)
     for (let i = 0; i < 20; i++) {
-      const x = hx + Math.round((g.rng() - 0.5) * 120)
-      const y = hy + Math.round((g.rng() - 0.5) * 120)
+      const x = hx + Math.round((g.rng() - 0.5) * 2 * WARSHIP_PATROL)
+      const y = hy + Math.round((g.rng() - 0.5) * 2 * WARSHIP_PATROL)
       if (x >= 0 && y >= 0 && x < g.w && y < g.h && isWater(g, y * g.w + x)) {
         u.goal = y * g.w + x
         break
@@ -1069,7 +1094,7 @@ function stepWarship(g: Game, u: Unit) {
     else u.goal = -1
   }
   if (u.cooldown > g.tick) return
-  const range = 80 * 80
+  const range = WARSHIP_RANGE * WARSHIP_RANGE
   const boat = g.boats.find((b) => b.owner !== u.owner && !allied(g, b.owner, u.owner) && dist2(g, b.path[Math.min(b.at, b.path.length - 1)], u.tile) < range)
   const enemy = boat ? null : g.units.find((v) => v.type === 'navire' && v.owner !== u.owner && !allied(g, v.owner, u.owner) && dist2(g, v.tile, u.tile) < range)
   if (!boat && !enemy) return
@@ -1115,10 +1140,11 @@ function capture(g: Game, b: Boat, by: number): boolean {
 
 // --- bombes ---
 
-export type LaunchResult = 'ok' | 'or' | 'silo'
+export type LaunchResult = 'ok' | 'or' | 'silo' | 'tot'
 
 export function launch(g: Game, id: number, type: NukeType, tile: number): LaunchResult {
   const p = player(g, id)
+  if (g.tick < SPAWN_IMMUNITY_TICKS) return 'tot'
   const silos = unitsOf(g, id, 'silo').filter((u) => u.ready <= g.tick && u.slots.some((c) => c <= g.tick))
   if (!silos.length || !g.options.nukes) return 'silo'
   const cost = priceOf(g, id, type)
@@ -1133,7 +1159,32 @@ export function launch(g: Game, id: number, type: NukeType, tile: number): Launc
     changeRelation(g, target, id, -100)
     event(g, 'nuke', id, target)
   }
+  if (type !== 'mirv') breakNukedAlliances(g, id, type, tile)
   return 'ok'
+}
+
+// Comme sur OpenFront, viser un allié rompt l'alliance dès le lancement : s'il perdrait plus de 100 cases
+// (le cœur de la zone compte pour une, la couronne pour une demie) ou l'un de ses bâtiments.
+function breakNukedAlliances(g: Game, id: number, type: NukeType, tile: number) {
+  const { inner, outer } = BLAST[type]
+  const weight = new Map<number, number>()
+  const cx = tile % g.w
+  const cy = Math.floor(tile / g.w)
+  for (let dy = -outer; dy <= outer; dy++)
+    for (let dx = -outer; dx <= outer; dx++) {
+      const d = dx * dx + dy * dy
+      const x = cx + dx
+      const y = cy + dy
+      if (d > outer * outer || x < 0 || y < 0 || x >= g.w || y >= g.h) continue
+      const o = g.owner[y * g.w + x]
+      if (o && o !== id) weight.set(o, (weight.get(o) ?? 0) + (d <= inner * inner ? 1 : 0.5))
+    }
+  for (const u of g.units) if (u.owner !== id && dist2(g, u.tile, tile) <= outer * outer) weight.set(u.owner, Infinity)
+  for (const [other, w] of weight)
+    if (w > NUKE_ALLY_BREAK && allied(g, id, other)) {
+      breakAlliance(g, id, other)
+      changeRelation(g, other, id, -100)
+    }
 }
 
 function detonate(g: Game, n: Nuke) {
@@ -1163,7 +1214,7 @@ function detonate(g: Game, n: Nuke) {
       const x = cx + dx
       const y = cy + dy
       if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue
-      const r = radii[Math.floor(((Math.atan2(dy, dx) + Math.PI) / (2 * Math.PI)) * 36) % 36]
+      const r = radii[Math.floor(((atan2(dy, dx) + Math.PI) / (2 * Math.PI)) * 36) % 36]
       if (dx * dx + dy * dy > r * r) continue
       const t = y * g.w + x
       const o = g.owner[t]
@@ -1184,7 +1235,6 @@ function detonate(g: Game, n: Nuke) {
       p.troops = Math.max(0, p.troops - nukeDeaths(p.troops, before - i))
       for (const a of g.attacks) if (a.from === id) a.troops -= nukeDeaths(a.troops, before - i)
     }
-    if (allied(g, id, n.owner) && count > NUKE_ALLY_BREAK) breakAlliance(g, n.owner, id)
     if (p.tiles === 0 && p.alive) eliminate(g, p, n.owner)
   }
   for (const u of [...g.units]) if (u.type === 'navire' && dist2(g, u.tile, n.dst) <= outer * outer) removeUnit(g, u)
@@ -1211,7 +1261,7 @@ function stepSams(g: Game) {
       if (u.type !== 'dca' || u.ready > g.tick || u.owner === n.owner || allied(g, u.owner, n.owner)) continue
       const range = samRange(u.level)
       const slot = u.slots.findIndex((c) => c <= g.tick)
-      if (slot < 0 || dist2(g, u.tile, at) > range * range || dist2(g, u.tile, n.dst) > (range + 40) ** 2) continue
+      if (slot < 0 || dist2(g, u.tile, at) > range * range || dist2(g, u.tile, n.dst) > (range + 40) * (range + 40)) continue
       u.slots[slot] = g.tick + SAM_COOLDOWN
       n.targeted = true
       g.missiles.push({ id: g.nextId++, owner: u.owner, from: u.tile, nuke: n.id, start: g.tick, ticks: Math.max(1, Math.ceil(distance(g, u.tile, at) / SAM_SPEED)) })
@@ -1269,8 +1319,15 @@ function stepTrains(g: Game) {
       const b = unit.get(r.b)
       return !!a && !!b && (a.owner === b.owner || allied(g, a.owner, b.owner))
     })
+  const factories = new Map<number, number>()
+  for (const u of g.units) if (u.type === 'usine') factories.set(u.owner, (factories.get(u.owner) ?? 0) + 1)
   for (const u of g.units) {
-    if (u.type !== 'usine' || u.ready > g.tick || g.trains.length >= TRAIN_CAP || g.rng() * 120 > u.level) continue
+    if (u.type !== 'usine' || u.ready > g.tick || g.trains.length >= TRAIN_CAP) continue
+    // une chance par niveau, comme sur OpenFront ; un train compte pour sept voitures dans la saturation
+    const odds = trainSpawnOdds(factories.get(u.owner)!, g.trains.length * 7)
+    let go = false
+    for (let i = 0; i < u.level && !go; i++) go = g.rng() * odds < 1
+    if (!go) continue
     const lines = g.rails.filter((r) => r.a === u.id || r.b === u.id)
     if (!lines.length) continue
     const r = lines[Math.floor(g.rng() * lines.length)]
@@ -1280,10 +1337,12 @@ function stepTrains(g: Game) {
   g.trains = g.trains.filter((tr) => {
     tr.at += TRAIN_SPEED
     if (tr.at < tr.path.length - 1) return true
+    // une ville ou un port paie le train ; s'il est à un autre, son propriétaire touche autant
     const station = unit.get(tr.to)
-    const gold = trainGold(tr.path.length)
-    if (player(g, tr.owner).alive) player(g, tr.owner).gold += gold
-    if (station && station.owner !== tr.owner) player(g, station.owner).gold += gold
+    if (!station || station.type === 'usine' || !player(g, tr.owner).alive) return false
+    const gold = trainGold(station.owner === tr.owner ? 'self' : allied(g, station.owner, tr.owner) ? 'ally' : 'other', 0)
+    player(g, tr.owner).gold += gold
+    if (station.owner !== tr.owner) player(g, station.owner).gold += gold
     return false
   })
 }
@@ -1375,10 +1434,22 @@ export function sendEmoji(g: Game, from: number, to: number, emoji: string): boo
 }
 
 // Désigne (ou retire) la cible à attaquer : les alliés la voient et s'y mettent.
-export function setTarget(g: Game, id: number, target: number) {
+// la cible d'un joueur, tant qu'elle dure
+export const targetOf = (g: Game, p: Player) => (p.targetUntil > g.tick ? p.target : 0)
+
+// Désigne (ou retire) une cible pour dix secondes ; une nouvelle cible attend la fin du délai.
+export function setTarget(g: Game, id: number, target: number): boolean {
   const p = player(g, id)
-  p.target = p.target === target ? 0 : target
-  if (p.target) event(g, 'target', id, target)
+  if (targetOf(g, p) === target) {
+    p.targetUntil = 0
+    return true
+  }
+  if (g.tick - p.targetAt < TARGET_COOLDOWN) return false
+  p.target = target
+  p.targetAt = g.tick
+  p.targetUntil = g.tick + TARGET_TICKS
+  event(g, 'target', id, target)
+  return true
 }
 
 // Coupe (ou rétablit) le commerce avec un joueur ; les navires déjà en mer finissent leur route.

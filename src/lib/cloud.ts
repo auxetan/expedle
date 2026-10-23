@@ -18,10 +18,15 @@ function cloud(): Promise<SupabaseClient> {
     // reçu par email ouvre la session dans n'importe quel onglet, pas seulement celui qui l'a demandé
     createClient(SUPABASE_URL, KEY, {
       auth: { storageKey: 'meridien-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' },
+      // les parties en ligne envoient leurs tours plusieurs fois par seconde
+      realtime: { params: { eventsPerSecond: 30 } },
     }),
   )
   return client
 }
+
+// Le canal temps réel des parties en ligne.
+export const realtime = cloud
 
 /* État du compte, partagé par tous les écrans */
 

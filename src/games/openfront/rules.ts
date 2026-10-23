@@ -1,5 +1,7 @@
 // Les règles chiffrées d'OpenFront, reprises telles quelles : troupes, combat case par case, bâtiments, bombes.
-// Un tour dure 100 ms ; toutes les durées sont en tours.
+// Un tour dure 100 ms ; toutes les durées sont en tours. Les puissances passent par detmath, pour que tous les
+// navigateurs calculent la même partie en ligne.
+import { exp, log, pow, pow2 } from './detmath'
 
 export type Kind = 'human' | 'nation' | 'bot'
 export type Level = 'facile' | 'moyen' | 'difficile' | 'impossible'
@@ -26,16 +28,56 @@ export const SILO_COOLDOWN = 90
 export const SAM_COOLDOWN = 90
 export const NUKE_ALLY_BREAK = 100
 export const WARSHIP_HP = 1000
+// un navire de guerre patrouille à 100 cases de son point d'attache et tire jusqu'à 130 ; près d'un port à son
+// pays (150 cases), il se répare d'un point par tour
+export const WARSHIP_PATROL = 100
+export const WARSHIP_RANGE = 130
+export const WARSHIP_HEAL_RANGE = 150
 export const SHELL_DAMAGE = 250
 export const CITY_TROOPS = 250_000
-// rails : une usine se relie aux gares (villes, ports, usines) à moins de 120 cases, par la terre
-export const RAIL_RANGE = 120
+// rails : une usine se relie aux gares (villes, ports, usines) à moins de 110 cases, par la terre
+export const RAIL_RANGE = 110
 export const TRAIN_SPEED = 2
 export const TRAIN_CAP = 100
 export const SAM_SPEED = 12
+// au début de la partie, humains et nations sont protégés cinq secondes ; aucune bombe ne part
+export const SPAWN_IMMUNITY_TICKS = 50
+// une cible désignée dure dix secondes, et on ne peut en désigner une nouvelle qu'après quinze
+export const TARGET_TICKS = 100
+export const TARGET_COOLDOWN = 150
 
-// Ce que rapporte un train à l'arrivée : d'autant plus que la ligne est longue.
-export const trainGold = (length: number) => 10_000 + 50 * length
+const sigmoid = (x: number, rate: number, mid: number) => 1 / (1 + exp(-rate * (x - mid)))
+const within = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
+
+// Un petit réseau (moins de six ports ou usines) démarre plus vite : jusqu'à moitié plus de départs.
+const smallEconomyBoost = (levels: number) => (levels <= 0 ? 1 : 1 + (0.5 * within((6 - levels) / 5, 0, 1)) / levels)
+
+// Ce que rapporte un navire marchand à son arrivée, aux deux ports : une courbe en S autour de 300 cases,
+// qui punit les trajets courts, plus 50 d'or par case parcourue.
+export const tradeGold = (distance: number) => Math.floor(75_000 / (1 + exp(-0.03 * (distance - 300))) + 50 * distance)
+
+// Un port a une chance sur ce nombre de lancer un navire marchand, à chaque essai (toutes les secondes, une fois
+// par niveau) : chaque refus rapproche le suivant, et la mer se sature au-delà de quelques centaines de navires.
+export function tradeSpawnOdds(refusals: number, tradeShips: number, ports: number): number {
+  const saturation = Math.max(1 - sigmoid(tradeShips, Math.LN2 / 50, 330), 0.25 * (1 - sigmoid(tradeShips, Math.LN2 / 100, 800)))
+  const boost = smallEconomyBoost(ports)
+  return Math.max(1, Math.floor(100 / (boost * boost) / (refusals + 1) / saturation))
+}
+
+// Une usine a une chance sur ce nombre de lancer un train, à chaque tour et par niveau.
+export function trainSpawnOdds(factories: number, trainUnits: number): number {
+  const saturation = Math.max(1 - sigmoid(trainUnits, Math.LN2 / 100, 560), 0.25 * (1 - sigmoid(trainUnits, Math.LN2 / 150, 900)))
+  return Math.max(1, Math.floor(((factories + 10) * 15) / (saturation * smallEconomyBoost(factories))))
+}
+
+export type Relation = 'self' | 'ally' | 'other'
+
+// Ce que rapporte un train à chaque gare (ville ou port) : plus chez un allié, moins chez soi ; au-delà de dix gares
+// sur le même trajet, 5 000 de moins par gare, jamais sous 5 000.
+export function trainGold(relation: Relation, stops: number): number {
+  const base = relation === 'ally' ? 35_000 : relation === 'other' ? 25_000 : 10_000
+  return Math.max(5_000, base - Math.max(0, stops - 9) * 5_000)
+}
 
 const NATION: Record<Level, { cap: number; growth: number; start: number }> = {
   facile: { cap: 0.5, growth: 0.9, start: 12_500 },
@@ -49,13 +91,13 @@ export function startTroops(kind: Kind, level: Level): number {
 }
 
 export function maxTroops(kind: Kind, level: Level, tiles: number, cityLevels: number): number {
-  const max = 2 * (tiles ** 0.6 * 1000 + 50_000) + cityLevels * CITY_TROOPS
+  const max = 2 * (pow(tiles, 0.6) * 1000 + 50_000) + cityLevels * CITY_TROOPS
   return kind === 'bot' ? max / 3 : kind === 'nation' ? max * NATION[level].cap : max
 }
 
 // Ce que l'armée gagne à chaque tour : beaucoup loin du plafond, plus rien une fois dessus.
 export function troopGrowth(kind: Kind, level: Level, troops: number, max: number): number {
-  let add = (10 + troops ** 0.73 / 4) * (1 - troops / max)
+  let add = (10 + pow(troops, 0.73) / 4) * (1 - troops / max)
   if (kind === 'bot') add *= 0.5
   if (kind === 'nation') add *= NATION[level].growth
   return Math.min(troops + add, max) - troops
@@ -103,7 +145,7 @@ export function neutralCost(kind: Kind, terrain: Terrain, attackTroops: number, 
 
 // Les très grands territoires attaquent et se font attaquer plus facilement, pour que les fins de partie bougent.
 function large(tiles: number, depth: number): number {
-  return 1 - depth / (1 + Math.exp(-2.5 * (Math.log(Math.max(1, tiles)) - Math.log(300_000))))
+  return 1 - depth / (1 + exp(-2.5 * (log(Math.max(1, tiles)) - log(300_000))))
 }
 
 export interface Defender {
@@ -141,7 +183,7 @@ export function unitCost(type: Buyable, owned: number): number {
     case 'ville':
     case 'port':
     case 'usine':
-      return Math.min(1_000_000, 2 ** owned * 125_000)
+      return Math.min(1_000_000, pow2(owned) * 125_000)
     case 'navire':
       return Math.min(1_000_000, (owned + 1) * 250_000)
     case 'poste':

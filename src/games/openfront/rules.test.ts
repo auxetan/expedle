@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { landCost, maxTroops, neutralCost, startTroops, terrainOf, troopGrowth, unitCost } from './rules'
+import { landCost, maxTroops, neutralCost, startTroops, terrainOf, tradeGold, trainGold, tradeSpawnOdds, trainSpawnOdds, troopGrowth, unitCost } from './rules'
 
 describe('troupes', () => {
   it('partent de 25 000 pour le joueur, moins pour les tribus', () => {
@@ -58,5 +58,32 @@ describe('bâtiments', () => {
     expect(unitCost('poste', 0)).toBe(50_000)
     expect(unitCost('silo', 3)).toBe(1_000_000)
     expect(unitCost('bombe', 0)).toBe(750_000)
+  })
+})
+
+describe('commerce et trains, aux chiffres d’OpenFront', () => {
+  it('un navire marchand rapporte une courbe en S autour de 300 cases, plus 50 par case', () => {
+    expect(tradeGold(300)).toBe(52_500)
+    expect(tradeGold(1000)).toBe(124_999)
+    expect(tradeGold(50)).toBeLessThan(5_000)
+  })
+
+  it('un train rapporte 10 000 chez soi, 25 000 chez un autre, 35 000 chez un allié, moins après dix gares', () => {
+    expect([trainGold('self', 0), trainGold('other', 3), trainGold('ally', 9)]).toEqual([10_000, 25_000, 35_000])
+    expect(trainGold('ally', 12)).toBe(20_000)
+    expect(trainGold('self', 30)).toBe(5_000)
+  })
+
+  it('un port tente sa chance plus souvent après chaque refus, et un petit port est aidé', () => {
+    expect(tradeSpawnOdds(0, 0, 1)).toBe(44)
+    expect(tradeSpawnOdds(3, 0, 1)).toBe(11)
+    expect(tradeSpawnOdds(0, 0, 8)).toBe(101)
+    expect(tradeSpawnOdds(0, 1000, 8)).toBeGreaterThan(300)
+  })
+
+  it('une usine lance ses trains moins souvent quand il y en a beaucoup', () => {
+    expect(trainSpawnOdds(1, 0)).toBe(112)
+    expect(trainSpawnOdds(10, 0)).toBe(306)
+    expect(trainSpawnOdds(10, 2000)).toBeGreaterThan(1000)
   })
 })
