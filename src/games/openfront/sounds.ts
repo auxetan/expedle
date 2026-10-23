@@ -115,7 +115,7 @@ export function cuesOf(before: Before, after: After, me: number): Cue[] {
     else if (e.type === 'refused' && toMe) cues.push('alliance-declined')
     else if ((e.type === 'betrayed' || e.type === 'expired') && (e.to === me || e.from === me)) cues.push('alliance-broken')
     else if (e.type === 'nuke' && toMe) cues.push('nuke-warning')
-    else if (e.type === 'emoji' && toMe) cues.push('message')
+    else if ((e.type === 'emoji' || e.type === 'chat') && toMe) cues.push('message')
     else if (e.type === 'eliminated' && e.from === me) cues.push(before.players.find((p) => p.id === e.to)?.kind === 'human' ? 'conquered' : 'ka-ching')
   }
   return cues
