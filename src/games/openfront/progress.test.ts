@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Play } from '../../lib/stats'
-import { balanceOf, capsOf, earnedOf, rankOf, SKINS, tallyOf, xpOf } from './progress'
+import { rankOf, SKINS, tallyOf, xpOf } from './progress'
 
 const play = (p: Partial<Play>): Play => ({ g: 'openfront', t: 0, pts: 0, ...p })
 
@@ -24,33 +24,24 @@ describe('statistiques', () => {
   })
 })
 
-describe('capsules', () => {
-  it('rapportent 10 par partie, 50 par victoire, le double en ligne', () => {
-    expect(capsOf(play({}))).toBe(10)
-    expect(capsOf(play({ win: true }))).toBe(50)
-    expect(capsOf(play({ win: true, sub: 'multi' }))).toBe(100)
-    expect(capsOf(play({ sub: 'multi' }))).toBe(20)
-  })
-
-  it('s’ajoutent aux 100 offertes à chaque niveau gagné, pour Frontières seulement', () => {
-    // 100 points : niveau 2, soit une récompense de niveau
-    const list = [play({ pts: 60 }), play({ pts: 40, win: true }), play({ g: 'travle', pts: 100, win: true })]
-    expect(earnedOf(list)).toBe(10 + 50 + 100)
-  })
-
-  it('se dépensent dans la boutique : le solde retire le prix des motifs achetés', () => {
-    const list = [play({ pts: 100, win: true })]
-    const [, cheap] = SKINS
-    expect(balanceOf(list, [cheap.id])).toBe(earnedOf(list) - cheap.price)
-    // un motif inconnu ne coûte rien : il a pu disparaître de la boutique
-    expect(balanceOf(list, ['inconnu'])).toBe(earnedOf(list))
-  })
-})
-
 describe('boutique', () => {
-  it('propose des motifs de plus en plus chers, le premier offert', () => {
-    expect(SKINS[0]).toMatchObject({ id: 'uni', price: 0 })
-    expect(SKINS.map((s) => s.price)).toEqual([...SKINS.map((s) => s.price)].sort((a, b) => a - b))
+  it('range ses motifs en classiques puis drôles, chacun de plus en plus cher, le premier offert', () => {
+    expect(SKINS[0]).toMatchObject({ id: 'uni', price: 0, group: 'classique' })
+    for (const group of ['classique', 'drole'] as const) {
+      const prices = SKINS.filter((s) => s.group === group).map((s) => s.price)
+      expect(prices.length).toBeGreaterThan(5)
+      expect(prices).toEqual([...prices].sort((a, b) => a - b))
+    }
     expect(new Set(SKINS.map((s) => s.id)).size).toBe(SKINS.length)
+  })
+
+  it('dessine des motifs drôles qu’on voit sans qu’ils noient le territoire', () => {
+    for (const skin of SKINS.filter((s) => s.group === 'drole')) {
+      let painted = 0
+      for (let y = 0; y < 60; y++) for (let x = 0; x < 60; x++) if (skin.at(x, y)) painted++
+      const share = painted / 3600
+      expect(share, skin.id).toBeGreaterThan(0.1)
+      expect(share, skin.id).toBeLessThan(0.6)
+    }
   })
 })

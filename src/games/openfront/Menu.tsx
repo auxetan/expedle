@@ -1,16 +1,18 @@
-// L'accueil de Frontières, sur le modèle de celui d'OpenFront : jouer seul, en public ou entre amis, régler le son
-// et les touches, suivre son niveau et ses statistiques, dépenser ses capsules en motifs de territoire.
-import { useEffect, useRef, useState } from 'react'
+// L'accueil de Frontières, sur le modèle de celui d'OpenFront : son nom posé sur son motif de territoire, la
+// prochaine partie publique en grand, puis le solo et les salons privés ; le son, les touches, les statistiques,
+// et la boutique où l'on dépense ses pépites, la monnaie d'Expedle, en motifs de territoire.
+import { useEffect, useState } from 'react'
 import { feedbackSettings } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { plays } from '../../lib/stats'
 import { formatTime, save } from '../../lib/util'
-import { ICON } from './icons'
+import { buy } from '../../lib/wallet'
+import { Pepites, useWallet } from '../../ui/Pepites'
 import { KEY_GROUPS, keyName, loadKeys, rebind, saveKeys, type Action } from './keys'
 import { Directory, joinable, PUBLIC_MAX, type Listing } from './net'
-import { balanceOf, loadOwned, loadSkin, rankOf, SKINS, tallyOf, xpOf, type Skin } from './progress'
-import { Glyph } from './RadialMenu'
+import { loadSkin, rankOf, skinById, SKINS, tallyOf, xpOf, type Skin } from './progress'
 import type { SalonKind } from './Salon'
+import SkinPreview from './SkinPreview'
 import { loadVolumes, play, setVolumes, type Cue, type Volumes } from './sounds'
 
 type Tab = 'jouer' | 'reglages' | 'stats' | 'boutique'
@@ -21,33 +23,6 @@ const TABS: [Tab, string][] = [
   ['stats', msg('Statistiques')],
   ['boutique', msg('Boutique')],
 ]
-
-// Le solde de capsules, avec l'icône d'OpenFront.
-export function Caps({ n }: { n: number }) {
-  return (
-    <span className="of-caps">
-      <Glyph src={ICON.capsule} size={14} />
-      {fmt(n)}
-    </span>
-  )
-}
-
-// Un aperçu du motif, peint aux couleurs du thème.
-function SkinPreview({ skin }: { skin: Skin }) {
-  const ref = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const canvas = ref.current!
-    const style = getComputedStyle(canvas)
-    const ctx = canvas.getContext('2d')!
-    const cell = 3
-    for (let y = 0; y < canvas.height / cell; y++)
-      for (let x = 0; x < canvas.width / cell; x++) {
-        ctx.fillStyle = style.getPropertyValue(skin.at(x, y) ? '--muted' : '--fg')
-        ctx.fillRect(x * cell, y * cell, cell, cell)
-      }
-  }, [skin])
-  return <canvas ref={ref} width={96} height={54} aria-hidden />
-}
 
 // chaque voie, avec le son qui la fait entendre, comme les boutons d'essai d'OpenFront
 const CHANNELS: [keyof Volumes, string, Cue | null][] = [
@@ -164,17 +139,21 @@ function KeysPanel() {
   )
 }
 
+const GROUPS: [Skin['group'], string][] = [
+  ['classique', msg('Classiques')],
+  ['drole', msg('Drôles')],
+]
+
 export default function Menu({ name, onSolo, onMulti, multi }: { name: string; onSolo: () => void; onMulti: (kind: SalonKind) => void; multi: boolean }) {
   const [tab, setTab] = useState<Tab>('jouer')
   const [list] = useState(plays)
   const [skin, setSkin] = useState(loadSkin)
-  const [owned, setOwned] = useState(loadOwned)
+  const wallet = useWallet()
   // le motif dont on confirme l'achat
   const [buying, setBuying] = useState('')
   const [now, setNow] = useState(Date.now)
   const rank = rankOf(xpOf(list))
   const tally = tallyOf(list)
-  const caps = balanceOf(list, owned)
   const next = usePublicGame(multi && tab === 'jouer')
 
   useEffect(() => {
@@ -188,21 +167,37 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
     save('openfront-motif', id)
   }
 
+  function purchase(s: Skin) {
+    setBuying('')
+    if (!buy(`motif:${s.id}`, s.price)) return
+    play('ka-ching')
+    wear(s.id)
+  }
+
   return (
     <div className="of-home">
       <header>
         <h2>Frontières</h2>
         <small>{t('D’après OpenFront')} · © OpenFront and Contributors</small>
       </header>
-      <div className="of-rankline">
-        <b>{name}</b>
-        <span>{t('Niveau {n}', { n: rank.level })}</span>
-        <span className="of-xp" role="progressbar" aria-valuemin={0} aria-valuemax={rank.need} aria-valuenow={rank.into}>
-          <i style={{ width: `${(rank.into / rank.need) * 100}%` }} />
-        </span>
-        <small>{t('{n} / {max} pts', { n: rank.into, max: rank.need })}</small>
-        <Caps n={caps} />
-      </div>
+      {/* comme sur OpenFront, ton nom se pose sur le motif que portera ton territoire */}
+      <section className="of-identity">
+        <SkinPreview skin={skinById(skin)} width={600} height={96} />
+        <div>
+          <span className="of-who">
+            <b>{name}</b>
+            <small>
+              {t('Niveau {n}', { n: rank.level })} · {t('{n} / {max} pts', { n: rank.into, max: rank.need })}
+            </small>
+          </span>
+          <span className="of-xp" role="progressbar" aria-valuemin={0} aria-valuemax={rank.need} aria-valuenow={rank.into}>
+            <i style={{ width: `${(rank.into / rank.need) * 100}%` }} />
+          </span>
+          <button className="of-wallet" onClick={() => setTab('boutique')} aria-label={t('Boutique')}>
+            <Pepites n={wallet.balance} size={16} />
+          </button>
+        </div>
+      </section>
       <nav className="of-tabs" role="tablist">
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>
@@ -212,26 +207,49 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
       </nav>
       {tab === 'jouer' && (
         <div className="of-play">
-          <button className="primary" onClick={onSolo}>
-            <b>{t('Solo')}</b>
-            <small>{t('Contre des nations et des bots')}</small>
-          </button>
-          <button onClick={() => onMulti('public')} disabled={!multi}>
-            <b>{t('Partie publique')}</b>
-            <small>
-              {!multi
-                ? t('Indisponible : le site n’est pas relié à son serveur')
-                : next
-                  ? t('{n} / {max} joueurs · départ dans {time}', { n: next.players, max: PUBLIC_MAX, time: formatTime(Math.max(0, next.startsAt - now)) })
-                  : next === null
-                    ? t('Aucune partie en attente : lance la prochaine')
-                    : t('Recherche des parties en attente…')}
-            </small>
-          </button>
-          <button onClick={() => onMulti('prive')} disabled={!multi}>
-            <b>{t('Avec des amis')}</b>
-            <small>{multi ? t('Un salon privé, rejoint grâce à un code') : t('Indisponible : le site n’est pas relié à son serveur')}</small>
-          </button>
+          {multi ? (
+            // la prochaine partie publique en grand, comme la carte d'OpenFront
+            <button className="of-featured" onClick={() => onMulti('public')}>
+              <span>
+                <b>{t('Partie publique')}</b>
+                <small>{t('Carte du monde · jusqu’à {max} joueurs', { max: PUBLIC_MAX })}</small>
+              </span>
+              <span className="of-featured-time">
+                {next ? (
+                  <>
+                    <b>{formatTime(Math.max(0, next.startsAt - now))}</b>
+                    <small>{t('{n} / {max} joueurs', { n: next.players, max: PUBLIC_MAX })}</small>
+                  </>
+                ) : (
+                  <small>{next === null ? t('Lance la prochaine') : t('Recherche…')}</small>
+                )}
+              </span>
+            </button>
+          ) : (
+            <button className="of-featured" onClick={onSolo}>
+              <span>
+                <b>{t('Solo')}</b>
+                <small>{t('Contre des nations et des bots')}</small>
+              </span>
+            </button>
+          )}
+          <div className="of-modes">
+            {multi && (
+              <button onClick={onSolo}>
+                <b>{t('Solo')}</b>
+                <small>{t('Contre des nations et des bots')}</small>
+              </button>
+            )}
+            <button onClick={() => onMulti('creer')} disabled={!multi}>
+              <b>{t('Créer un salon')}</b>
+              <small>{t('Tu choisis les réglages')}</small>
+            </button>
+            <button onClick={() => onMulti('rejoindre')} disabled={!multi}>
+              <b>{t('Rejoindre un salon')}</b>
+              <small>{t('Avec le code d’un ami')}</small>
+            </button>
+          </div>
+          {!multi && <p className="of-hint">{t('Multijoueur indisponible : le site n’est pas relié à son serveur.')}</p>}
         </div>
       )}
       {tab === 'reglages' && (
@@ -259,38 +277,45 @@ export default function Menu({ name, onSolo, onMulti, multi }: { name: string; o
         </dl>
       )}
       {tab === 'boutique' && (
-        <>
-          <p className="of-hint">{t('Chaque partie rapporte des capsules, une victoire bien plus, et chaque niveau gagné en offre cent.')}</p>
-          <div className="of-skins">
-            {SKINS.map((s) => {
-              const mine = s.price === 0 || owned.includes(s.id)
-              const short = !mine && caps < s.price
-              return (
-                <button
-                  key={s.id}
-                  className={skin === s.id ? 'on' : buying === s.id ? 'confirm' : ''}
-                  disabled={short}
-                  aria-pressed={skin === s.id}
-                  onClick={() => {
-                    if (mine) return wear(s.id)
-                    // un achat se confirme d'un second clic, comme sur OpenFront
-                    if (buying !== s.id) return setBuying(s.id)
-                    const next = [...owned, s.id]
-                    setOwned(next)
-                    save('openfront-achats', next)
-                    setBuying('')
-                    play('ka-ching')
-                    wear(s.id)
-                  }}
-                >
-                  <SkinPreview skin={s} />
-                  <b>{t(s.name)}</b>
-                  <small>{skin === s.id ? t('Porté') : mine ? t('Porter') : buying === s.id ? t('Acheter ?') : <Caps n={s.price} />}</small>
-                </button>
-              )
-            })}
-          </div>
-        </>
+        <div className="of-shop">
+          <p className="of-balance">
+            <Pepites n={wallet.balance} size={20} />
+            <small>
+              {t('Les pépites se gagnent dans tous les jeux d’Expedle et se dépensent ici comme dans la boutique du site.')}{' '}
+              <a href="#/boutique">{t('Voir la boutique')}</a>
+            </small>
+          </p>
+          {GROUPS.map(([group, title]) => (
+            <section key={group}>
+              <h4>{t(title)}</h4>
+              <div className="of-skins">
+                {SKINS.filter((s) => s.group === group).map((s) => {
+                  const mine = s.price === 0 || wallet.owned.has(`motif:${s.id}`)
+                  const short = !mine && wallet.balance < s.price
+                  return (
+                    <button
+                      key={s.id}
+                      className={skin === s.id ? 'on' : buying === s.id ? 'confirm' : ''}
+                      disabled={short}
+                      title={short ? t('Il te manque {n} pépites', { n: fmt(s.price - wallet.balance) }) : undefined}
+                      aria-pressed={skin === s.id}
+                      onClick={() => {
+                        if (mine) return wear(s.id)
+                        // un achat se confirme d'un second clic, comme sur OpenFront
+                        if (buying !== s.id) return setBuying(s.id)
+                        purchase(s)
+                      }}
+                    >
+                      <SkinPreview skin={s} />
+                      <b>{t(s.name)}</b>
+                      <small>{skin === s.id ? t('Porté') : mine ? t('Porter') : buying === s.id ? t('Acheter ?') : <Pepites n={s.price} />}</small>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   )

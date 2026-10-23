@@ -1,18 +1,18 @@
 // Les parties en ligne, comme sur OpenFront. Une partie publique se rejoint d'un clic et part à heure dite avec
-// les réglages de tous ; un salon privé se crée et se partage par son code, et son hôte choisit les réglages.
+// les réglages de tous ; un salon privé se crée et se partage par son code, ou se rejoint grâce à lui.
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../../lib/i18n'
 import { copyText, formatTime, load } from '../../lib/util'
 import { BOTS, LEVEL_NAMES, LEVELS, TRIBES } from './choices'
 import { Directory, joinable, Lobby, newCode, PUBLIC_MAX, PUBLIC_SETTINGS, PUBLIC_WAIT_MS, ranked, type LobbySettings, type Member, type Start } from './net'
 
-export type SalonKind = 'public' | 'prive'
+export type SalonKind = 'public' | 'creer' | 'rejoindre'
 
 export default function Salon({ kind, name, skin, onStart, onBack }: { kind: SalonKind; name: string; skin: string; onStart: (lobby: Lobby, start: Start) => void; onBack: () => void }) {
   const [lobby, setLobby] = useState<Lobby | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [code, setCode] = useState('')
-  const [busy, setBusy] = useState(kind === 'public')
+  const [busy, setBusy] = useState(kind !== 'rejoindre')
   const [error, setError] = useState('')
   const [settings, setSettings] = useState<LobbySettings>(() => ({ level: load('openfront-niveau', 'moyen'), bots: TRIBES, nations: true, nukes: true }))
   const [now, setNow] = useState(Date.now)
@@ -68,7 +68,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
       }
       return next
     } catch (e) {
-      if (kind === 'prive') setError((e as Error).message === 'introuvable' ? t('Aucun salon ouvert avec ce code.') : t('Connexion impossible pour l’instant.'))
+      if (kind !== 'public') setError((e as Error).message === 'introuvable' ? t('Aucun salon ouvert avec ce code.') : t('Connexion impossible pour l’instant.'))
       return null
     }
   }
@@ -109,6 +109,13 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
     } else setError(t('Connexion impossible pour l’instant.'))
     setBusy(false)
   }
+
+  // un salon à créer s'ouvre dès l'arrivée, comme le « Create Lobby » d'OpenFront
+  useEffect(() => {
+    if (kind === 'creer') void openPrivate(newCode(), true)
+    // une fois, à l'arrivée sur l'écran
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // la partie publique : l'annuaire d'abord, puis la meilleure partie à rejoindre
   useEffect(() => {
@@ -182,7 +189,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
       {members.map((m) => (
         <li key={m.key}>
           <span>{m.name}</span>
-          <small>{m.key === lobby.key ? t('Toi') : kind === 'prive' && m.host ? t('Hôte') : ''}</small>
+          <small>{m.key === lobby.key ? t('Toi') : kind !== 'public' && m.host ? t('Hôte') : ''}</small>
         </li>
       ))}
     </ul>
@@ -191,7 +198,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
   return (
     <div className="of-home">
       <header>
-        <h2>{kind === 'public' ? t('Partie publique') : t('Avec des amis')}</h2>
+        <h2>{kind === 'public' ? t('Partie publique') : kind === 'creer' ? t('Créer un salon') : t('Rejoindre un salon')}</h2>
         <small>{kind === 'public' ? t('Ouverte à tous · jusqu’à huit joueurs, avec les nations et les bots') : t('Jusqu’à huit joueurs, avec les nations et les bots')}</small>
       </header>
       {kind === 'public' ? (
@@ -211,13 +218,18 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
           busy && <p className="of-hint">{t('Recherche d’une partie publique…')}</p>
         )
       ) : !lobby ? (
-        <>
-          <div className="of-play">
-            <button className="primary" disabled={busy} onClick={() => openPrivate(newCode(), true)}>
-              <b>{t('Créer un salon')}</b>
-              <small>{t('Tu choisis les réglages et lances la partie')}</small>
-            </button>
-          </div>
+        kind === 'creer' ? (
+          busy ? (
+            <p className="of-hint">{t('Création du salon…')}</p>
+          ) : (
+            <div className="of-play">
+              <button className="primary" onClick={() => openPrivate(newCode(), true)}>
+                <b>{t('Créer un salon')}</b>
+                <small>{t('Tu choisis les réglages et lances la partie')}</small>
+              </button>
+            </div>
+          )
+        ) : (
           <form
             className="of-join"
             onSubmit={(e) => {
@@ -232,12 +244,13 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
               aria-label={t('Code du salon')}
               autoCapitalize="characters"
               spellCheck={false}
+              autoFocus
             />
             <button className="ui-btn" disabled={busy || code.length !== 5}>
               {t('Rejoindre')}
             </button>
           </form>
-        </>
+        )
       ) : (
         <div className="of-lobby">
           <p className="of-code">

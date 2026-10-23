@@ -98,9 +98,10 @@ describe('sons d’une partie', () => {
       { type: 'betrayed' as const, from: 2, to: ME },
       { type: 'nuke' as const, from: 2, to: ME },
       { type: 'emoji' as const, from: 2, to: ME },
+      { type: 'chat' as const, from: 2, to: ME },
       { type: 'request' as const, from: 2, to: 3 },
     ]
-    expect(cuesOf(before(), after({ events }), ME)).toEqual(['alliance-suggested', 'alliance-accepted', 'alliance-declined', 'alliance-broken', 'nuke-warning', 'message'])
+    expect(cuesOf(before(), after({ events }), ME)).toEqual(['alliance-suggested', 'alliance-accepted', 'alliance-declined', 'alliance-broken', 'nuke-warning', 'message', 'message'])
   })
 
   it('fêtent une conquête : bataille contre un humain, butin contre un bot', () => {

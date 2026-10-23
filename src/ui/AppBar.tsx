@@ -3,6 +3,7 @@ import { PROFILE_CHANGED } from '../lib/cloud'
 import { t } from '../lib/i18n'
 import Logo from './Logo'
 import { Drawer, GamesPanel, Icon, ICONS, loadProfile, ProfilePanel, SettingsPanel } from './Panels'
+import { WalletChip } from './Pepites'
 import './ui.css'
 
 type Panel = 'jeux' | 'reglages' | 'profil' | null
@@ -55,6 +56,7 @@ export default function AppBar({ title, home = false, settings, tools, children 
         {title && <div className="ui-bar-title">{title}</div>}
         <div className="ui-bar-right">
           {tools}
+          <WalletChip crowded={!!tools && !home} />
           <button className="ui-tool" onClick={() => toggle('jeux')} aria-label={t('Tous les jeux')}>
             <Icon d={ICONS.menu} />
           </button>

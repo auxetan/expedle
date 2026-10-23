@@ -20,6 +20,7 @@ const Achievements = lazy(() => import('./hub/Achievements'))
 const Leaderboards = lazy(() => import('./hub/Leaderboards'))
 const Challenges = lazy(() => import('./hub/Challenges'))
 const Passport = lazy(() => import('./hub/Passport'))
+const Shop = lazy(() => import('./hub/Shop'))
 const JetPunk = lazy(() => import('./games/jetpunk/JetPunk'))
 const Worldle = lazy(() => import('./games/worldle/Worldle'))
 const Globle = lazy(() => import('./games/globle/Globle'))
@@ -82,6 +83,9 @@ export default function App() {
       break
     case 'passeport':
       content = <Passport />
+      break
+    case 'boutique':
+      content = <Shop />
       break
     case 'defis':
       content = <Challenges key={key} params={route.params} />

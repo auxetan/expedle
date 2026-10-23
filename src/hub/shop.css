@@ -1,0 +1,90 @@
+.shop-main {
+  padding-bottom: 80px;
+}
+
+.shop-hero {
+  display: grid;
+  gap: 8px;
+  padding: 26px 0 8px;
+}
+
+.shop-hero .pepites {
+  font-size: 34px;
+  font-weight: 500;
+}
+
+.shop-hero p {
+  max-width: 640px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.shop-group h2 {
+  margin: 28px 0 12px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.shop-group h2 small {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.shop-grid.avatar {
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+}
+
+.shop-grid button {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  padding: 12px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 13px;
+  text-align: center;
+}
+
+.shop-grid button.on {
+  border-color: var(--fg);
+}
+
+.shop-grid button.confirm {
+  border-color: var(--or);
+}
+
+/* un objet trop cher reste lisible : on doit pouvoir le convoiter */
+.shop-grid button:disabled {
+  opacity: 0.7;
+}
+
+.shop-grid b {
+  font-weight: 500;
+}
+
+.shop-grid small {
+  color: var(--muted);
+}
+
+.shop-emoji {
+  font-size: 34px;
+  line-height: 1.2;
+}
+
+.shop-grid canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}

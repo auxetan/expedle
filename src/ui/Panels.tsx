@@ -10,6 +10,8 @@ import { ALL_GAMES, GAME_SECTIONS } from './games'
 import { setTheme, useTheme, type Theme } from './theme'
 import { feedback, feedbackSettings, saveFeedbackSettings, type FeedbackSettings } from '../lib/feedback'
 import InstallButton from './InstallButton'
+import { useWallet } from './Pepites'
+import { PREMIUM_AVATARS } from './shop'
 
 export interface Profile {
   name: string
@@ -42,6 +44,7 @@ export const ICONS = {
   trophy: 'M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9.5 17h5',
   podium: 'M3 20h18M5 20v-6h4v6M10 20V9h4v11M15 20v-8h4v8',
   passport: 'M6 3h12v18H6zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 17h6',
+  bag: 'M6 8h12l-1 12H7L6 8zM9 8V6a3 3 0 0 1 6 0v2',
   swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M5 13l6 6M8 16l-4 4M3 19l2 2',
 }
 
@@ -76,6 +79,9 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
 
 export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) {
   const [profile, setProfile] = useState(loadProfile)
+  const { owned } = useWallet()
+  // les avatars offerts, puis ceux achetés dans la boutique
+  const avatars = [...AVATARS, ...PREMIUM_AVATARS.map(([a]) => a).filter((a) => owned.has(`avatar:${a}`))]
   const history = plays()
   const { total, streak } = summarize(history)
   const level = levelOf(history, evaluate(history))
@@ -107,12 +113,15 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
       <div className="ui-field">
         <span>{t('Avatar')}</span>
         <div className="ui-avatars">
-          {AVATARS.map((a) => (
+          {avatars.map((a) => (
             <button key={a} className={a === profile.avatar ? 'on' : ''} onClick={() => update({ avatar: a })}>
               {a}
             </button>
           ))}
         </div>
+        <a href="#/boutique" className="ui-note">
+          {t('D’autres avatars t’attendent dans la boutique.')}
+        </a>
       </div>
       <div className="ui-figures">
         <div>
@@ -143,6 +152,10 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
       <a href="#/defis" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.swords} />
         {t('Défis entre amis')}
+      </a>
+      <a href="#/boutique" className="ui-btn-line ui-stats-link">
+        <Icon d={ICONS.bag} />
+        {t('Boutique')}
       </a>
       <a href="#/succes" className="ui-btn-line ui-stats-link">
         <Icon d={ICONS.trophy} />

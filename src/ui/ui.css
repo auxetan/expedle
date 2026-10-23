@@ -780,3 +780,49 @@
   white-space: nowrap;
   animation: toast-in 0.3s ease-out;
 }
+
+/* les pépites, la monnaie d'Expedle */
+.pepites {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--or);
+  font-variant-numeric: tabular-nums;
+}
+
+.pepite-icon {
+  flex: none;
+}
+
+.ui-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.ui-wallet:hover {
+  background: var(--hover);
+}
+
+.ui-wallet small {
+  color: var(--good);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .ui-wallet {
+    height: 36px;
+    padding: 0 10px;
+  }
+  .ui-wallet.crowded {
+    display: none;
+  }
+}
