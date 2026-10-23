@@ -16,6 +16,7 @@ import {
   NUKE_ALLY_BREAK,
   NUKE_EXPOSED_RANGE,
   nukeDeaths,
+  PHRASES,
   PORT_RANGE,
   priority,
   RAIL_RANGE,
@@ -218,6 +219,7 @@ export type EventType =
   | 'trade'
   | 'captured'
   | 'emoji'
+  | 'chat'
   | 'target'
   | 'embargo'
 
@@ -230,6 +232,9 @@ export interface GameEvent {
   gold?: number
   tile?: number
   emoji?: string
+  // tchat rapide : la phrase, et le joueur qu'elle désigne
+  phrase?: string
+  about?: number
 }
 
 // Les réglages d'une partie solo, comme sur OpenFront.
@@ -1437,6 +1442,18 @@ export function sendEmoji(g: Game, from: number, to: number, emoji: string): boo
   if (g.tick - p.emojiAt < EMOJI_TICKS || !player(g, to).alive) return false
   p.emojiAt = g.tick
   g.events.push({ type: 'emoji', from, to, tick: g.tick, emoji })
+  return true
+}
+
+// Une phrase du tchat rapide, sur le même délai que les emojis ; celles qui parlent d'un joueur doivent le nommer.
+export function sendChat(g: Game, from: number, to: number, phrase: string, about = 0): boolean {
+  const p = player(g, from)
+  const named = PHRASES[phrase]
+  const known = (id: number) => id >= 1 && id <= g.players.length
+  if (named === undefined || !known(to) || !player(g, to).alive || g.tick - p.emojiAt < EMOJI_TICKS) return false
+  if (named && (!known(about) || about === from)) return false
+  p.emojiAt = g.tick
+  g.events.push({ type: 'chat', from, to, tick: g.tick, phrase, about: named ? about : undefined })
   return true
 }
 
