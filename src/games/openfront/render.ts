@@ -2,10 +2,11 @@
 // les rails, les bâtiments, les trains, les bateaux, les bombes et les noms, à la taille de l'écran.
 // Les noms, coûteux à écrire, vivent sur leur propre calque, redessiné seulement quand c'est utile.
 import { flagEmoji } from '../../geo/countries'
-import { allied, isBorder, isLand, isTraitor, markDirty, player, SHORE, type Game, type Nuke, type Unit } from './engine'
+import { allied, isBorder, isTraitor, LAND, MAG, markDirty, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
 import type { Skin } from './progress'
 import { drawFx, FLICKER, sprite, stamp, type Fx } from './sprites'
+import { TEAM_HUES } from './choices'
 import { ICON } from './icons'
 import { BLAST, BUILD_TICKS, DEFENSE_RANGE, NUKE_EXPOSED_RANGE, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type Kind, type UnitType } from './rules'
 
@@ -76,10 +77,33 @@ export function palette(el: Element, g: Game, me: number): Palette {
     coast: mix(land, fg, 0.12),
     fallout: mix(land, get('--good'), 0.4),
     rail: mix(fg, bg, 0.45),
+    // par équipes, chacun prend la couleur de la sienne, un peu plus vive pour toi, comme sur OpenFront
     players: g.players.map((p) =>
-      p.id === me ? fg : p.kind === 'bot' ? hsl(hue(p.id), 0.08, light + (p.id % 3) * 0.05 - 0.08) : hsl(hue(p.id), 0.4, light + (p.id % 2 ? 0.05 : -0.05)),
+      p.team
+        ? hsl(TEAM_HUES[(p.team - 1) % TEAM_HUES.length], p.id === me ? 0.62 : 0.42, light + (p.id === me ? 0.08 : ((p.id % 3) - 1) * 0.04))
+        : p.id === me
+          ? fg
+          : p.kind === 'bot'
+            ? hsl(hue(p.id), 0.08, light + (p.id % 3) * 0.05 - 0.08)
+            : hsl(hue(p.id), 0.4, light + (p.id % 2 ? 0.05 : -0.05)),
     ),
   }
+}
+
+// La couleur du sol selon l'octet de terrain d'OpenFront : la terre change de teinte en montant (plaine, plateau,
+// montagne), l'eau fonce en s'éloignant des côtes, et l'infranchissable se fond dans le fond, comme sur OpenFront.
+function relief(pal: Palette): number[] {
+  return Array.from({ length: 256 }, (_, b) => {
+    const mag = b & MAG
+    if (b & LAND) {
+      if (mag === MAG) return pack(pal.bg)
+      if (b & SHORE) return pack(pal.coast)
+      const lift = mag < 10 ? mag * 0.004 : mag < 20 ? 0.1 + (mag - 10) * 0.012 : 0.26 + (mag - 20) * 0.012
+      return pack(mix(pal.land, pal.fg, lift))
+    }
+    if (b & SHORE) return pack(pal.shallow)
+    return pack(shade(pal.water, 1 - Math.min(mag, 10) * 0.012))
+  })
 }
 
 export class Painter {
@@ -105,7 +129,9 @@ export class Painter {
   private camps = 0
   private campFill: number[] = []
   private campEdge: number[] = []
-  private base: number[] = []
+  // la couleur du sol pour chaque octet de terrain, et celle des retombées
+  private ground: number[] = []
+  private fallout = 0
   pal!: Palette
   private g: Game
 
@@ -134,7 +160,8 @@ export class Painter {
     const camps = [[0, 255, 0], [255, 255, 0], [255, 0, 0]]
     this.campFill = camps.map((c) => pack(mix(pal.land, c, 0.15)))
     this.campEdge = camps.map(pack)
-    this.base = [pack(pal.water), pack(pal.shallow), pack(pal.land), pack(pal.coast), pack(pal.fallout)]
+    this.ground = relief(pal)
+    this.fallout = pack(pal.fallout)
     const g = this.g
     for (let t = 0; t < g.w * g.h; t++) this.tile(t)
     g.dirtyCount = 0
@@ -201,8 +228,7 @@ export class Painter {
     const y = (t - x) / g.w
     const kept = o && this.cover[t] === o ? 1 : 0
     if (o) this.px[t] = isBorder(g, t) ? this.edge[(this.relation[o] ?? 0) * 2 + (kept & (x + y))][o - 1] : skin?.at(x, y) ? this.alt[kept][o - 1] : this.fill[kept][o - 1]
-    else if (!isLand(g, t)) this.px[t] = this.base[g.terrain[t] & SHORE ? 1 : 0]
-    else this.px[t] = this.base[g.fallout[t] ? 4 : g.terrain[t] & SHORE ? 3 : 2]
+    else this.px[t] = g.fallout[t] && g.terrain[t] & LAND ? this.fallout : this.ground[g.terrain[t]]
   }
 
   // Ne recopie que le rectangle des cases changées depuis la dernière image.

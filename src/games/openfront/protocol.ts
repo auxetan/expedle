@@ -41,7 +41,6 @@ export type ToSim =
       me: number
       seed: number
       seats: Seat[]
-      names: Record<string, string>
       nations: number
       tribes: number
       options: Options
@@ -86,7 +85,7 @@ export interface Snapshot {
 }
 
 export type FromSim =
-  | { type: 'ready'; players: { id: number; name: string; kind: 'human' | 'nation' | 'bot'; code: string }[]; snap: Snapshot }
+  | { type: 'ready'; players: { id: number; name: string; kind: 'human' | 'nation' | 'bot'; code: string; team: number }[]; snap: Snapshot }
   | { type: 'tick'; snap: Snapshot }
   | { type: 'reply'; id: number; value: Reply }
   // en ligne, l'empreinte de la partie à un tour donné, pour repérer un joueur qui décroche

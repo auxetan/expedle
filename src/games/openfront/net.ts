@@ -15,8 +15,10 @@ export interface Member {
   host: boolean
   // l'heure d'arrivée : quand une partie publique déborde, les derniers venus laissent la place
   joined: number
-  // partie publique : l'heure du départ, fixée par l'hôte
+  // partie publique : l'heure du départ et la carte, fixées par l'hôte
   startsAt?: number
+  map?: string
+  teams?: number
 }
 
 export interface LobbySettings {
@@ -24,6 +26,10 @@ export interface LobbySettings {
   bots: number
   nations: boolean
   nukes: boolean
+  // la carte d'OpenFront, par son identifiant
+  map: string
+  // nombre d'équipes, 0 pour chacun pour soi
+  teams: number
 }
 
 export interface Start {
@@ -50,7 +56,10 @@ const FIND_MS = 6000
 // Les parties publiques, comme sur OpenFront : réglages fixes, départ à heure dite, ouvertes à tous.
 export const PUBLIC_MAX = 8
 export const PUBLIC_WAIT_MS = 60_000
-export const PUBLIC_SETTINGS: LobbySettings = { level: 'moyen', bots: TRIBES, nations: true, nukes: true }
+export const publicSettings = (map: string, teams: number): LobbySettings => ({ level: 'moyen', bots: TRIBES, nations: true, nukes: true, map, teams })
+
+// Comme sur OpenFront, une partie publique sur trois se joue par équipes, de deux à quatre.
+export const pickPublicTeams = (rng: () => number = Math.random) => (rng() < 1 / 3 ? 2 + Math.floor(rng() * 3) : 0)
 // le temps qu'il faut au moins pour rejoindre une partie avant son départ
 const JOIN_MARGIN_MS = 5000
 
@@ -59,6 +68,8 @@ export interface Listing {
   code: string
   players: number
   startsAt: number
+  map: string
+  teams: number
 }
 
 // l'ordre des parties publiques : la plus proche du départ d'abord, puis par code pour que tous tranchent pareil
@@ -182,15 +193,23 @@ export class Lobby implements Net {
     this.clock.postMessage(TICK_MS * BATCH)
   }
 
-  // L'hôte d'une partie publique fixe (ou repousse) l'heure du départ, que voient tous les membres.
-  setStartsAt(at: number) {
-    this.me.startsAt = at
+  // L'hôte d'une partie publique fixe (ou repousse) l'heure du départ, et tire la carte ; tous les membres les voient.
+  setPublic(startsAt: number, map: string, teams: number) {
+    this.me.startsAt = startsAt
+    this.me.map = map
+    this.me.teams = teams
     void this.channel.track(this.me)
   }
 
-  startsAt(): number | undefined {
-    return this.host ? this.me.startsAt : this.members.find((m) => m.host)?.startsAt
+  private hostMember() {
+    return this.host ? this.me : this.members.find((m) => m.host)
   }
+
+  startsAt = () => this.hostMember()?.startsAt
+
+  publicMap = () => this.hostMember()?.map
+
+  publicTeams = () => this.hostMember()?.teams ?? 0
 
   // Le numéro de joueur d'un membre, dans l'ordre fixé au lancement.
   playerOf(key: string) {

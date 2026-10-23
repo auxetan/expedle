@@ -13,10 +13,10 @@ function match(seed: number) {
   addPlayer(g, 'A', 'human')
   addPlayer(g, 'B', 'human')
   const seats = [
-    { code: 'FR', cell: 15 * W + 60, size: 10 },
-    { code: 'DE', cell: 45 * W + 60, size: 9 },
+    { code: 'FR', name: 'FR', cell: 15 * W + 60, size: 10 },
+    { code: 'DE', name: 'DE', cell: 45 * W + 60, size: 9 },
   ]
-  const brains = populate(g, seats, 2, 6, (code) => code)
+  const brains = populate(g, seats, 2, 6)
   return { g, brains }
 }
 
