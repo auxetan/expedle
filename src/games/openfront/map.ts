@@ -79,7 +79,7 @@ export function worldMap(): WorldMap {
     const d = ((i % w) - s.x / s.n) ** 2 + (Math.floor(i / w) - s.y / s.n) ** 2
     if (d < best[id].d) best[id] = { cell: i, d }
   }
-  const seats = codes.map((code, id) => ({ code, name: code, cell: best[id].cell, size: sum[id].n })).filter((s) => s.size > 0)
+  const seats = codes.map((code, id) => ({ code, name: '', cell: best[id].cell, size: sum[id].n })).filter((s) => s.size > 0)
   cached = { w, h, terrain, seats }
   return cached
 }
