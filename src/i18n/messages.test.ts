@@ -16,7 +16,7 @@ const STR = String.raw`'((?:[^'\\]|\\.)*)'`
 const CALLS = [new RegExp(String.raw`\b(?:t|tx|msg)\(\s*` + STR, 'g'), new RegExp(String.raw`\bplural\([^,]+,\s*` + STR + String.raw`,\s*` + STR, 'g')]
 
 // Noms propres, identiques dans toutes les langues.
-const PROPER = new Set(['Travle', 'Travle USA', 'Worldle', 'Globle', 'Countryle', 'Flagle', 'GeoGrid', 'GeoGuessr', 'PhotoGuessr', 'GeoHunter', 'Seterra', 'Size It Up', 'The Weekly 1K', 'Weigh It Up', 'Daily Question', 'Survival Mode', 'JetPunk', 'Statele', 'DailyGeo', 'Factle', 'Wikitrivia', 'Tightrope', 'OpenFront'])
+const PROPER = new Set(['Travle', 'Travle USA', 'Worldle', 'Globle', 'Countryle', 'Flagle', 'GeoGrid', 'GeoGuessr', 'PhotoGuessr', 'GeoHunter', 'Seterra', 'Size It Up', 'The Weekly 1K', 'Weigh It Up', 'Daily Question', 'Survival Mode', 'JetPunk', 'Statele', 'DailyGeo', 'Factle', 'Wikitrivia', 'Tightrope', 'OpenFront', 'Frontières'])
 
 function usedKeys(): Set<string> {
   const keys = new Set<string>()

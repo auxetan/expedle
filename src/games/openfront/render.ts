@@ -4,8 +4,8 @@
 import { flagEmoji } from '../../geo/countries'
 import { allied, isBorder, isLand, isTraitor, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
-import { ICON } from './RadialMenu'
-import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN } from './rules'
+import { ICON } from './icons'
+import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type UnitType } from './rules'
 
 export interface View {
   s: number
@@ -239,67 +239,116 @@ class Stamps {
   }
 }
 
-const GLYPHS = new Map<string, Path2D>()
-const glyphOf = (type: string) => {
-  let path = GLYPHS.get(type)
-  if (!path) GLYPHS.set(type, (path = new Path2D(ICON[type as keyof typeof ICON])))
-  return path
+// Les icônes d'OpenFront, chargées une fois puis peintes d'une seule teinte : leur forme sert de masque.
+const IMAGES = new Map<string, { img: HTMLImageElement; ready: boolean }>()
+const TINTS = new Map<string, HTMLCanvasElement>()
+
+function tinted(src: string, color: string, px: number): HTMLCanvasElement | null {
+  let entry = IMAGES.get(src)
+  if (!entry) {
+    const loaded = { img: new Image(), ready: false }
+    loaded.img.onload = () => (loaded.ready = true)
+    loaded.img.src = src
+    IMAGES.set(src, (entry = loaded))
+  }
+  if (!entry.ready) return null
+  const key = `${src}|${color}|${px}`
+  let stamp = TINTS.get(key)
+  if (!stamp) {
+    if (TINTS.size > 300) TINTS.clear()
+    stamp = document.createElement('canvas')
+    stamp.width = stamp.height = px
+    const c = stamp.getContext('2d')!
+    c.drawImage(entry.img, 0, 0, px, px)
+    c.globalCompositeOperation = 'source-in'
+    c.fillStyle = color
+    c.fillRect(0, 0, px, px)
+    TINTS.set(key, stamp)
+  }
+  return stamp
 }
 
-// Une pastille de bâtiment : disque aux couleurs du pays, pictogramme au trait, anneau de chantier ou de recharge,
-// et le niveau dans un petit rond quand il dépasse 1.
-function badge(ctx: CanvasRenderingContext2D, u: Unit, x: number, y: number, r: number, pal: Palette, tick: number) {
-  const fill = pal.players[u.owner - 1]
-  const building = u.ready > tick
-  ctx.globalAlpha = building ? 0.55 : 1
+// La forme de chaque bâtiment, comme sur OpenFront : nombre de côtés (0 pour un cercle), rotation,
+// taille relative, et part de la forme qu'occupe l'icône.
+const SHAPES: Record<Exclude<UnitType, 'navire'>, { sides: number; rot: number; scale: number; fill: number }> = {
+  ville: { sides: 0, rot: 0, scale: 1, fill: 0.85 },
+  port: { sides: 5, rot: -Math.PI / 2, scale: 1.08, fill: 0.85 },
+  usine: { sides: 6, rot: 0, scale: 1.08, fill: 0.85 },
+  poste: { sides: 8, rot: Math.PI / 8, scale: 1, fill: 0.8 },
+  dca: { sides: 4, rot: Math.PI / 4, scale: 1.4, fill: 1 },
+  silo: { sides: 3, rot: -Math.PI / 2, scale: 1.55, fill: 0.85 },
+}
+
+// en chantier, un bâtiment est gris, comme sur OpenFront
+const SITE_FILL: RGB = [198, 198, 198]
+const SITE_EDGE: RGB = [127, 127, 127]
+// en dessous de ce zoom, les bâtiments ne sont plus que des points
+export const DOTS_ZOOM = 1.2
+
+const shade = (c: RGB, k: number): RGB => c.map((v) => Math.round(v * k))
+
+function shapePath(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, sides: number, rot: number) {
   ctx.beginPath()
-  ctx.arc(x, y, r, 0, 2 * Math.PI)
+  if (!sides) return ctx.arc(x, y, radius, 0, 2 * Math.PI)
+  for (let i = 0; i < sides; i++) {
+    const a = rot + (i * 2 * Math.PI) / sides
+    if (i) ctx.lineTo(x + radius * Math.cos(a), y + radius * Math.sin(a))
+    else ctx.moveTo(x + radius * Math.cos(a), y + radius * Math.sin(a))
+  }
+  ctx.closePath()
+}
+
+// La barre sous un bâtiment (chantier, recharge) ou sur un navire (coque) : du rouge au vert par quarts.
+function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, share: number, pal: Palette) {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'
+  ctx.fillRect(x - w / 2, y, w, h)
+  ctx.fillStyle = css(share < 0.25 ? pal.bad : share < 0.5 ? pal.warn : share < 0.75 ? pal.gold : pal.good)
+  ctx.fillRect(x - w / 2 + 1, y + 1, (w - 2) * Math.min(1, share), h - 2)
+}
+
+// Un bâtiment à la manière d'OpenFront : sa forme à la couleur du pays (assombrie), bordée de presque noir,
+// son icône en blanc ; gris pendant le chantier, avec une barre de progression ; son niveau au-dessus.
+function structure(ctx: CanvasRenderingContext2D, u: Unit, x: number, y: number, size: number, dots: boolean, pal: Palette, tick: number, dpr: number) {
+  const shape = SHAPES[u.type as Exclude<UnitType, 'navire'>]
+  const building = u.ready > tick
+  const color = pal.players[u.owner - 1]
+  const fill = building ? SITE_FILL : shade(color, 0.65)
+  const edge = building ? SITE_EDGE : shade(color, 0.1)
+  if (dots) {
+    ctx.beginPath()
+    ctx.arc(x, y, Math.max(1.5, size * 0.14), 0, 2 * Math.PI)
+    ctx.fillStyle = css(fill)
+    ctx.fill()
+    return
+  }
+  const radius = 0.45 * size * shape.scale
+  shapePath(ctx, x, y, radius, shape.sides, shape.rot)
+  ctx.fillStyle = css(edge)
+  ctx.fill()
+  shapePath(ctx, x, y, radius - Math.max(1, 0.06 * size), shape.sides, shape.rot)
   ctx.fillStyle = css(fill)
   ctx.fill()
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = css(pal.bg)
-  ctx.stroke()
-  ctx.save()
-  ctx.translate(x - r * 0.62, y - r * 0.62)
-  ctx.scale((r * 1.24) / 24, (r * 1.24) / 24)
-  ctx.lineWidth = 2.4
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.strokeStyle = css(pal.bg)
-  ctx.stroke(glyphOf(u.type))
-  ctx.restore()
-  ctx.globalAlpha = 1
-  // chantier : un arc qui se remplit ; silo et défense : la recharge du prochain tir
-  let share = 0
-  let color = pal.fg
+  const side = size * shape.scale * shape.fill * 0.62
+  const icon = tinted(ICON[u.type], '#fff', Math.round(side * dpr))
+  if (icon) ctx.drawImage(icon, x - side / 2, y - side / 2, side, side)
+  // chantier, ou recharge d'un silo ou d'une défense antiaérienne
+  let share = -1
   if (building) share = 1 - (u.ready - tick) / Math.max(1, BUILD_TICKS[u.type])
   else if (u.type === 'silo' || u.type === 'dca') {
     const next = Math.min(...u.slots)
-    if (next > tick) {
-      share = 1 - (next - tick) / (u.type === 'silo' ? SILO_COOLDOWN : SAM_COOLDOWN)
-      color = pal.warn
-    }
+    if (next > tick) share = 1 - (next - tick) / (u.type === 'silo' ? SILO_COOLDOWN : SAM_COOLDOWN)
   }
-  if (share > 0) {
-    ctx.beginPath()
-    ctx.arc(x, y, r + 2.5, -Math.PI / 2, -Math.PI / 2 + share * 2 * Math.PI)
-    ctx.lineWidth = 2
-    ctx.strokeStyle = css(color)
-    ctx.stroke()
-  }
+  if (share >= 0) bar(ctx, x, y + radius + 2, size * 1.15, Math.max(3, size * 0.2), share, pal)
   if (u.level > 1) {
-    const bx = x + r * 0.8
-    const by = y - r * 0.8
-    ctx.beginPath()
-    ctx.arc(bx, by, r * 0.5, 0, 2 * Math.PI)
-    ctx.fillStyle = css(pal.fg)
-    ctx.fill()
-    ctx.fillStyle = css(pal.bg)
-    ctx.font = `600 ${Math.round(r * 0.75)}px Ubuntu, system-ui, sans-serif`
+    const text = String(u.level)
+    ctx.font = `700 ${Math.round(size * 0.5)}px Ubuntu, system-ui, sans-serif`
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(String(u.level), bx, by + 0.5)
-    ctx.textBaseline = 'alphabetic'
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 3
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+    ctx.strokeText(text, x, y - radius - 2)
+    ctx.fillStyle = '#fff'
+    ctx.fillText(text, x, y - radius - 2)
   }
 }
 
@@ -515,12 +564,14 @@ export function draw(
   ctx.setLineDash([])
 
   // bâtiments
-  const r = Math.min(11, Math.max(6, view.s * 3))
+  // comme sur OpenFront, les bâtiments grandissent quand on zoome de près
+  const size = Math.min(44, Math.max(14, view.s * 3.4))
+  const dots = view.s < DOTS_ZOOM
   for (const u of g.units) {
     if (u.type === 'navire') continue
     const x = sx(u.tile)
     const y = sy(u.tile)
-    if (visible(x, y)) badge(ctx, u, x, y, r, pal, g.tick)
+    if (visible(x, y)) structure(ctx, u, x, y, size, dots, pal, g.tick, devicePixelRatio)
   }
 
   // trains : trois voitures qui suivent la voie
@@ -581,6 +632,7 @@ export function draw(
     const ahead = u.route ? u.route[Math.min((u.step ?? 0) + 1, u.route.length - 1)] : u.goal
     const angle = ahead >= 0 && ahead !== u.tile ? Math.atan2(sy(ahead) - y, sx(ahead) - x) : 0
     boat(ctx, x, y, angle, hull * 1.25, pal.players[u.owner - 1], pal, 'guerre')
+    if (u.hp < WARSHIP_HP) bar(ctx, x, y - hull * 0.9, hull * 0.9, 3, u.hp / WARSHIP_HP, pal)
     if (u.id === ship) {
       ctx.beginPath()
       ctx.arc(x, y, hull, 0, 2 * Math.PI)

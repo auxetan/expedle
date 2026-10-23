@@ -27,7 +27,8 @@ import {
   type Options,
 } from './engine'
 import { worldMap } from './map'
-import RadialMenu, { ICON, type MenuItem } from './RadialMenu'
+import { ICON } from './icons'
+import RadialMenu, { Glyph, type MenuItem } from './RadialMenu'
 import { compact, draw, FLOAT_MS, Labels, Painter, palette, troopsText, type Float, type Overlay, type View } from './render'
 import { BLAST, EXTEND_WINDOW, goldPerTick, MAX_BOATS, SPAWN_TICKS, STRUCTURE_MIN_DIST, TICK_MS, troopGrowth, WIN_SHARE, type Buyable, type Level, type NukeType, type UnitType } from './rules'
 import './openfront.css'
@@ -774,7 +775,7 @@ export default function OpenFront() {
 
   async function share() {
     if (!result) return
-    const text = `OpenFront Expedle · ${result.win ? '🏆' : '💀'} ${t('{pct} % des terres en {time}', { pct: percent(result.share), time: formatTime(result.ms) })}`
+    const text = `Frontières Expedle · ${result.win ? '🏆' : '💀'} ${t('{pct} % des terres en {time}', { pct: percent(result.share), time: formatTime(result.ms) })}`
     say((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
   }
 
@@ -791,7 +792,7 @@ export default function OpenFront() {
   return (
     <div className="of">
       <AppBar
-        title="OpenFront"
+        title="Frontières"
         tools={
           phase === 'jeu' && (
             <button className="ui-tool" onClick={() => restart()} aria-label={t('Recommencer')}>
@@ -803,7 +804,12 @@ export default function OpenFront() {
       <main className="of-main">
         <div className="of-map">
           <canvas ref={canvasRef} />
-          {phase === 'chargement' && <p className="of-loading">{t('Chargement de la carte…')}</p>}
+          {phase === 'chargement' && (
+            <p className="of-loading">
+              {t('Chargement de la carte…')}
+              <small>{t('D’après OpenFront')} · © OpenFront and Contributors</small>
+            </p>
+          )}
           {phase === 'depart' && (
             <div className="of-intro">
               <b>{countdown ? t('La partie commence dans {n} s', { n: countdown }) : t('Touche la carte pour choisir ton point de départ.')}</b>
@@ -833,6 +839,7 @@ export default function OpenFront() {
                   </label>
                 ))}
               </div>
+              <small className="of-keys">{t('D’après OpenFront')} · © OpenFront and Contributors</small>
               {!coarse && <small className="of-keys">{t('Clavier : WASD ou flèches pour se déplacer, Q et E pour zoomer, C pour te retrouver, T et Y pour la part envoyée, 1 à 0 pour bâtir, Échap pour annuler.')}</small>}
             </div>
           )}
@@ -973,9 +980,7 @@ export default function OpenFront() {
                         setShop(false)
                       }}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden>
-                        <path className="of-ico" d={ICON[type]} />
-                      </svg>
+                      <Glyph src={ICON[type]} size={22} />
                       <span>
                         {t(nuke ? NUKE_NAMES[type as NukeType] : UNIT_SHORT[type as UnitType])}
                         {owned > 0 && <small> ×{owned}</small>}
@@ -1006,9 +1011,7 @@ export default function OpenFront() {
                 <input type="range" min={1} max={100} value={ratio} onChange={(e) => changeRatio(Number(e.target.value))} />
               </label>
               <button className={shop ? 'of-buy on' : 'of-buy'} onClick={() => setShop(!shop)} aria-expanded={shop}>
-                <svg viewBox="0 0 24 24" aria-hidden>
-                  <path className="of-ico" d={ICON.construire} />
-                </svg>
+                <Glyph src={ICON.construire} size={18} />
                 {t('Acheter')}
               </button>
               <button className="of-speed" onClick={() => setSpeed((speed % 3) + 1)} aria-label={t('Vitesse')}>

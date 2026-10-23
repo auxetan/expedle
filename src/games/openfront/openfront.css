@@ -39,9 +39,15 @@
   position: absolute;
   inset: 0;
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
   margin: 0;
   color: var(--muted);
+}
+
+.of-loading small {
+  font-size: 11px;
 }
 
 /* le choix du point de départ, au-dessus de la carte */
@@ -401,16 +407,25 @@
   font-size: 9px;
 }
 
-.of-ico {
-  fill: none;
-  stroke: var(--fg);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+/* les icônes d'OpenFront, peintes de la couleur du texte : leur forme sert de masque */
+.of-glyph {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
 }
 
-.of-slice.danger .of-ico {
-  stroke: var(--bad);
+.of-slice .of-glyph {
+  color: var(--fg);
+}
+
+.of-slice.danger .of-glyph {
+  color: var(--bad);
 }
 
 .of-slice.off,
@@ -422,9 +437,9 @@
   fill: var(--card);
 }
 
-.of-slice.off .of-ico,
-.of-slice.off.danger .of-ico {
-  stroke: var(--line);
+.of-slice.off .of-glyph,
+.of-slice.off.danger .of-glyph {
+  color: var(--line);
 }
 
 .of-slice.off text {
@@ -435,8 +450,8 @@
   fill: var(--line);
 }
 
-.of-center.off .of-ico {
-  stroke: var(--muted);
+.of-center.off .of-glyph {
+  color: var(--muted);
 }
 
 .of-center {
@@ -447,8 +462,8 @@
   fill: var(--fg);
 }
 
-.of-center .of-ico {
-  stroke: var(--bg);
+.of-center .of-glyph {
+  color: var(--bg);
 }
 
 /* en bas : attaques en cours, puis troupes, or, part envoyée et vitesse */
@@ -577,20 +592,10 @@
   font-size: 14px;
 }
 
-.of-buy svg,
-.of-shop svg {
-  width: 18px;
-  height: 18px;
-}
-
 .of-buy.on {
   background: var(--fg);
   border-color: var(--fg);
   color: var(--bg);
-}
-
-.of-buy.on .of-ico {
-  stroke: var(--bg);
 }
 
 /* le tableau des achats, au-dessus du bandeau */
@@ -617,7 +622,7 @@
   text-align: left;
 }
 
-.of-shop button svg {
+.of-shop button .of-glyph {
   grid-row: span 2;
 }
 

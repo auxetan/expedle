@@ -156,6 +156,9 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
   )
 }
 
+// l'AGPL demande d'offrir le code à qui utilise le site
+const SOURCE = 'https://github.com/auxetan/m-ridien'
+
 export function SettingsPanel({ extra }: { extra?: ReactNode }) {
   const theme = useTheme()
   const lang = useLang()
@@ -225,6 +228,15 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
       )}
       <InstallButton />
       {extra}
+      <div className="ui-field">
+        <span>{t('Code source')}</span>
+        <p className="ui-note">
+          {t('Expedle est un logiciel libre sous licence AGPL-3.0. Son jeu Frontières est adapté du jeu libre OpenFront, dont il reprend les icônes (CC BY-SA 4.0).')} © OpenFront and Contributors.{' '}
+          <a href={SOURCE} target="_blank" rel="noreferrer">
+            {t('Voir le code')}
+          </a>
+        </p>
+      </div>
       <div className="ui-field">
         <span>{t('Données')}</span>
         <p className="ui-note">{t('Tes parties, séries et records sont enregistrés uniquement dans ce navigateur.')}</p>
