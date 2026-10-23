@@ -3,6 +3,7 @@
 // et les renvoie à tous, rangés en tours numérotés. Chaque joueur fait tourner la même partie chez lui.
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { realtime } from '../../lib/cloud'
+import { TRIBES } from './choices'
 import type { Intent, Turn } from './lockstep'
 import type { Command } from './protocol'
 import { TICK_MS, type Level } from './rules'
@@ -12,6 +13,10 @@ export interface Member {
   name: string
   skin: string
   host: boolean
+  // l'heure d'arrivée : quand une partie publique déborde, les derniers venus laissent la place
+  joined: number
+  // partie publique : l'heure du départ, fixée par l'hôte
+  startsAt?: number
 }
 
 export interface LobbySettings {
@@ -41,6 +46,28 @@ const BATCH = 2
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 // le temps laissé à un salon pour montrer son hôte avant de le dire introuvable
 const FIND_MS = 6000
+
+// Les parties publiques, comme sur OpenFront : réglages fixes, départ à heure dite, ouvertes à tous.
+export const PUBLIC_MAX = 8
+export const PUBLIC_WAIT_MS = 60_000
+export const PUBLIC_SETTINGS: LobbySettings = { level: 'moyen', bots: TRIBES, nations: true, nukes: true }
+// le temps qu'il faut au moins pour rejoindre une partie avant son départ
+const JOIN_MARGIN_MS = 5000
+
+// une partie publique en attente, telle que son hôte l'annonce
+export interface Listing {
+  code: string
+  players: number
+  startsAt: number
+}
+
+// l'ordre des parties publiques : la plus proche du départ d'abord, puis par code pour que tous tranchent pareil
+export const ranked = (a: Listing, b: Listing) => a.startsAt - b.startsAt || a.code.localeCompare(b.code)
+
+// La partie publique à rejoindre : la première à partir qui a encore de la place et le temps d'arriver.
+export function joinable(list: Listing[], now: number, mine?: string): Listing | undefined {
+  return list.filter((l) => l.code !== mine && l.players < PUBLIC_MAX && l.startsAt - now > JOIN_MARGIN_MS).sort(ranked)[0]
+}
 
 export const newCode = () => Array.from({ length: 5 }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join('')
 
@@ -72,7 +99,7 @@ export class Lobby implements Net {
   private constructor(code: string, host: boolean, name: string, skin: string) {
     this.code = code
     this.host = host
-    this.me = { key: this.key, name, skin, host }
+    this.me = { key: this.key, name, skin, host, joined: Date.now() }
   }
 
   // Ouvre (ou crée, pour l'hôte) le salon `code`. Un invité attend d'y voir l'hôte, sinon le salon est introuvable.
@@ -130,7 +157,7 @@ export class Lobby implements Net {
     const state = this.channel.presenceState<Member>()
     this.members = Object.values(state)
       .map((list) => list[0])
-      .sort((a, b) => Number(b.host) - Number(a.host) || a.key.localeCompare(b.key))
+      .sort((a, b) => Number(b.host) - Number(a.host) || a.joined - b.joined || a.key.localeCompare(b.key))
     const hostHere = this.members.some((m) => m.host)
     if (hostHere) this.sawHost = true
     else if (this.sawHost && !this.host) this.onClose('hote')
@@ -145,14 +172,24 @@ export class Lobby implements Net {
   }
 
   // L'hôte lance la partie : la graine, l'ordre des joueurs et les réglages partent vers tous.
-  start(settings: LobbySettings) {
+  start(settings: LobbySettings, max = Infinity) {
     if (!this.host || this.started) return
-    const start: Start = { seed: Math.floor(Math.random() * 2 ** 31), members: this.members, settings }
+    const start: Start = { seed: Math.floor(Math.random() * 2 ** 31), members: this.members.slice(0, max), settings }
     this.channel.send({ type: 'broadcast', event: 'start', payload: start })
     this.begin(start)
     this.clock = new Worker(new URL('./clock.worker.ts', import.meta.url), { type: 'module' })
     this.clock.onmessage = () => this.tick()
     this.clock.postMessage(TICK_MS * BATCH)
+  }
+
+  // L'hôte d'une partie publique fixe (ou repousse) l'heure du départ, que voient tous les membres.
+  setStartsAt(at: number) {
+    this.me.startsAt = at
+    void this.channel.track(this.me)
+  }
+
+  startsAt(): number | undefined {
+    return this.host ? this.me.startsAt : this.members.find((m) => m.host)?.startsAt
   }
 
   // Le numéro de joueur d'un membre, dans l'ordre fixé au lancement.
@@ -214,5 +251,77 @@ export class Lobby implements Net {
     this.clock = null
     this.channel?.untrack()
     this.channel?.unsubscribe()
+  }
+}
+
+// L'annuaire des parties publiques : un canal commun où chaque hôte annonce la sienne, que tous voient.
+// L'accueil et la partie publique le partagent : un même canal ne s'ouvre qu'une fois par client.
+let shared: Promise<Directory> | null = null
+
+export class Directory {
+  listings: Listing[] = []
+  private listeners = new Set<(list: Listing[]) => void>()
+  private users = 0
+  private closing = 0
+  private channel!: RealtimeChannel
+  private synced!: Promise<void>
+
+  static async open(): Promise<Directory> {
+    shared ??= Directory.connect().catch((e) => {
+      shared = null
+      throw e
+    })
+    const directory = await shared
+    directory.users++
+    clearTimeout(directory.closing)
+    return directory
+  }
+
+  private static async connect(): Promise<Directory> {
+    const directory = new Directory()
+    const sb = await realtime()
+    let ready = () => {}
+    directory.synced = new Promise((resolve) => (ready = resolve))
+    directory.channel = sb.channel('frontieres:annuaire', { config: { presence: { key: crypto.randomUUID() } } })
+    directory.channel.on('presence', { event: 'sync' }, () => {
+      directory.listings = Object.values(directory.channel.presenceState<Listing>())
+        .map((list) => list[0])
+        .filter((l) => l.code)
+        .sort(ranked)
+      for (const listener of directory.listeners) listener(directory.listings)
+      ready()
+    })
+    await new Promise<void>((resolve, reject) =>
+      directory.channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') resolve()
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(new Error(status))
+      }),
+    )
+    return directory
+  }
+
+  // la liste telle qu'au premier passage du canal, ou vide s'il tarde
+  ready() {
+    return Promise.race([this.synced, new Promise<void>((resolve) => setTimeout(resolve, 4000))])
+  }
+
+  watch(listener: (list: Listing[]) => void) {
+    this.listeners.add(listener)
+    return () => void this.listeners.delete(listener)
+  }
+
+  announce(listing: Listing | null) {
+    void (listing ? this.channel.track(listing) : this.channel.untrack())
+  }
+
+  // Le canal se ferme un peu après son dernier utilisateur : passer de l'accueil à la partie le garde ouvert.
+  release() {
+    if (--this.users > 0) return
+    this.closing = window.setTimeout(() => {
+      if (this.users > 0) return
+      shared = null
+      this.channel.untrack()
+      this.channel.unsubscribe()
+    }, 3000)
   }
 }
