@@ -959,3 +959,93 @@
   font-size: 15px;
   pointer-events: none;
 }
+
+/* le salon en ligne : rejoindre par un code, la liste des joueurs, les réglages de l'hôte */
+.of-join {
+  display: flex;
+  gap: 8px;
+}
+
+.of-join input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.of-lobby {
+  display: grid;
+  gap: 12px;
+}
+
+.of-code {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.of-code span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.of-code b {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+.of-code button,
+.of-back {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.of-back {
+  align-self: flex-start;
+}
+
+.of-members {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.of-members li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.of-members small,
+.of-hint {
+  color: var(--muted);
+}
+
+.of-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.of-error {
+  margin: 0;
+  color: var(--bad);
+  font-size: 13px;
+}
