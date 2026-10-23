@@ -2,12 +2,12 @@
 // les rails, les bâtiments, les trains, les bateaux, les bombes et les noms, à la taille de l'écran.
 // Les noms, coûteux à écrire, vivent sur leur propre calque, redessiné seulement quand c'est utile.
 import { flagEmoji } from '../../geo/countries'
-import { allied, isBorder, isLand, isTraitor, player, SHORE, type Game, type Nuke, type Unit } from './engine'
+import { allied, isBorder, isLand, isTraitor, markDirty, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
 import type { Skin } from './progress'
 import { drawFx, FLICKER, sprite, stamp, type Fx } from './sprites'
 import { ICON } from './icons'
-import { BLAST, BUILD_TICKS, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type Kind, type UnitType } from './rules'
+import { BLAST, BUILD_TICKS, DEFENSE_RANGE, NUKE_EXPOSED_RANGE, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type Kind, type UnitType } from './rules'
 
 export interface View {
   s: number
@@ -87,12 +87,24 @@ export class Painter {
   private ctx: CanvasRenderingContext2D
   private data: ImageData
   private px: Uint32Array
-  private fill: number[] = []
+  // teintes de chaque joueur, une seconde fois assombries pour les cases que garde un poste de défense
+  private fill: number[][] = [[], []]
   // teinte secondaire des motifs de territoire
-  private alt: number[] = []
-  private edge: number[] = []
+  private alt: number[][] = [[], []]
+  // bordures : neutre, alliée (teintée de vert), sous embargo (teintée de rouge), et leur case sombre du damier
+  private edge: number[][] = []
   // le motif de chaque joueur qui en porte un
   private skins = new Map<number, Skin>()
+  // le propriétaire du poste de défense qui garde chaque case (0 : aucun)
+  private cover: Uint16Array
+  private posts = ''
+  // ce qu'est chaque joueur pour celui qui regarde : 0 neutre, 1 allié, 2 sous embargo
+  private relation = new Uint8Array(0)
+  private relations = ''
+  // la vue alternative d'OpenFront : chaque territoire à la couleur de son camp pour celui qui regarde
+  private camps = 0
+  private campFill: number[] = []
+  private campEdge: number[] = []
   private base: number[] = []
   pal!: Palette
   private g: Game
@@ -105,13 +117,23 @@ export class Painter {
     this.ctx = this.image.getContext('2d')!
     this.data = this.ctx.createImageData(g.w, g.h)
     this.px = new Uint32Array(this.data.data.buffer)
+    this.cover = new Uint16Array(g.w * g.h)
   }
 
   setPalette(pal: Palette) {
     this.pal = pal
-    this.fill = pal.players.map((c) => pack(mix(pal.land, c, 0.78)))
-    this.alt = pal.players.map((c) => pack(mix(pal.land, c, 0.5)))
-    this.edge = pal.players.map((c) => pack(mix(c, pal.bg, 0.3)))
+    // les réglages d'OpenFront : territoire gardé assombri à 85 %, damier de bordure à 70 %, teintes à 35 %
+    const fill = pal.players.map((c) => mix(pal.land, c, 0.78))
+    const alt = pal.players.map((c) => mix(pal.land, c, 0.5))
+    this.fill = [fill.map(pack), fill.map((c) => pack(shade(c, 0.85)))]
+    this.alt = [alt.map(pack), alt.map((c) => pack(shade(c, 0.85)))]
+    const edge = pal.players.map((c) => mix(c, pal.bg, 0.3))
+    const tints = [edge, edge.map((c) => mix(c, [0, 255, 0], 0.35)), edge.map((c) => mix(c, [255, 0, 0], 0.35))]
+    this.edge = tints.flatMap((list) => [list.map(pack), list.map((c) => pack(shade(c, 0.7)))])
+    // vue alternative : toi en vert, tes alliés en jaune, les autres en rouge ; un voile léger, des bordures vives
+    const camps = [[0, 255, 0], [255, 255, 0], [255, 0, 0]]
+    this.campFill = camps.map((c) => pack(mix(pal.land, c, 0.15)))
+    this.campEdge = camps.map(pack)
     this.base = [pack(pal.water), pack(pal.shallow), pack(pal.land), pack(pal.coast), pack(pal.fallout)]
     const g = this.g
     for (let t = 0; t < g.w * g.h; t++) this.tile(t)
@@ -126,11 +148,59 @@ export class Painter {
     if (this.pal) this.setPalette(this.pal)
   }
 
+  // Les cases que garde un poste de défense, à 30 cases autour de lui, sur la terre de son propriétaire.
+  // Seules les cases qui changent de garde sont repeintes.
+  setPosts(posts: { tile: number; owner: number }[]) {
+    const key = posts.map((p) => `${p.tile}:${p.owner}`).join()
+    if (key === this.posts) return
+    this.posts = key
+    const g = this.g
+    const before = this.cover
+    this.cover = new Uint16Array(g.w * g.h)
+    for (const p of posts) {
+      const cx = p.tile % g.w
+      const cy = Math.floor(p.tile / g.w)
+      for (let dy = -DEFENSE_RANGE; dy <= DEFENSE_RANGE; dy++)
+        for (let dx = -DEFENSE_RANGE; dx <= DEFENSE_RANGE; dx++) {
+          const x = cx + dx
+          const y = cy + dy
+          if (dx * dx + dy * dy <= DEFENSE_RANGE * DEFENSE_RANGE && x >= 0 && y >= 0 && x < g.w && y < g.h) this.cover[y * g.w + x] = p.owner
+        }
+    }
+    for (let t = 0; t < before.length; t++) if (before[t] !== this.cover[t]) markDirty(g, t)
+  }
+
+  // Alliés et embargos de celui qui regarde : leurs bordures se teintent ; la carte se repeint s'ils changent.
+  setRelations(allies: number[], embargo: number[]) {
+    const key = `${allies}|${embargo}`
+    if (key === this.relations) return
+    this.relations = key
+    this.relation = new Uint8Array(this.g.players.length + 1)
+    for (const id of allies) this.relation[id] = 1
+    for (const id of embargo) this.relation[id] = 2
+    if (this.pal) this.setPalette(this.pal)
+  }
+
+  // Montre (ou cache) la vue alternative pour le joueur `viewer` ; toute la carte se repeint.
+  setAlt(viewer: number) {
+    if (viewer === this.camps) return
+    this.camps = viewer
+    if (this.pal) this.setPalette(this.pal)
+  }
+
   private tile(t: number) {
     const g = this.g
     const o = g.owner[t]
+    if (this.camps && o) {
+      const camp = o === this.camps ? 0 : this.relation[o] === 1 ? 1 : 2
+      this.px[t] = isBorder(g, t) ? this.campEdge[camp] : this.campFill[camp]
+      return
+    }
     const skin = o ? this.skins.get(o) : undefined
-    if (o) this.px[t] = isBorder(g, t) ? this.edge[o - 1] : skin?.at(t % g.w, Math.floor(t / g.w)) ? this.alt[o - 1] : this.fill[o - 1]
+    const x = t % g.w
+    const y = (t - x) / g.w
+    const kept = o && this.cover[t] === o ? 1 : 0
+    if (o) this.px[t] = isBorder(g, t) ? this.edge[(this.relation[o] ?? 0) * 2 + (kept & (x + y))][o - 1] : skin?.at(x, y) ? this.alt[kept][o - 1] : this.fill[kept][o - 1]
     else if (!isLand(g, t)) this.px[t] = this.base[g.terrain[t] & SHORE ? 1 : 0]
     else this.px[t] = this.base[g.fallout[t] ? 4 : g.terrain[t] & SHORE ? 3 : 2]
   }
@@ -366,13 +436,76 @@ function structure(ctx: CanvasRenderingContext2D, u: Unit, x: number, y: number,
   }
 }
 
+// La trajectoire d'une bombe qu'on vise, comme sur OpenFront : pointillés serrés là où une défense peut l'abattre,
+// lâches là où elle vole trop haut, un petit cercle à chaque bascule, une croix rouge où une défense ennemie l'attend.
+function trajectory(ctx: CanvasRenderingContext2D, g: Game, flight: { from: number; dst: number }, me: number, sx: (t: number) => number, sy: (t: number) => number) {
+  const steps = 64
+  const fx = flight.from % g.w
+  const fy = Math.floor(flight.from / g.w)
+  const tx = flight.dst % g.w
+  const ty = Math.floor(flight.dst / g.w)
+  const exposedAt = (k: number) => {
+    const x = fx + (tx - fx) * k
+    const y = fy + (ty - fy) * k
+    const near = NUKE_EXPOSED_RANGE * NUKE_EXPOSED_RANGE
+    return (x - fx) ** 2 + (y - fy) ** 2 < near || (x - tx) ** 2 + (y - ty) ** 2 < near
+  }
+  const points = Array.from({ length: steps + 1 }, (_, i) => ({ ...arcAt(flight, i / steps, sx, sy), exposed: exposedAt(i / steps) }))
+  // le tracé en morceaux de même exposition, d'abord un liseré gris, puis le blanc
+  for (const [color, width] of [['rgba(140,140,140,0.9)', 4.5], ['#fff', 2.5]] as const) {
+    let i = 0
+    while (i < steps) {
+      const exposed = points[i].exposed
+      ctx.beginPath()
+      ctx.moveTo(points[i].x, points[i].y)
+      while (i < steps && points[i].exposed === exposed) ctx.lineTo(points[++i].x, points[i].y)
+      ctx.setLineDash(exposed ? [8, 4] : [2, 6])
+      ctx.lineWidth = width
+      ctx.strokeStyle = color
+      ctx.stroke()
+    }
+  }
+  ctx.setLineDash([])
+  for (let i = 1; i <= steps; i++)
+    if (points[i].exposed !== points[i - 1].exposed) {
+      ctx.beginPath()
+      ctx.arc(points[i].x, points[i].y, 6, 0, 2 * Math.PI)
+      ctx.lineWidth = 1.5
+      ctx.strokeStyle = '#fff'
+      ctx.stroke()
+    }
+  // les défenses ennemies qui l'attendent : une croix là où la bombe entre à leur portée
+  for (const u of g.units) {
+    if (u.type !== 'dca' || u.owner === me || allied(g, u.owner, me)) continue
+    const ux = u.tile % g.w
+    const uy = Math.floor(u.tile / g.w)
+    const range = samRange(u.level)
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps
+      const x = fx + (tx - fx) * k
+      const y = fy + (ty - fy) * k
+      if (!points[i].exposed || (x - ux) ** 2 + (y - uy) ** 2 > range * range) continue
+      const { x: px, y: py } = points[i]
+      ctx.beginPath()
+      ctx.moveTo(px - 6, py - 6)
+      ctx.lineTo(px + 6, py + 6)
+      ctx.moveTo(px + 6, py - 6)
+      ctx.lineTo(px - 6, py + 6)
+      ctx.lineWidth = 3
+      ctx.strokeStyle = 'rgb(255,80,80)'
+      ctx.stroke()
+      break
+    }
+  }
+}
+
 // Où est une bombe à l'écran : en ligne droite du silo à la cible, relevée en arc.
 function nukePos(n: Nuke, tick: number, alpha: number, sx: (t: number) => number, sy: (t: number) => number) {
   return arcAt(n, Math.min(1, Math.max(0, (tick - n.start + alpha) / n.ticks)), sx, sy)
 }
 
 // le point de l'arc à la part k du trajet
-function arcAt(n: Nuke, k: number, sx: (t: number) => number, sy: (t: number) => number) {
+function arcAt(n: Pick<Nuke, 'from' | 'dst'>, k: number, sx: (t: number) => number, sy: (t: number) => number) {
   const x0 = sx(n.from)
   const y0 = sy(n.from)
   const x1 = sx(n.dst)
@@ -399,12 +532,82 @@ export interface Overlay {
   ship: number
   // explosions, naufrages, débris et conquêtes en cours
   fx: Fx[]
+  // le bâtiment qu'on s'apprête à poser, sous la souris
+  ghost: Ghost | null
+  // montrer les zones des défenses antiaériennes
+  sams: boolean
+  // le type de bâtiment survolé dans la barre : les autres s'estompent
+  highlight: UnitType | null
+}
+
+// Le fantôme d'OpenFront : où irait le bâtiment, s'il peut s'y poser, à quel prix, et sa portée.
+export interface Ghost {
+  tile: number
+  type: UnitType
+  cost: number
+  afford: boolean
+  place: boolean
+  range: number
+}
+
+const TWO_PI = Math.PI * 2
+
+// Les parties d'un cercle que ne couvre aucun autre cercle de son camp, en arcs [début, fin].
+export function openArcs(c: { x: number; y: number; r: number }, others: { x: number; y: number; r: number }[]): [number, number][] | null {
+  const hidden: [number, number][] = []
+  for (const o of others) {
+    const d = Math.hypot(o.x - c.x, o.y - c.y)
+    if (d + c.r <= o.r) return null
+    if (d >= c.r + o.r || d + o.r <= c.r || d === 0) continue
+    const mid = Math.atan2(o.y - c.y, o.x - c.x)
+    const half = Math.acos(Math.min(1, Math.max(-1, (c.r * c.r + d * d - o.r * o.r) / (2 * c.r * d))))
+    const a = (((mid - half) % TWO_PI) + TWO_PI) % TWO_PI
+    const b = a + 2 * half
+    if (b > TWO_PI) hidden.push([a, TWO_PI], [0, b - TWO_PI])
+    else hidden.push([a, b])
+  }
+  hidden.sort((p, q) => p[0] - q[0])
+  const open: [number, number][] = []
+  let at = 0
+  for (const [a, b] of hidden) {
+    if (a > at) open.push([at, a])
+    at = Math.max(at, b)
+  }
+  if (at < TWO_PI) open.push([at, TWO_PI])
+  return open
+}
+
+// Les zones des défenses antiaériennes, comme sur OpenFront : pointillés qui tournent, verts pour les tiennes,
+// jaunes pour celles d'un allié, rouges pour les autres ; les cercles d'un même camp se fondent en une forme.
+function samZones(ctx: CanvasRenderingContext2D, g: Game, me: number, pal: Palette, now: number, sx: (t: number) => number, sy: (t: number) => number, scale: number) {
+  const circles = g.units
+    .filter((u) => u.type === 'dca')
+    .map((u) => ({ x: sx(u.tile), y: sy(u.tile), r: samRange(u.level) * scale, side: u.owner === me ? 0 : allied(g, u.owner, me) ? 1 : 2, id: u.id }))
+  ctx.setLineDash([12, 6])
+  ctx.lineDashOffset = -(now / 1000) * 14
+  ctx.lineWidth = 1.5
+  for (const c of circles) {
+    // amis (toi et tes alliés) d'un côté, ennemis de l'autre ; deux cercles identiques, un seul compte
+    const same = circles.filter((o) => o !== c && (o.side === 2) === (c.side === 2) && !(o.x === c.x && o.y === c.y && o.r === c.r && o.id > c.id))
+    const arcs = openArcs(c, same)
+    if (!arcs) continue
+    ctx.strokeStyle = css(c.side === 0 ? pal.good : c.side === 1 ? pal.gold : pal.bad, 0.8)
+    for (const [a, b] of arcs) {
+      ctx.beginPath()
+      ctx.arc(c.x, c.y, c.r, a, b)
+      ctx.stroke()
+    }
+  }
+  ctx.setLineDash([])
+  ctx.lineDashOffset = 0
 }
 
 export interface Preview {
   tile: number
   inner: number
   outer: number
+  // le silo qui tirerait : la trajectoire s'affiche depuis lui
+  from?: number
 }
 
 // `alpha` : la part du tour suivant déjà écoulée, pour faire glisser bateaux, trains et bombes entre deux tours.
@@ -422,7 +625,7 @@ export function draw(
   now: number,
   overlay: Overlay,
 ) {
-  const { preview, floats, marks, ship, fx } = overlay
+  const { preview, floats, marks, ship, fx, ghost, sams, highlight } = overlay
   const pal = painter.pal
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
   ctx.fillStyle = css(pal.water)
@@ -489,19 +692,10 @@ export function draw(
     ctx.setLineDash([])
   }
 
-  // portée des défenses antiaériennes du joueur, en pointillés discrets
-  ctx.setLineDash([4, 6])
-  ctx.lineWidth = 1
-  ctx.strokeStyle = css(pal.info, 0.35)
-  for (const u of g.units)
-    if (u.type === 'dca' && u.owner === me && u.ready <= g.tick) {
-      ctx.beginPath()
-      ctx.arc(sx(u.tile), sy(u.tile), samRange(u.level) * view.s, 0, 2 * Math.PI)
-      ctx.stroke()
-    }
-  ctx.setLineDash([])
+  // zones des défenses antiaériennes, quand on prépare une construction ou qu'on survole la défense dans la barre
+  if (sams) samZones(ctx, g, me, pal, now, sx, sy, view.s)
 
-  // bâtiments
+  // bâtiments ; au survol d'un type dans la barre, les autres s'estompent et ceux-là s'entourent de blanc
   // comme sur OpenFront, les bâtiments grandissent quand on zoome de près
   const size = Math.min(44, Math.max(14, view.s * 3.4))
   const dots = view.s < DOTS_ZOOM
@@ -509,7 +703,42 @@ export function draw(
     if (u.type === 'navire') continue
     const x = sx(u.tile)
     const y = sy(u.tile)
-    if (visible(x, y)) structure(ctx, u, x, y, size, dots, pal, g.tick, devicePixelRatio)
+    if (!visible(x, y)) continue
+    if (highlight && u.type !== highlight) ctx.globalAlpha = 0.3
+    structure(ctx, u, x, y, size, dots, pal, g.tick, devicePixelRatio)
+    ctx.globalAlpha = 1
+    if (highlight === u.type && !dots) {
+      const shape = SHAPES[u.type as Exclude<UnitType, 'navire'>]
+      shapePath(ctx, x, y, 0.45 * size * shape.scale + 2, shape.sides, shape.rot)
+      ctx.lineWidth = 2
+      ctx.strokeStyle = '#fff'
+      ctx.stroke()
+    }
+  }
+
+  // le fantôme du bâtiment à poser : sa portée, sa silhouette, et son prix (rouge si l'or manque)
+  if (ghost && ghost.type !== 'navire') {
+    const x = sx(ghost.tile)
+    const y = sy(ghost.tile)
+    if (ghost.range) {
+      ctx.beginPath()
+      ctx.arc(x, y, ghost.range * view.s, 0, 2 * Math.PI)
+      ctx.lineWidth = 1.5
+      ctx.strokeStyle = css(ghost.place ? pal.fg : pal.bad, 0.7)
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 0.55
+    structure(ctx, { id: 0, type: ghost.type, owner: me, tile: ghost.tile, level: 1, ready: 0, cooldown: 0, slots: [0], hp: 0, home: 0, goal: -1 }, x, y, size, false, pal, g.tick, devicePixelRatio)
+    ctx.globalAlpha = 1
+    const text = compact(ghost.cost)
+    ctx.font = `700 ${Math.round(Math.max(12, size * 0.45))}px Ubuntu, system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 3
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+    ctx.strokeText(text, x, y - size * 0.75)
+    ctx.fillStyle = css(ghost.afford && ghost.place ? pal.gold : pal.bad)
+    ctx.fillText(text, x, y - size * 0.75)
   }
 
   // les unités d'OpenFront, à un pixel par case (jamais moins d'un pixel d'écran), aux couleurs de leur pays
@@ -657,6 +886,7 @@ export function draw(
     ctx.arc(x, y, preview.inner * view.s, 0, 2 * Math.PI)
     ctx.fillStyle = css(pal.bad, 0.2)
     ctx.fill()
+    if (preview.from !== undefined) trajectory(ctx, g, { from: preview.from, dst: preview.tile }, me, sx, sy)
   }
 
   labelsLayer.draw(ctx, g, pal, view, cw, ch, anchors, me, now)
