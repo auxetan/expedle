@@ -216,3 +216,31 @@ export const BLAST: Record<NukeType | 'ogive', { inner: number; outer: number; s
 export const samRange = (level: number) => 150 - 480 / (level + 5)
 
 export const nukeDeaths = (troops: number, tilesLeft: number) => (5 * troops) / Math.max(1, tilesLeft)
+
+// Les phrases du tchat rapide d'OpenFront : leur code, et vrai pour celles qui désignent un autre joueur.
+export const PHRASES: Record<string, boolean> = {
+  troupes: false,
+  or: false,
+  paix: false,
+  alliance: false,
+  commerce: false,
+  defends: true,
+  attaque: true,
+  bombe: true,
+  achever: true,
+  navires: false,
+  dca: false,
+  front: false,
+  bombes: false,
+  traitre: true,
+  menace: true,
+  salut: false,
+  gg: false,
+  merci: false,
+  desole: false,
+  bonne: false,
+  oui: false,
+  non: false,
+  attends: false,
+  rire: false,
+}
