@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
 import { feedback } from '../lib/feedback'
 import { fmt, msg, t } from '../lib/i18n'
-import { load, save } from '../lib/util'
+import { progressOf, questsOf } from '../lib/quests'
+import { plays } from '../lib/stats'
+import { load, save, todayKey } from '../lib/util'
 import { buy, LEVEL_PEPITES, TIER_PEPITES } from '../lib/wallet'
 import SkinPreview from '../games/openfront/SkinPreview'
 import { skinById } from '../games/openfront/progress'
@@ -52,6 +54,10 @@ export default function Shop() {
     use(item)
   }
 
+  // les parties d'aujourd'hui, relues à chaque partie terminée (le portefeuille se met alors à jour)
+  const today = todayKey()
+  const todays = plays().filter((p) => todayKey(new Date(p.t)) === today)
+
   const worn = (item: ShopItem) => (item.kind === 'avatar' ? avatar === item.value : item.kind === 'motif' ? skin === item.value : item.kind === 'icone' && wallet.owned.has(item.id))
 
   return (
@@ -67,6 +73,26 @@ export default function Shop() {
               level: LEVEL_PEPITES,
             })}
           </p>
+        </section>
+        <section className="shop-group">
+          <h2>
+            {t('Quêtes du jour')} <small>{t('Trois objectifs par jour, payés dès qu’ils sont remplis')}</small>
+          </h2>
+          <ul className="shop-quests">
+            {questsOf(todayKey()).map((q) => {
+              const done = progressOf(q, todays)
+              return (
+                <li key={q.id} className={done >= q.goal ? 'done' : ''}>
+                  <span>{t(q.text, q.id.startsWith('jeu:') ? { game: t(String(q.params.game)) } : q.params)}</span>
+                  <span className="shop-quest-bar" role="progressbar" aria-valuemin={0} aria-valuemax={q.goal} aria-valuenow={done}>
+                    <i style={{ width: `${(done / q.goal) * 100}%` }} />
+                  </span>
+                  <small>{done >= q.goal ? t('Remplie') : `${done} / ${q.goal}`}</small>
+                  <Pepites n={q.reward} />
+                </li>
+              )
+            })}
+          </ul>
         </section>
         {SECTIONS.map((section) => (
           <section key={section.kind} className="shop-group">
