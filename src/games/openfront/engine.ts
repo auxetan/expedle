@@ -246,9 +246,14 @@ export interface Options {
   infiniteGold: boolean
   infiniteTroops: boolean
   nukes: boolean
-  // nombre d'équipes, 0 pour chacun pour soi
+  // nombre d'équipes, 0 pour chacun pour soi, HUMANS_VS_NATIONS pour les humains d'un côté et les nations de l'autre
   teams: number
 }
+
+export const HUMANS_VS_NATIONS = 1
+
+// le nombre d'équipes en jeu : deux pour les humains contre les nations
+export const teamCount = (g: Game) => (g.options.teams === HUMANS_VS_NATIONS ? 2 : g.options.teams)
 
 export const DEFAULT_OPTIONS: Options = { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: true, teams: 0 }
 
@@ -1375,13 +1380,19 @@ export const teammates = (g: Game, a: number, b: number) => {
 
 export const allied = (g: Game, a: number, b: number) => teammates(g, a, b) || !!allianceOf(g, a, b)
 
-// Répartit les humains puis les nations entre les équipes, à tour de rôle ; les bots restent à part et tout le
-// monde peut les attaquer.
+// Répartit les humains puis les nations entre les équipes, à tour de rôle (ou les humains d'un côté, les nations
+// de l'autre) ; les bots restent à part et tout le monde peut les attaquer.
 export function assignTeams(g: Game) {
   const n = g.options.teams
   if (!n) return
-  const players = [...g.players.filter((p) => p.kind === 'human'), ...g.players.filter((p) => p.kind === 'nation')]
-  players.forEach((p, i) => (p.team = (i % n) + 1))
+  const humans = g.players.filter((p) => p.kind === 'human')
+  const nations = g.players.filter((p) => p.kind === 'nation')
+  if (n === HUMANS_VS_NATIONS) {
+    humans.forEach((p) => (p.team = 1))
+    nations.forEach((p) => (p.team = 2))
+    return
+  }
+  ;[...humans, ...nations].forEach((p, i) => (p.team = (i % n) + 1))
 }
 
 export type AskResult = 'envoyée' | 'alliés' | 'attendre' | null
