@@ -60,7 +60,7 @@ import {
 export const LAND = 0x80
 export const SHORE = 0x40
 export const OCEAN = 0x20
-const MAG = 0x1f
+export const MAG = 0x1f
 const IMPASSABLE = 31
 
 export interface GameMap {
@@ -75,6 +75,8 @@ export interface Player {
   kind: Kind
   // code pays des nations, pour le drapeau
   code: string
+  // son équipe dans une partie par équipes, 0 sinon (et toujours pour les bots)
+  team: number
   troops: number
   gold: number
   tiles: number
@@ -244,9 +246,11 @@ export interface Options {
   infiniteGold: boolean
   infiniteTroops: boolean
   nukes: boolean
+  // nombre d'équipes, 0 pour chacun pour soi
+  teams: number
 }
 
-export const DEFAULT_OPTIONS: Options = { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: true }
+export const DEFAULT_OPTIONS: Options = { instantBuild: false, infiniteGold: false, infiniteTroops: false, nukes: true, teams: 0 }
 
 export interface Blast {
   tile: number
@@ -407,6 +411,7 @@ export function addPlayer(g: Game, name: string, kind: Kind, code = ''): Player 
     name,
     kind,
     code,
+    team: 0,
     troops: startTroops(kind, g.level),
     gold: 0,
     tiles: 0,
@@ -1362,7 +1367,22 @@ function stepTrains(g: Game) {
 // --- alliances ---
 
 export const allianceOf = (g: Game, a: number, b: number) => g.alliances.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a))
-export const allied = (g: Game, a: number, b: number) => !!allianceOf(g, a, b)
+// Les équipiers sont alliés pour toute la partie, comme sur OpenFront ; les autres le sont le temps d'une alliance.
+export const teammates = (g: Game, a: number, b: number) => {
+  const team = player(g, a).team
+  return team !== 0 && a !== b && team === player(g, b).team
+}
+
+export const allied = (g: Game, a: number, b: number) => teammates(g, a, b) || !!allianceOf(g, a, b)
+
+// Répartit les humains puis les nations entre les équipes, à tour de rôle ; les bots restent à part et tout le
+// monde peut les attaquer.
+export function assignTeams(g: Game) {
+  const n = g.options.teams
+  if (!n) return
+  const players = [...g.players.filter((p) => p.kind === 'human'), ...g.players.filter((p) => p.kind === 'nation')]
+  players.forEach((p, i) => (p.team = (i % n) + 1))
+}
 
 export type AskResult = 'envoyée' | 'alliés' | 'attendre' | null
 
@@ -1591,6 +1611,14 @@ export function step(g: Game) {
   if (alive.length) annexEnclosed(g, alive[g.tick % alive.length])
   for (const p of g.players) if (p.alive && p.spawned && p.tiles === 0) eliminate(g, p, p.killer)
   g.blasts = g.blasts.filter((b) => g.tick - b.tick < 15)
+}
+
+// L'équipe qui tient assez de terres à elle seule, 0 tant qu'aucune n'y est (ou hors des parties par équipes).
+export function teamWinner(g: Game): number {
+  const tiles = new Map<number, number>()
+  for (const p of g.players) if (p.team && p.alive) tiles.set(p.team, (tiles.get(p.team) ?? 0) + p.tiles)
+  for (const [team, n] of tiles) if (n >= WIN_SHARE * g.land) return team
+  return 0
 }
 
 export function winner(g: Game): number {

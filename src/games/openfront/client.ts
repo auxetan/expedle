@@ -18,7 +18,6 @@ export interface Setup {
   humans: string[]
   me: number
   seed: number
-  names: Record<string, string>
   nations: number
   tribes: number
   options: Options
@@ -47,13 +46,13 @@ export class Sim {
   private waiting = new Map<number, (value: Reply) => void>()
   private paths = new Map<number, Int32Array>()
 
-  constructor({ map, level, humans, me, seed, names, nations, tribes, options, net }: Setup) {
+  constructor({ map, level, humans, me, seed, nations, tribes, options, net }: Setup) {
     this.g = createGame(map, level, Math.random, false, options)
     this.me = me
     this.net = net
     this.worker = new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module' })
     this.worker.onmessage = (e: MessageEvent<FromSim>) => this.receive(e.data)
-    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, humans, me, seed, seats: map.seats, names, nations, tribes, options })
+    this.worker.postMessage({ type: 'init', w: map.w, h: map.h, terrain: map.terrain, level, humans, me, seed, seats: map.seats, nations, tribes, options })
     net?.attach((turns) => this.worker.postMessage({ type: 'turns', turns }))
   }
 
@@ -64,7 +63,7 @@ export class Sim {
       return
     }
     if (m.type === 'hash') return this.net?.hash(m.n, m.h)
-    if (m.type === 'ready') for (const p of m.players) addPlayer(this.g, p.name, p.kind, p.code)
+    if (m.type === 'ready') for (const p of m.players) addPlayer(this.g, p.name, p.kind, p.code).team = p.team
     this.apply(m.snap)
     this.lastTick = performance.now()
     if (m.type === 'ready') this.onReady()

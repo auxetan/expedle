@@ -221,6 +221,7 @@ function nukes(g: Game, p: Player) {
 
 export interface SeatLike {
   code: string
+  name: string
   cell: number
   size: number
 }
@@ -234,7 +235,7 @@ function tribeName(g: Game): string {
 }
 
 // Les nations prennent les plus grands pays, assez loin les unes des autres ; les tribus se dispersent sur le reste.
-export function populate(g: Game, seats: SeatLike[], nations: number, tribes: number, name: (code: string) => string): Brain[] {
+export function populate(g: Game, seats: SeatLike[], nations: number, tribes: number): Brain[] {
   const centers: number[] = []
   const far = (t: number, d: number) =>
     centers.every((c) => {
@@ -245,7 +246,7 @@ export function populate(g: Game, seats: SeatLike[], nations: number, tribes: nu
   for (const s of [...seats].sort((a, b) => b.size - a.size)) {
     if (centers.length >= nations) break
     if (s.cell < 0 || !passable(g, s.cell) || !far(s.cell, 30)) continue
-    const p = addPlayer(g, name(s.code), 'nation', s.code)
+    const p = addPlayer(g, s.name, 'nation', s.code)
     if (spawn(g, p.id, s.cell)) centers.push(s.cell)
   }
   for (let i = 0, placed = 0; i < tribes * 40 && placed < tribes; i++) {

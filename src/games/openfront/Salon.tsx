@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../../lib/i18n'
 import { copyText, formatTime, load } from '../../lib/util'
-import { BOTS, LEVEL_NAMES, LEVELS, TRIBES } from './choices'
-import { Directory, joinable, Lobby, newCode, PUBLIC_MAX, PUBLIC_SETTINGS, PUBLIC_WAIT_MS, ranked, type LobbySettings, type Member, type Start } from './net'
+import { BOTS, LEVEL_NAMES, LEVELS, TEAM_COUNTS, teamMode, TRIBES } from './choices'
+import { DEFAULT_MAP, mapById, MAPS, pickPublicMap } from './cartes'
+import { Directory, joinable, Lobby, newCode, pickPublicTeams, PUBLIC_MAX, PUBLIC_WAIT_MS, publicSettings, ranked, type LobbySettings, type Member, type Start } from './net'
 
 export type SalonKind = 'public' | 'creer' | 'rejoindre'
 
@@ -14,7 +15,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(kind !== 'rejoindre')
   const [error, setError] = useState('')
-  const [settings, setSettings] = useState<LobbySettings>(() => ({ level: load('openfront-niveau', 'moyen'), bots: TRIBES, nations: true, nukes: true }))
+  const [settings, setSettings] = useState<LobbySettings>(() => ({ level: load('openfront-niveau', 'moyen'), bots: TRIBES, nations: true, nukes: true, map: load('openfront-carte', DEFAULT_MAP), teams: 0 }))
   const [now, setNow] = useState(Date.now)
   // les rappels du réseau lisent le salon en cours sans dépendre d'un rendu
   const current = useRef<Lobby | null>(null)
@@ -104,7 +105,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
     }
     const hosted = await open(newCode(), true)
     if (hosted) {
-      hosted.setStartsAt(Date.now() + PUBLIC_WAIT_MS)
+      hosted.setPublic(Date.now() + PUBLIC_WAIT_MS, pickPublicMap(), pickPublicTeams())
       enter(hosted)
     } else setError(t('Connexion impossible pour l’instant.'))
     setBusy(false)
@@ -133,7 +134,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
           const at = mine?.startsAt()
           if (!mine?.host || !at || mine.members.length > 1 || started.current) return
           const other = joinable(list, Date.now(), mine.code)
-          if (other && ranked(other, { code: mine.code, players: 1, startsAt: at }) < 0) void find(mine.code)
+          if (other && ranked(other, { code: mine.code, players: 1, startsAt: at, map: '', teams: 0 }) < 0) void find(mine.code)
         })
         await dir.ready()
         if (!gone) await find()
@@ -161,11 +162,13 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
   )
 
   const startsAt = lobby?.startsAt()
+  const publicMap = lobby?.publicMap() ?? DEFAULT_MAP
+  const publicTeams = lobby?.publicTeams() ?? 0
 
   // l'hôte d'une partie publique l'annonce tant qu'elle attend : son code, ses joueurs, l'heure du départ
   useEffect(() => {
-    if (kind === 'public' && lobby?.host && startsAt) directory.current?.announce({ code: lobby.code, players: members.length, startsAt })
-  }, [kind, lobby, members.length, startsAt])
+    if (kind === 'public' && lobby?.host && startsAt) directory.current?.announce({ code: lobby.code, players: members.length, startsAt, map: publicMap, teams: publicTeams })
+  }, [kind, lobby, members.length, startsAt, publicMap, publicTeams])
 
   useEffect(() => {
     if (kind !== 'public' || !lobby) return
@@ -177,12 +180,12 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
   useEffect(() => {
     if (kind !== 'public' || !lobby?.host || !startsAt || started.current) return
     if (members.length < PUBLIC_MAX && now < startsAt) return
-    if (members.length < 2) lobby.setStartsAt(Date.now() + PUBLIC_WAIT_MS)
+    if (members.length < 2) lobby.setPublic(Date.now() + PUBLIC_WAIT_MS, publicMap, publicTeams)
     else {
       directory.current?.announce(null)
-      lobby.start(PUBLIC_SETTINGS, PUBLIC_MAX)
+      lobby.start(publicSettings(publicMap, publicTeams), PUBLIC_MAX)
     }
-  }, [kind, lobby, startsAt, now, members.length])
+  }, [kind, lobby, startsAt, now, members.length, publicMap, publicTeams])
 
   const memberList = lobby && (
     <ul className="of-members">
@@ -211,7 +214,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
             </p>
             {memberList}
             <p className="of-hint">
-              {members.length < 2 ? t('En attente d’autres joueurs : le départ est repoussé tant que tu es seul.') : t('Carte du monde · {level} · {bots} bots · nations · bombes', { level: t(LEVEL_NAMES[PUBLIC_SETTINGS.level]), bots: PUBLIC_SETTINGS.bots })}
+              {members.length < 2 ? t('En attente d’autres joueurs : le départ est repoussé tant que tu es seul.') : t('{map} · {mode} · {level} · {bots} bots · nations · bombes', { map: t(mapById(publicMap).name), mode: teamMode(publicTeams), level: t(LEVEL_NAMES['moyen']), bots: TRIBES })}
             </p>
           </div>
         ) : (
@@ -269,6 +272,26 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
                 ))}
               </div>
               <div className="of-options">
+                <label>
+                  {t('Carte')}
+                  <select value={settings.map} onChange={(e) => setSettings({ ...settings, map: e.target.value })}>
+                    {MAPS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {t(m.name)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t('Mode')}
+                  <select value={settings.teams} onChange={(e) => setSettings({ ...settings, teams: Number(e.target.value) })}>
+                    {TEAM_COUNTS.map((n) => (
+                      <option key={n} value={n}>
+                        {teamMode(n)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label>
                   {t('Bots')}
                   <select value={settings.bots} onChange={(e) => setSettings({ ...settings, bots: Number(e.target.value) })}>

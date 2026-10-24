@@ -1318,3 +1318,94 @@
   background: color-mix(in srgb, #3b82f6 85%, transparent);
   transition: width 0.25s linear;
 }
+
+/* le choix de la carte, comme celui d'OpenFront : vignette, nom, taille en cases */
+.of-maps {
+  display: grid;
+  gap: 16px;
+}
+
+.of-maps header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.of-maps h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.of-maps h4 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.of-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.of-map-grid button {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  text-align: left;
+  font-size: 13px;
+}
+
+.of-map-grid button.on {
+  border-color: var(--fg);
+}
+
+.of-map-grid img,
+.of-map-blank {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  background: var(--line);
+  object-fit: cover;
+}
+
+/* les vignettes d'OpenFront, ramenées aux teintes sobres du site */
+.of-map-grid img {
+  filter: grayscale(0.85) contrast(1.05);
+}
+
+.of-map-grid b {
+  font-weight: 500;
+}
+
+.of-map-grid small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* par équipes, la part des terres de chacune, en tête du classement */
+.of-rank li.team span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.of-rank li.team i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.of-rank li.team + li.head {
+  margin-top: 4px;
+}

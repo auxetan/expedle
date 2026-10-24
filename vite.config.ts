@@ -10,8 +10,10 @@ function serviceWorker(): Plugin {
     generateBundle(_, bundle) {
       // les icônes de public/ ne passent pas par le bundle : on les ajoute pour le hors-ligne
       const icons = readdirSync(new URL('./public/icons', import.meta.url)).map((f) => `./icons/${f}`)
-      // les drapeaux de Flagle (quelque 70 fichiers) se mettent en cache à mesure qu'on les rencontre
-      const files = [...Object.keys(bundle).filter((f) => !f.endsWith('.svg')).map((f) => `./${f}`), ...icons]
+      // les drapeaux de Flagle (quelque 70 fichiers), les sons et les cartes de Frontières (plusieurs Mo chacune)
+      // se mettent en cache à mesure qu'on les rencontre
+      const lazy = ['.svg', '.mp3', '.gz']
+      const files = [...Object.keys(bundle).filter((f) => !lazy.some((ext) => f.endsWith(ext))).map((f) => `./${f}`), ...icons]
       const source = readFileSync(new URL('./pwa/sw.js', import.meta.url), 'utf8')
         .replace('__PRECACHE__', JSON.stringify(files))
         .replace('__VERSION__', String(Date.now()))

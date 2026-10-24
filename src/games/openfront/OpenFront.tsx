@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { countryName, flagEmoji } from '../../geo/countries'
+import { flagEmoji } from '../../geo/countries'
 import { buzz } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { cloudEnabled } from '../../lib/cloud'
@@ -23,15 +23,16 @@ import {
   passable,
   player,
   priceOf,
+  teamWinner,
   unitsOf,
   winner,
   type BuildResult,
   type Game,
   type Options,
 } from './engine'
-import { worldMap } from './map'
+import { DEFAULT_MAP, loadMap, mapById, MAPS, nationName } from './cartes'
 import { CHAT, phraseText } from './chat'
-import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TRIBES } from './choices'
+import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TEAM_COUNTS, TEAM_HUES, TEAM_NAMES, teamMode, TRIBES } from './choices'
 import { ICON } from './icons'
 import { actionFor, keyName, loadKeys, type Action } from './keys'
 import { SPAWN_TURNS } from './lockstep'
@@ -135,7 +136,7 @@ interface Settings extends Options {
 }
 
 const DEFAULT_SETTINGS: Settings = { ...DEFAULT_OPTIONS, bots: TRIBES, nations: true }
-const SWITCHES: [Exclude<keyof Settings, 'bots'>, string][] = [
+const SWITCHES: [Exclude<keyof Settings, 'bots' | 'teams'>, string][] = [
   ['nations', msg('Nations')],
   ['instantBuild', msg('Construction instantanée')],
   ['infiniteGold', msg('Or infini')],
@@ -152,6 +153,8 @@ interface Hud {
   gold: number
   income: number
   top: { id: number; name: string; gold: number; troops: number }[]
+  // par équipes, la part des terres de chacune
+  teams: { team: number; share: number }[]
   // tes attaques et tes débarquements en route, que tu peux rappeler
   attacks: { id: number; name: string; troops: number; boat: boolean }[]
   // ce qui arrive sur toi : attaques par la terre et débarquements en route
@@ -450,6 +453,7 @@ export default function OpenFront() {
   // une partie en ligne : son salon, et ce que l'hôte a fixé au lancement
   const [online, setOnline] = useState<{ lobby: Lobby; start: Start } | null>(null)
   const [salon, setSalon] = useState<SalonKind>('public')
+  const [soloMap, setSoloMap] = useState(() => load('openfront-carte', DEFAULT_MAP))
   // les réglages du son, ouverts pendant la partie
   const [sound, setSound] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -486,26 +490,37 @@ export default function OpenFront() {
     sayTimer.current = window.setTimeout(() => setMessage(''), 2200)
   }
 
-  // la carte se construit après le premier affichage, pour montrer le chargement ; la partie part dans son Worker
+  // la carte se télécharge (ou se construit) après le premier affichage, pour montrer le chargement ;
+  // la partie part ensuite dans son Worker
   useEffect(() => {
     if (sim || !playing) return
-    const id = window.setTimeout(() => {
-      const map = worldMap()
-      const names = Object.fromEntries(map.seats.map((s) => [s.code, countryName(s.code)]))
+    let gone = false
+    const id = window.setTimeout(async () => {
+      let loaded
+      try {
+        loaded = await loadMap(online ? online.start.settings.map : soloMap)
+      } catch {
+        if (gone) return
+        say(t('La carte ne se charge pas : vérifie ta connexion.'))
+        setPlaying(false)
+        setPhase('menu')
+        return
+      }
+      if (gone) return
+      const map = { ...loaded, seats: loaded.seats.map((s) => ({ ...s, name: nationName(s) })) }
       const next = online
         ? new Sim({
             map,
-            names,
             level: online.start.settings.level,
             humans: online.start.members.map((m) => m.name),
             me: online.lobby.playerOf(online.lobby.key),
             seed: online.start.seed,
             nations: online.start.settings.nations ? NATIONS : 0,
             tribes: online.start.settings.bots,
-            options: { ...DEFAULT_OPTIONS, nukes: online.start.settings.nukes },
+            options: { ...DEFAULT_OPTIONS, nukes: online.start.settings.nukes, teams: online.start.settings.teams },
             net: online.lobby,
           })
-        : new Sim({ map, names, level, humans: [name], me: 1, seed: Math.floor(Math.random() * 2 ** 31), nations: settings.nations ? NATIONS : 0, tribes: settings.bots, options: settings })
+        : new Sim({ map, level, humans: [name], me: 1, seed: Math.floor(Math.random() * 2 ** 31), nations: settings.nations ? NATIONS : 0, tribes: settings.bots, options: settings })
       ME = next.me
       next.onReady = () => {
         setReady(true)
@@ -513,8 +528,11 @@ export default function OpenFront() {
       }
       setSim(next)
     }, 30)
-    return () => clearTimeout(id)
-  }, [sim, playing, level, name, settings, online])
+    return () => {
+      gone = true
+      clearTimeout(id)
+    }
+  }, [sim, playing, level, name, settings, online, soloMap])
 
   useEffect(() => () => sim?.stop(), [sim])
   // la pause d'OpenFront, en solo
@@ -522,6 +540,13 @@ export default function OpenFront() {
     if (sim && phase === 'jeu') sim.run(!paused && !document.hidden)
   }, [sim, phase, paused])
   useEffect(() => sim?.setSpeed(speed), [sim, speed])
+
+  // changer de carte relance la partie solo sur la nouvelle
+  function pickMap(id: string) {
+    setSoloMap(id)
+    save('openfront-carte', id)
+    restart()
+  }
 
   function configure(change: Partial<Settings>) {
     const next = { ...settings, ...change }
@@ -687,7 +712,8 @@ export default function OpenFront() {
       live.current.phase = 'fin'
       sim.run(false)
       const ms = performance.now() - started
-      const by = win ? '' : me.killer ? player(g, me.killer).name : (g.players.find((p) => p.id === winner(g))?.name ?? '')
+      const team = teamWinner(g)
+      const by = win ? '' : me.killer ? player(g, me.killer).name : team ? t(TEAM_NAMES[team - 1]) : (g.players.find((p) => p.id === winner(g))?.name ?? '')
       const before = earnedOf(plays())
       recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms, ...(online && { sub: 'multi' }) })
       play(win ? 'victory' : 'defeat')
@@ -713,8 +739,9 @@ export default function OpenFront() {
       )
       if (live.current.phase !== 'jeu') return
       best = Math.max(best, me.tiles / g.land)
-      const w = winner(g)
-      if (!me.alive || w) finish(w === ME)
+      // par équipes, la victoire est celle de toute l'équipe
+      const w = g.options.teams ? teamWinner(g) : winner(g)
+      if (!me.alive || w) finish(g.options.teams ? w === me.team : w === ME)
     }
 
     let raf = 0
@@ -786,6 +813,10 @@ export default function OpenFront() {
         gold: me.gold,
         income: goldPerTick(me.kind) * 10,
         top: top.map((p) => ({ id: p.id, name: p.name, gold: p.gold, troops: p.troops })),
+        teams: Array.from({ length: g.options.teams }, (_, i) => ({
+          team: i + 1,
+          share: g.players.reduce((s, p) => s + (p.team === i + 1 && p.alive ? p.tiles : 0), 0) / g.land,
+        })).sort((a, b) => b.share - a.share),
         attacks: [
           ...g.attacks.filter((a) => a.from === ME).map((a) => ({ id: a.id, name: nameOf(g, a.to), troops: a.troops, boat: false })),
           ...g.boats.filter((b) => b.owner === ME && !b.trade && !b.back).map((b) => ({ id: b.id, name: nameOf(g, b.to), troops: b.troops, boat: true })),
@@ -1124,7 +1155,8 @@ export default function OpenFront() {
             <Menu
               name={name}
               multi={cloudEnabled}
-              onSolo={() => {
+              onSolo={(map) => {
+                pickMap(map)
                 setPlaying(true)
                 setPhase('chargement')
               }}
@@ -1159,7 +1191,7 @@ export default function OpenFront() {
               <b>{countdown ? t('La partie commence dans {n} s', { n: countdown }) : t('Touche la carte pour choisir ton point de départ.')}</b>
               <span>{coarse ? t('Ensuite, touche la carte pour ouvrir la roue d’action.') : t('Ensuite : clic gauche pour attaquer, clic droit pour la roue d’action.')}</span>
               {online ? (
-                <span>{t('Partie en ligne · {n} joueurs', { n: online.start.members.length })}</span>
+                <span>{t('{map} · partie en ligne · {n} joueurs', { map: t(mapById(online.start.settings.map).name), n: online.start.members.length })}</span>
               ) : (
                 <>
                   <div className="of-levels" role="radiogroup" aria-label={t('Difficulté')}>
@@ -1170,6 +1202,26 @@ export default function OpenFront() {
                     ))}
                   </div>
                   <div className="of-options">
+                    <label>
+                      {t('Carte')}
+                      <select value={soloMap} onChange={(e) => pickMap(e.target.value)}>
+                        {MAPS.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {t(m.name)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t('Mode')}
+                      <select value={settings.teams} onChange={(e) => configure({ teams: Number(e.target.value) })}>
+                        {TEAM_COUNTS.map((n) => (
+                          <option key={n} value={n}>
+                            {teamMode(n)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <label>
                       {t('Bots')}
                       <select value={settings.bots} onChange={(e) => configure({ bots: Number(e.target.value) })}>
@@ -1195,6 +1247,18 @@ export default function OpenFront() {
           )}
           {(phase === 'jeu' || phase === 'fin') && hud && (
             <ol className="of-rank">
+              {/* par équipes, la part des terres de chacune passe avant les joueurs */}
+              {g &&
+                hud.teams.map((x) => (
+                  <li key={`equipe${x.team}`} className={x.team === player(g, ME).team ? 'team me' : 'team'}>
+                    <span>
+                      <i style={{ background: `hsl(${TEAM_HUES[x.team - 1]} 45% 55%)` }} />
+                      {t(TEAM_NAMES[x.team - 1])}
+                    </span>
+                    <b />
+                    <b>{percent(x.share)} %</b>
+                  </li>
+                ))}
               <li className="head">
                 <span />
                 <small>{t('Or')}</small>
