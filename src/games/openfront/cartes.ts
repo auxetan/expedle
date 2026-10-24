@@ -3,6 +3,7 @@
 import { countryName } from '../../geo/countries'
 import { msg } from '../../lib/i18n'
 import catalog from './cartes/catalog.json'
+import { isCountry } from './drapeaux'
 import { MAP_H, MAP_W, worldMap, type Seat, type WorldMap } from './map'
 
 const FILES = import.meta.glob<string>('./cartes/*.bin.gz', { eager: true, query: '?url', import: 'default' })
@@ -29,6 +30,19 @@ const NAMES: Record<string, string> = {
   asia: msg('Asie'),
   africa: msg('Afrique'),
   australia: msg('Australie'),
+  antarctica: msg('Antarctique'),
+  unitedstates: msg('États-Unis'),
+  russia: msg('Russie'),
+  china: msg('Chine'),
+  indiansubcontinent: msg('Sous-continent indien'),
+  southeastasia: msg('Asie du Sud-Est'),
+  caribbean: msg('Caraïbes'),
+  germany: msg('Allemagne'),
+  alps: msg('Alpes'),
+  balkans: msg('Balkans'),
+  newzealand: msg('Nouvelle-Zélande'),
+  worldinverted: msg('Monde inversé'),
+  pluto: msg('Pluton'),
   britannia: msg('Îles Britanniques'),
   france: msg('France'),
   italia: msg('Italie'),
@@ -66,11 +80,12 @@ export const mapById = (id: string) => MAPS.find((m) => m.id === id) ?? MAPS[0]
 
 type Nation = [number, number, string, string]
 
-// Les nations d'une carte, à leur case de départ ; les premières listées passent avant les autres.
-export function seatsOf({ w, nations }: { w: number; nations: (Nation | (string | number)[])[] }): Seat[] {
+// Les nations d'une carte, à leur case de départ, avec leur drapeau ; les premières listées passent avant les autres.
+// `scale` : 2 sur la carte compacte, deux fois plus petite de chaque côté.
+export function seatsOf({ w, nations }: { w: number; nations: (Nation | (string | number)[])[] }, scale = 1): Seat[] {
   return nations.map((n, i) => {
     const [x, y, flag, name] = n as Nation
-    return { code: flag.length === 2 ? flag.toUpperCase() : '', name, cell: y * w + x, size: nations.length - i }
+    return { code: flag, name, cell: Math.floor(y / scale) * w + Math.floor(x / scale), size: nations.length - i }
   })
 }
 
@@ -79,8 +94,9 @@ const english = new Intl.DisplayNames(['en'], { type: 'region', fallback: 'none'
 // Le nom d'une nation : celui de son pays dans la langue du joueur quand elle est ce pays (ou que la carte ne
 // donne que le drapeau), celui de la carte sinon, pour une région sous le drapeau de son pays ou un drapeau d'emprunt.
 export function nationName(s: Seat): string {
-  if (!s.code) return s.name
-  return !s.name || english.of(s.code)?.toLowerCase() === s.name.toLowerCase() ? countryName(s.code) : s.name
+  if (!isCountry(s.code)) return s.name
+  const iso = s.code.toUpperCase()
+  return !s.name || english.of(iso)?.toLowerCase() === s.name.toLowerCase() ? countryName(iso) : s.name
 }
 
 // La carte d'une partie publique, tirée selon les fréquences d'OpenFront.
@@ -101,16 +117,19 @@ async function terrainOf(url: string): Promise<Uint8Array> {
 
 const loaded = new Map<string, Promise<WorldMap>>()
 
-export function loadMap(id: string): Promise<WorldMap> {
+// La carte, en grand ou en compact comme l'option d'OpenFront : un quart des cases, des parties plus rapides.
+export function loadMap(id: string, compact = false): Promise<WorldMap> {
   const info = mapById(id)
   if (info.id === 'expedle') return Promise.resolve(worldMap())
-  let map = loaded.get(info.id)
+  const key = `${info.id}${compact ? '.4x' : ''}`
+  let map = loaded.get(key)
   if (!map) {
     const c = catalog.find((e) => e.id === info.id)!
-    map = terrainOf(FILES[`./cartes/${c.id}.bin.gz`]).then((terrain) => ({ w: c.w, h: c.h, terrain, seats: seatsOf(c) }))
+    const [w, h] = compact ? [c.w4, c.h4] : [c.w, c.h]
+    map = terrainOf(FILES[`./cartes/${key}.bin.gz`]).then((terrain) => ({ w, h, terrain, seats: seatsOf({ w, nations: c.nations }, compact ? 2 : 1) }))
     // un échec se retente au lancement suivant
-    map.catch(() => loaded.delete(info.id))
-    loaded.set(info.id, map)
+    map.catch(() => loaded.delete(key))
+    loaded.set(key, map)
   }
   return map
 }

@@ -30,6 +30,8 @@ export interface LobbySettings {
   map: string
   // nombre d'équipes, 0 pour chacun pour soi
   teams: number
+  // la carte compacte d'OpenFront, quatre fois moins de cases
+  compact: boolean
 }
 
 export interface Start {
@@ -56,7 +58,7 @@ const FIND_MS = 6000
 // Les parties publiques, comme sur OpenFront : réglages fixes, départ à heure dite, ouvertes à tous.
 export const PUBLIC_MAX = 8
 export const PUBLIC_WAIT_MS = 60_000
-export const publicSettings = (map: string, teams: number): LobbySettings => ({ level: 'moyen', bots: TRIBES, nations: true, nukes: true, map, teams })
+export const publicSettings = (map: string, teams: number): LobbySettings => ({ level: 'moyen', bots: TRIBES, nations: true, nukes: true, map, teams, compact: false })
 
 // Comme sur OpenFront, une partie publique sur trois se joue par équipes, de deux à quatre.
 export const pickPublicTeams = (rng: () => number = Math.random) => (rng() < 1 / 3 ? 2 + Math.floor(rng() * 3) : 0)

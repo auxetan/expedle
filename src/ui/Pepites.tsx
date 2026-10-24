@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { HISTORY_CHANGED } from '../lib/cloud'
 import { fmt, t } from '../lib/i18n'
 import { plays, PLAYED } from '../lib/stats'
-import { balanceOf, loadConsumed, loadPurchases, stockOf, WALLET_CHANGED } from '../lib/wallet'
+import { balanceOf, loadPurchases, loadUses, stockOf, WALLET_CHANGED } from '../lib/wallet'
 
 // une pépite d'or, taillée en facettes
 export function PepiteIcon({ size = 16 }: { size?: number }) {
@@ -33,8 +33,8 @@ export interface Wallet {
 
 const read = (): Wallet => {
   const bought = loadPurchases()
-  const consumed = loadConsumed()
-  const stock = new Map(bought.filter((p) => p.n).map((p) => [p.id, stockOf(p.id, bought, consumed)]))
+  const uses = loadUses()
+  const stock = new Map(bought.filter((p) => p.n).map((p) => [p.id, stockOf(p.id, bought, uses)]))
   return { balance: balanceOf(plays(), bought), owned: new Set(bought.map((p) => p.id)), stock }
 }
 
