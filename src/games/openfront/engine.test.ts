@@ -11,6 +11,7 @@ import {
   build,
   createGame,
   DEFAULT_OPTIONS,
+  HUMANS_VS_NATIONS,
   isTraitor,
   launch,
   LAND,
@@ -658,6 +659,13 @@ describe('équipes', () => {
     humans[0].tiles = Math.ceil(g.land * WIN_SHARE * 0.5)
     nations[0].tiles = Math.ceil(g.land * WIN_SHARE * 0.5)
     expect(teamWinner(g)).toBe(1)
+  })
+
+  it('opposent tous les humains à toutes les nations en mode Humains contre nations', () => {
+    const { humans, nations, bot } = teams(HUMANS_VS_NATIONS)
+    expect(humans.map((p) => p.team)).toEqual([1, 1])
+    expect(nations.map((p) => p.team)).toEqual([2, 2])
+    expect(bot.team).toBe(0)
   })
 
   it('n’existent pas en chacun pour soi', () => {
