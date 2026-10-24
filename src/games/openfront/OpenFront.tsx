@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { flagEmoji } from '../../geo/countries'
 import { buzz } from '../../lib/feedback'
 import { fmt, msg, t } from '../../lib/i18n'
 import { cloudEnabled } from '../../lib/cloud'
@@ -23,6 +22,7 @@ import {
   passable,
   player,
   priceOf,
+  teamCount,
   teamWinner,
   unitsOf,
   winner,
@@ -32,7 +32,8 @@ import {
 } from './engine'
 import { DEFAULT_MAP, loadMap, mapById, MAPS, nationName } from './cartes'
 import { CHAT, phraseText } from './chat'
-import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TEAM_COUNTS, TEAM_HUES, TEAM_NAMES, teamMode, TRIBES } from './choices'
+import { flagUrl } from './drapeaux'
+import { BOTS, LEVEL_NAMES, LEVELS, NATIONS, TEAM_COUNTS, TEAM_HUES, teamMode, teamName, TRIBES } from './choices'
 import { ICON } from './icons'
 import { actionFor, keyName, loadKeys, type Action } from './keys'
 import { SPAWN_TURNS } from './lockstep'
@@ -133,11 +134,14 @@ const SHOUT_MS = 5000
 interface Settings extends Options {
   bots: number
   nations: boolean
+  // la carte compacte d'OpenFront : un quart des cases
+  compact: boolean
 }
 
-const DEFAULT_SETTINGS: Settings = { ...DEFAULT_OPTIONS, bots: TRIBES, nations: true }
+const DEFAULT_SETTINGS: Settings = { ...DEFAULT_OPTIONS, bots: TRIBES, nations: true, compact: false }
 const SWITCHES: [Exclude<keyof Settings, 'bots' | 'teams'>, string][] = [
   ['nations', msg('Nations')],
+  ['compact', msg('Carte compacte')],
   ['instantBuild', msg('Construction instantanée')],
   ['infiniteGold', msg('Or infini')],
   ['infiniteTroops', msg('Troupes infinies')],
@@ -498,7 +502,7 @@ export default function OpenFront() {
     const id = window.setTimeout(async () => {
       let loaded
       try {
-        loaded = await loadMap(online ? online.start.settings.map : soloMap)
+        loaded = online ? await loadMap(online.start.settings.map, online.start.settings.compact) : await loadMap(soloMap, settings.compact)
       } catch {
         if (gone) return
         say(t('La carte ne se charge pas : vérifie ta connexion.'))
@@ -713,7 +717,7 @@ export default function OpenFront() {
       sim.run(false)
       const ms = performance.now() - started
       const team = teamWinner(g)
-      const by = win ? '' : me.killer ? player(g, me.killer).name : team ? t(TEAM_NAMES[team - 1]) : (g.players.find((p) => p.id === winner(g))?.name ?? '')
+      const by = win ? '' : me.killer ? player(g, me.killer).name : team ? teamName(g.options.teams, team) : (g.players.find((p) => p.id === winner(g))?.name ?? '')
       const before = earnedOf(plays())
       recordPlay('openfront', { pts: win ? 100 : Math.round(Math.min(1, best / WIN_SHARE) * 80), s: Math.round(best * 100), win, ms, ...(online && { sub: 'multi' }) })
       play(win ? 'victory' : 'defeat')
@@ -813,7 +817,7 @@ export default function OpenFront() {
         gold: me.gold,
         income: goldPerTick(me.kind) * 10,
         top: top.map((p) => ({ id: p.id, name: p.name, gold: p.gold, troops: p.troops })),
-        teams: Array.from({ length: g.options.teams }, (_, i) => ({
+        teams: Array.from({ length: teamCount(g) }, (_, i) => ({
           team: i + 1,
           share: g.players.reduce((s, p) => s + (p.team === i + 1 && p.alive ? p.tiles : 0), 0) / g.land,
         })).sort((a, b) => b.share - a.share),
@@ -1253,7 +1257,7 @@ export default function OpenFront() {
                   <li key={`equipe${x.team}`} className={x.team === player(g, ME).team ? 'team me' : 'team'}>
                     <span>
                       <i style={{ background: `hsl(${TEAM_HUES[x.team - 1]} 45% 55%)` }} />
-                      {t(TEAM_NAMES[x.team - 1])}
+                      {teamName(g.options.teams, x.team)}
                     </span>
                     <b />
                     <b>{percent(x.share)} %</b>
@@ -1313,7 +1317,7 @@ export default function OpenFront() {
             {hovered && g && (
               <>
                 <b>
-                  {hovered.code ? `${flagEmoji(hovered.code)} ` : ''}
+                  {flagUrl(hovered.code) && <img className="of-flag" src={flagUrl(hovered.code)} alt="" />}
                   {hovered.name}
                 </b>
                 <dl>
