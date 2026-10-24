@@ -4,6 +4,7 @@ import { t } from './i18n'
 import { mergePassports, passport, PASSPORT_CHANGED, savePassport, type Passport } from './passport'
 import { plays, PLAYED, type Play } from './stats'
 import { load, save, todayKey } from './util'
+import { loadPurchases, loadUses, mergeWallets, saveWallet, WALLET_CHANGED, type Wallet } from './wallet'
 
 // Le compte est facultatif : sans projet Supabase configuré dans .env.local, le site reste 100 % local.
 const SUPABASE_URL = ((import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '').trim()
@@ -211,6 +212,32 @@ async function syncPassport(sb: SupabaseClient, full: boolean) {
   if (error) throw error
 }
 
+/* Portefeuille */
+
+// tant que la migration du portefeuille n'est pas passée, la table manque : le reste se synchronise quand même
+const MISSING_TABLE = new Set(['PGRST205', '42P01'])
+
+// À la connexion, les achats et jokers utilisés du compte rejoignent ceux de l'appareil ; ensuite le portefeuille
+// réuni repart vers le compte.
+async function syncWallet(sb: SupabaseClient, full: boolean) {
+  let wallet: Wallet = { purchases: loadPurchases(), uses: loadUses() }
+  if (full) {
+    const { data, error } = await sb.from('wallets').select('purchases, uses').maybeSingle()
+    if (error) {
+      if (MISSING_TABLE.has(error.code)) return
+      throw error
+    }
+    if (data) {
+      const merged = mergeWallets(wallet, data as Wallet)
+      if (merged.purchases.length !== wallet.purchases.length || merged.uses.length !== wallet.uses.length) saveWallet(merged)
+      wallet = merged
+    }
+  }
+  if (!wallet.purchases.length && !wallet.uses.length) return
+  const { error } = await sb.from('wallets').upsert({ user_id: account.userId, ...wallet, updated_at: new Date().toISOString() })
+  if (error && !MISSING_TABLE.has(error.code)) throw error
+}
+
 // Les synchronisations passent l'une après l'autre : une partie finie pendant la première n'est pas envoyée deux fois.
 let queue = Promise.resolve()
 
@@ -224,6 +251,7 @@ function sync(full: boolean) {
       await upload(sb)
       if (full) await download(sb)
       await syncPassport(sb, full)
+      await syncWallet(sb, full)
       set({ syncing: false })
     } catch (e) {
       set({ syncing: false, error: e instanceof Error ? e.message : t('Synchronisation impossible.') })
@@ -246,6 +274,8 @@ export function startCloud() {
     }),
   )
   window.addEventListener(PLAYED, () => void sync(false))
+  // un achat ou un joker utilisé part aussitôt : un autre appareil le verra à sa prochaine connexion
+  window.addEventListener(WALLET_CHANGED, () => void sync(false))
   // les tampons arrivent en rafale (une route de Travle, une série de Seterra) : un envoi groupé suffit
   let stamps = 0
   window.addEventListener(PASSPORT_CHANGED, () => {
