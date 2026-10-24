@@ -1409,3 +1409,11 @@
 .of-rank li.team + li.head {
   margin-top: 4px;
 }
+
+/* le drapeau d'OpenFront devant le nom d'un pays */
+.of-flag {
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+  vertical-align: -4px;
+}
