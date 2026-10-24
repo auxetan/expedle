@@ -15,7 +15,7 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(kind !== 'rejoindre')
   const [error, setError] = useState('')
-  const [settings, setSettings] = useState<LobbySettings>(() => ({ level: load('openfront-niveau', 'moyen'), bots: TRIBES, nations: true, nukes: true, map: load('openfront-carte', DEFAULT_MAP), teams: 0 }))
+  const [settings, setSettings] = useState<LobbySettings>(() => ({ level: load('openfront-niveau', 'moyen'), bots: TRIBES, nations: true, nukes: true, map: load('openfront-carte', DEFAULT_MAP), teams: 0, compact: false }))
   const [now, setNow] = useState(Date.now)
   // les rappels du réseau lisent le salon en cours sans dépendre d'un rendu
   const current = useRef<Lobby | null>(null)
@@ -305,6 +305,10 @@ export default function Salon({ kind, name, skin, onStart, onBack }: { kind: Sal
                 <label>
                   <input type="checkbox" checked={settings.nations} onChange={(e) => setSettings({ ...settings, nations: e.target.checked })} />
                   {t('Nations')}
+                </label>
+                <label>
+                  <input type="checkbox" checked={settings.compact} onChange={(e) => setSettings({ ...settings, compact: e.target.checked })} />
+                  {t('Carte compacte')}
                 </label>
                 <label>
                   <input type="checkbox" checked={settings.nukes} onChange={(e) => setSettings({ ...settings, nukes: e.target.checked })} />
