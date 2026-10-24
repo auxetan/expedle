@@ -12,11 +12,15 @@ describe('cartes d’OpenFront', () => {
     expect(MAPS[0].id).toBe('world')
   })
 
-  it('placent chaque nation sur sa case, drapeau ISO en majuscules, sans drapeau quand il est inventé', () => {
+  it('ramènent les nations à mi-coordonnées sur la carte compacte, deux fois plus petite de chaque côté', () => {
+    expect(seatsOf({ w: 50, nations: [[10, 3, 'fr', 'France']] }, 2)).toEqual([{ code: 'fr', name: 'France', cell: 55, size: 1 }])
+  })
+
+  it('placent chaque nation sur sa case, avec le drapeau que lui donne la carte', () => {
     const seats = seatsOf({ w: 100, nations: [[10, 2, 'fr', 'France'], [5, 7, 'Kingdom of Sardinia', 'Kingdom of Sardinia']] })
     expect(seats).toEqual([
-      { code: 'FR', name: 'France', cell: 210, size: 2 },
-      { code: '', name: 'Kingdom of Sardinia', cell: 705, size: 1 },
+      { code: 'fr', name: 'France', cell: 210, size: 2 },
+      { code: 'Kingdom of Sardinia', name: 'Kingdom of Sardinia', cell: 705, size: 1 },
     ])
   })
 
@@ -27,7 +31,8 @@ describe('cartes d’OpenFront', () => {
     // une région sous le drapeau de son pays, ou un drapeau d'emprunt, garde le nom de la carte
     expect(nationName({ code: 'JP', name: 'Hokkaido', cell: 0, size: 1 })).toBe('Hokkaido')
     expect(nationName({ code: 'DZ', name: 'Libya', cell: 0, size: 1 })).toBe('Libya')
-    expect(nationName({ code: '', name: 'Kingdom of Sardinia', cell: 0, size: 1 })).toBe('Kingdom of Sardinia')
+    expect(nationName({ code: 'Kingdom of Sardinia', name: 'Kingdom of Sardinia', cell: 0, size: 1 })).toBe('Kingdom of Sardinia')
+    expect(nationName({ code: 'us', name: 'United States', cell: 0, size: 1 })).toBe('États-Unis')
   })
 
   it('tirent la carte des parties publiques selon le poids que leur donne OpenFront', () => {
