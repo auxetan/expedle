@@ -1,12 +1,12 @@
 // Dessin de la partie dans les couleurs du site : la carte case par case dans une image, puis par-dessus
 // les rails, les bâtiments, les trains, les bateaux, les bombes et les noms, à la taille de l'écran.
 // Les noms, coûteux à écrire, vivent sur leur propre calque, redessiné seulement quand c'est utile.
-import { flagEmoji } from '../../geo/countries'
 import { allied, isBorder, isTraitor, LAND, MAG, markDirty, player, SHORE, type Game, type Nuke, type Unit } from './engine'
 import type { Anchor } from './labels'
 import type { Skin } from './progress'
 import { drawFx, FLICKER, sprite, stamp, type Fx } from './sprites'
 import { TEAM_HUES } from './choices'
+import { flagImage, flagText, flagUrl } from './drapeaux'
 import { ICON } from './icons'
 import { BLAST, BUILD_TICKS, DEFENSE_RANGE, NUKE_EXPOSED_RANGE, samRange, SAM_COOLDOWN, SILO_COOLDOWN, WARSHIP_HP, type Kind, type UnitType } from './rules'
 
@@ -804,7 +804,7 @@ export function draw(
     const owner = player(g, b.owner)
     ctx.font = `600 ${Math.round(Math.max(11, px * 3))}px Ubuntu, system-ui, sans-serif`
     ctx.textAlign = 'center'
-    const text = `${owner.code ? flagEmoji(owner.code) + ' ' : ''}${troopsText(b.troops)}`
+    const text = `${owner.code ? flagText(owner.code) + ' ' : ''}${troopsText(b.troops)}`
     ctx.lineWidth = 3
     ctx.lineJoin = 'round'
     ctx.strokeStyle = css(pal.bg)
@@ -976,7 +976,10 @@ function names(ctx: CanvasRenderingContext2D, stamps: Stamps, g: Game, pal: Pale
     if (x < -100 || y < -40 || x > cw + 100 || y > ch + 40) continue
     const room = Math.sqrt(a.cells) * view.s * 1.1
     const badge = (p === leader ? '👑 ' : '') + (isTraitor(g, p) ? '⚠️ ' : '') + (p.id !== me && allied(g, p.id, me) ? '🤝 ' : '')
-    const name = `${badge}${p.code ? flagEmoji(p.code) + ' ' : ''}${p.name}`
+    // le drapeau d'OpenFront au-dessus du nom ; l'émoji du pays en attendant qu'il arrive
+    const flag = p.code ? flagImage(p.code) : null
+    if (!flag && p.code && flagUrl(p.code)) done = false
+    const name = `${badge}${!flag && p.code ? flagText(p.code) + ' ' : ''}${p.name}`
     let size = Math.min(22, room * 0.3)
     const width = stamps.width(name, 500, size)
     if (width > room) size *= room / width
@@ -987,6 +990,7 @@ function names(ctx: CanvasRenderingContext2D, stamps: Stamps, g: Game, pal: Pale
     // cerné de la couleur du pays ; traîtres et alliés se signalent par leur pictogramme
     const fill = NAME_SHADE[p.kind]
     const outline = css(pal.players[p.id - 1])
+    if (flag) ctx.drawImage(flag, x - size * 0.65, y - size * 1.95, size * 1.3, size * 1.3)
     if (!stamps.put(ctx, name, 500, size, fill, outline, dpr, x, y - size * 0.35)) done = false
     if (!stamps.put(ctx, troopsText(p.troops), 400, Math.round(size * 0.8), fill, outline, dpr, x, y + size * 0.6)) done = false
   }
