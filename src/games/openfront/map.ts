@@ -10,7 +10,7 @@ export const MAP_W = 2000
 export const MAP_H = Math.round((MAP_W * (NORTH - SOUTH)) / 360)
 
 export interface Seat {
-  // code pays ISO de la nation, vide quand son drapeau n'en est pas un
+  // le drapeau de la nation : un code pays ISO, ou le nom d'un drapeau de carte d'OpenFront
   code: string
   name: string
   // la case la plus centrale du pays, où sa nation démarre
