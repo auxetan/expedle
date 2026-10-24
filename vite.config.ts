@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { readdirSync, readFileSync } from 'node:fs'
+import { configDefaults } from 'vitest/config'
 import { defineConfig, type Plugin } from 'vite'
 
 // Génère le service worker avec la liste exacte des fichiers du build à précharger.
@@ -25,4 +26,6 @@ function serviceWorker(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), serviceWorker()],
+  // les copies de travail rangées dans .claude/worktrees ont leurs propres tests : on ne les lance pas deux fois
+  test: { exclude: [...configDefaults.exclude, '.claude/**'] },
 })
