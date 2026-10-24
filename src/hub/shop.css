@@ -88,3 +88,9 @@
   border-radius: 8px;
   image-rendering: pixelated;
 }
+
+.shop-joker {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.3;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getWorld } from '../../geo/world'
-import { compare, dailyTarget, evaluate, formatArea, formatGdp, formatPop, score, shareLine, targets } from './game'
+import { compare, dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, targets } from './game'
 
 const world = getWorld()
 
@@ -37,6 +37,11 @@ describe('Countryle', () => {
     expect(score(true, 1)).toBe(100)
     expect(score(true, 8)).toBe(13)
     expect(score(false, 8)).toBe(0)
+  })
+
+  it('rend autant pour une victoire sur l’essai bonus d’un joker que sur le dernier essai', () => {
+    expect(score(true, MAX_GUESSES + 1)).toBe(score(true, MAX_GUESSES))
+    expect(score(true, MAX_GUESSES + 2)).toBeGreaterThan(0)
   })
 
   it('écrit les chiffres à la française', () => {

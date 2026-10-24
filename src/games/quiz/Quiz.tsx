@@ -7,6 +7,7 @@ import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/ut
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
+import Joker from '../../ui/Joker'
 import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
@@ -104,7 +105,12 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
         : buildItems(kind, seededRng('quiz-' + seed), kind === 'culture' ? category : null),
     [kind, seed, category, challenge],
   )
-  const challengeSeed = kind === 'culture' ? items.map((it) => it.id).join('.') : seed
+  // les questions passées avec un joker, remplacées par d'autres
+  const [swaps, setSwaps] = useState<Record<number, Item>>({})
+  const deck = useMemo(() => items.map((it, k) => swaps[k] ?? it), [items, swaps])
+  const jokers = kind === 'culture' && !challenge
+  const jokered = Object.keys(swaps).length > 0
+  const challengeSeed = kind === 'culture' ? deck.map((it) => it.id).join('.') : seed
   const [ms, setMs] = useState<number>()
   const [i, setI] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -118,7 +124,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   const [record, setRecord] = useState(false)
   const t0 = useRef(performance.now())
   const elapsed = useStopwatch(run)
-  const item = items[i]
+  const item = deck[i]
   const alreadyPlayed = !challenge && !!done && run === 0
 
   useEffect(() => {
@@ -134,7 +140,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
       }
     }, 100)
     return () => clearInterval(id)
-  }, [i, over, run, picked, alreadyPlayed])
+  }, [i, item, over, run, picked, alreadyPlayed])
 
   function answer(opt: string) {
     if (picked !== null) return
@@ -179,7 +185,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
       recordPlay('quiz-' + kind, { pts: (100 * good) / items.length, s: score, ms, sub: challenge ? 'defi' : (category ?? undefined) })
       if (kind === 'jour' && run === 0 && !done && !challenge) saveDailyResult('quiz-jour', { score, good }, day)
       setRecord(submitBest('quiz-' + kind, score))
-      const ids = items.map((it) => it.id).filter((x): x is string => !!x)
+      const ids = deck.map((it) => it.id).filter((x): x is string => !!x)
       if (ids.length) save('quiz-seen', [...load<string[]>('quiz-seen', []), ...ids].slice(-3000))
       return
     }
@@ -187,9 +193,16 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
     setPicked(null)
   }
 
+  function skip() {
+    const seen = new Set([...load<string[]>('quiz-seen', []), ...deck.map((it) => it.id!)])
+    const [q] = pickQuestions(Math.random, 1, category, seen)
+    setSwaps({ ...swaps, [i]: bankItem(q, Math.random) })
+  }
+
   function replay() {
     if (challenge) return go(`/quiz/${kind === 'culture' ? '' : kind}`)
     setSeed(newSeed())
+    setSwaps({})
     setRun(run + 1)
     setI(0)
     setPicked(null)
@@ -254,7 +267,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
             ))}
           </div>
           <ul className="qz-recap stagger">
-            {items.map((it, k) => (
+            {deck.map((it, k) => (
               <li key={k} className={results[k] ? 'ok' : 'ko'}>
                 <span>{it.big ? `${it.big} — ` : ''}{it.q}</span>
                 <b>{it.answer}</b>
@@ -274,15 +287,17 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
               {t('Rejouer ↻')}
             </button>
           </div>
-          <ChallengeBox
-            game={'quiz-' + kind}
-            path={kind === 'culture' ? '/quiz' : `/quiz/${kind}`}
-            seed={challengeSeed}
-            result={{ pts: (100 * good) / items.length, s: score, ms }}
-          />
+          {!jokered && (
+            <ChallengeBox
+              game={'quiz-' + kind}
+              path={kind === 'culture' ? '/quiz' : `/quiz/${kind}`}
+              seed={challengeSeed}
+              result={{ pts: (100 * good) / items.length, s: score, ms }}
+            />
+          )}
         </main>
       ) : (
-        <main className="qz-card" key={i + '-' + run}>
+        <main className="qz-card" key={`${i}-${run}-${item.id}`}>
           <div className="qz-head">
             <span className="qz-kicker">
               {t('QUESTION {n} / {total}', { n: i + 1, total: COUNT })} · {t(item.cat).toLocaleUpperCase(locale())}
@@ -311,6 +326,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
               )
             })}
           </div>
+          {picked === null && jokers && <Joker id="joker:passe" onUse={skip} />}
           {picked !== null && (
             <div className="qz-feedback">
               <span className={picked === item.answer ? 'qz-pill ok' : 'qz-pill ko'}>

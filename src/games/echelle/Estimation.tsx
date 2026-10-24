@@ -4,6 +4,7 @@ import { readChallenge, type Result as Outcome } from '../../lib/challenge'
 import { go } from '../../lib/router'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import ChallengeBox from '../../ui/ChallengeBox'
+import Joker from '../../ui/Joker'
 import type { EstimateQuestion } from './estimates'
 import { estimationBank } from './estimationBank'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -245,6 +246,9 @@ function Survival() {
   valueRef.current = value
   const [run, setRun] = useState(0)
   const elapsed = useStopwatch(run)
+  // la première manche d'un défi se joue sans joker ; une partie qui en a pris un ne se lance pas en défi
+  const jokers = !(challenge && run === 1)
+  const [jokered, setJokered] = useState(false)
 
   const q = deck[i]
 
@@ -264,6 +268,7 @@ function Survival() {
     setLife(10)
     setValue('')
     setLast(null)
+    setJokered(false)
     setPhase('play')
     setRun((r) => r + 1)
   }
@@ -352,9 +357,21 @@ function Survival() {
               disabled={phase === 'feedback'}
             />
             {phase === 'play' ? (
-              <button className="mg-cta dq-lock" onClick={() => submit()}>
-                {t('Valider →')}
-              </button>
+              <>
+                <button className="mg-cta dq-lock" onClick={() => submit()}>
+                  {t('Valider →')}
+                </button>
+                {jokers && (
+                  <Joker
+                    id="joker:vie"
+                    onUse={() => {
+                      setLife((l) => Math.round((l + 1) * 10) / 10)
+                      setJokered(true)
+                      inputRef.current?.focus()
+                    }}
+                  />
+                )}
+              </>
             ) : (
               last && (
                 <div className="sv-feedback">
@@ -375,7 +392,7 @@ function Survival() {
             <button className="mg-cta" onClick={() => (challenge ? go('/survie') : start())}>
               {t('Rejouer ↻')}
             </button>
-            {outcome && (
+            {outcome && !jokered && (
               <ChallengeBox
                 game="survie"
                 path="/survie"

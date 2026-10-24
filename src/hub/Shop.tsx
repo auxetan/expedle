@@ -1,5 +1,5 @@
 // La boutique d'Expedle : on y dépense les pépites gagnées dans tous les jeux, comme des robux, pour des avatars,
-// l'édition dorée de l'icône de chaque jeu et les motifs de territoire de Frontières.
+// l'édition dorée de l'icône de chaque jeu, les motifs de territoire de Frontières et des jokers.
 import { useState } from 'react'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
 import { feedback } from '../lib/feedback'
@@ -19,6 +19,7 @@ const SECTIONS: { kind: ShopItem['kind']; title: string; note: string }[] = [
   { kind: 'avatar', title: msg('Avatars'), note: msg('Pour ton profil, dans tout Expedle') },
   { kind: 'icone', title: msg('Icônes dorées'), note: msg('L’édition or de chaque jeu, sur l’accueil et dans les menus') },
   { kind: 'motif', title: 'Frontières', note: msg('Les motifs de ton territoire') },
+  { kind: 'joker', title: msg('Jokers'), note: msg('En partie libre, jamais au classement du jour ni dans un défi') },
 ]
 
 export default function Shop() {
@@ -43,15 +44,15 @@ export default function Shop() {
   }
 
   function pick(item: ShopItem) {
-    if (wallet.owned.has(item.id)) return use(item)
+    if (item.kind !== 'joker' && wallet.owned.has(item.id)) return use(item)
     if (buying !== item.id) return setBuying(item.id)
     setBuying('')
-    if (!buy(item.id, item.price)) return
+    if (!buy(item.id, item.price, item.n)) return
     feedback('good')
     use(item)
   }
 
-  const worn = (item: ShopItem) => (item.kind === 'avatar' ? avatar === item.value : item.kind === 'motif' ? skin === item.value : wallet.owned.has(item.id))
+  const worn = (item: ShopItem) => (item.kind === 'avatar' ? avatar === item.value : item.kind === 'motif' ? skin === item.value : item.kind === 'icone' && wallet.owned.has(item.id))
 
   return (
     <div className="home">
@@ -74,8 +75,9 @@ export default function Shop() {
             </h2>
             <div className={`shop-grid ${section.kind}`}>
               {ITEMS.filter((i) => i.kind === section.kind).map((item) => {
-                const mine = wallet.owned.has(item.id)
+                const mine = item.kind !== 'joker' && wallet.owned.has(item.id)
                 const short = !mine && wallet.balance < item.price
+                const stock = wallet.stock.get(item.id) ?? 0
                 return (
                   <button
                     key={item.id}
@@ -87,7 +89,10 @@ export default function Shop() {
                     {item.kind === 'avatar' && <span className="shop-emoji">{item.value}</span>}
                     {item.kind === 'icone' && <GameIcon icon={item.value} size={56} golden />}
                     {item.kind === 'motif' && <SkinPreview skin={skinById(item.value)} />}
-                    {item.kind !== 'avatar' && <b>{item.kind === 'motif' ? t(item.name) : item.name}</b>}
+                    {item.kind === 'joker' && <span className="shop-joker">{item.value}</span>}
+                    {item.kind !== 'avatar' && <b>{item.kind === 'icone' ? item.name : t(item.name)}{item.n && ` ×${item.n}`}</b>}
+                    {item.games && <small>{item.games.map((g) => t(g)).join(', ')}</small>}
+                    {stock > 0 && <small>{t('En réserve : {n}', { n: stock })}</small>}
                     <small>
                       {worn(item)
                         ? item.kind === 'icone'

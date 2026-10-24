@@ -8,6 +8,7 @@ import { copyText, load, save, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import CountryInput from '../../ui/CountryInput'
+import Joker from '../../ui/Joker'
 import { COUNTRY_STATS } from '../classement/data'
 import { dailyTarget, evaluate, formatArea, formatGdp, formatPop, MAX_GUESSES, score, shareLine, type Clue, type Row } from './game'
 import './countryle.css'
@@ -17,6 +18,8 @@ import { stamp } from '../../lib/passport'
 interface Saved {
   guesses: string[]
   ms?: number
+  // essais ajoutés par des jokers
+  extra?: number
 }
 
 const STATS = new Map(COUNTRY_STATS.map((s) => [s.code, s]))
@@ -58,6 +61,7 @@ function Guess({ row, name }: { row: Row; name: string }) {
 export default function Countryle({ mode }: { mode?: string }) {
   const [challenge] = useState(readChallenge)
   const practice = mode === 'libre' || !!challenge
+  const jokers = practice && !challenge
   const atlas = worldAtlas()
   const day = todayKey()
   const storageKey = practice ? null : `countryle:${day}`
@@ -68,16 +72,17 @@ export default function Countryle({ mode }: { mode?: string }) {
   const elapsed = useStopwatch(target)
 
   const rows = useMemo(() => state.guesses.map((c) => evaluate(atlas, target, c)), [state.guesses, atlas, target])
+  const max = MAX_GUESSES + (state.extra ?? 0)
   const won = state.guesses.includes(target)
-  const over = won || state.guesses.length >= MAX_GUESSES
+  const over = won || state.guesses.length >= max
   const facts = STATS.get(target)!
 
   function guess(code: string) {
     const win = code === target
     const n = state.guesses.length + 1
-    const over = win || n >= MAX_GUESSES
+    const over = win || n >= max
     const ms = elapsed()
-    const next = { guesses: [...state.guesses, code], ...(over ? { ms } : {}) }
+    const next = { ...state, guesses: [...state.guesses, code], ...(over ? { ms } : {}) }
     setState(next)
     if (storageKey) save(storageKey, next)
     if (!over) return
@@ -87,7 +92,7 @@ export default function Countryle({ mode }: { mode?: string }) {
   }
 
   async function share() {
-    const text = `Countryle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${MAX_GUESSES}\n${rows.map(shareLine).join('\n')}`
+    const text = `Countryle Expedle ${practice ? t('(partie libre)') : day} ${won ? state.guesses.length : 'X'}/${max}\n${rows.map(shareLine).join('\n')}`
     setToast((await copyText(text)) ? t('Résultat copié !') : t('Copie impossible'))
     setTimeout(() => setToast(''), 1800)
   }
@@ -113,9 +118,10 @@ export default function Countryle({ mode }: { mode?: string }) {
         {!over && (
           <>
             <p className="cy-count muted">
-              {t('Essai {n} sur {max}', { n: state.guesses.length + 1, max: MAX_GUESSES })}
+              {t('Essai {n} sur {max}', { n: state.guesses.length + 1, max })}
             </p>
             <CountryInput atlas={atlas} used={new Set(state.guesses)} onPick={guess} placeholder={t('Propose un pays…')} button={t('Deviner')} />
+            {jokers && max - state.guesses.length === 1 && <Joker id="joker:essai" onUse={() => setState({ ...state, extra: (state.extra ?? 0) + 1 })} />}
           </>
         )}
 
@@ -126,7 +132,7 @@ export default function Countryle({ mode }: { mode?: string }) {
             <span className="muted">
               {COUNTRY_BY_CODE.get(target)!.capital} · {t('{pop} d’habitants', { pop: formatPop(facts.pop) })} · {formatArea(facts.area)} · {formatGdp(facts.gdp)}
             </span>
-            <span className="muted">{won ? plural(state.guesses.length, 'Trouvé en {n} essai.', 'Trouvé en {n} essais.') : t('{n} essais, pas un de plus.', { n: MAX_GUESSES })}</span>
+            <span className="muted">{won ? plural(state.guesses.length, 'Trouvé en {n} essai.', 'Trouvé en {n} essais.') : t('{n} essais, pas un de plus.', { n: max })}</span>
             <div className="cy-actions">
               <button className="ui-btn" onClick={share}>
                 {t('Partager')}
@@ -148,12 +154,14 @@ export default function Countryle({ mode }: { mode?: string }) {
                 </a>
               )}
             </div>
-            <ChallengeBox
-              game="countryle"
-              path="/countryle"
-              seed={seed}
-              result={{ pts: score(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
-            />
+            {!state.extra && (
+              <ChallengeBox
+                game="countryle"
+                path="/countryle"
+                seed={seed}
+                result={{ pts: score(won, state.guesses.length), s: state.guesses.length, win: won, ms: state.ms }}
+              />
+            )}
           </section>
         )}
 

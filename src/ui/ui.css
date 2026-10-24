@@ -817,6 +817,35 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* un joker, discret : il ne se montre qu'au moment où il sert */
+.ui-joker {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+}
+
+.ui-joker:hover {
+  background: var(--hover);
+}
+
+.ui-joker span {
+  color: var(--or);
+  font-weight: 500;
+}
+
+.ui-joker small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 @media (max-width: 520px) {
   .ui-wallet {
     height: 36px;

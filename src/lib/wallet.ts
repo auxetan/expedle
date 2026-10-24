@@ -24,21 +24,40 @@ export function earnedOf(list: Play[]): number {
 export interface Purchase {
   id: string
   price: number
+  // un objet consommable (un joker) s'achète par lots de n, autant de fois qu'on veut
+  n?: number
 }
 
 export const loadPurchases = () => load<Purchase[]>('achats', [])
 
+// combien de fois on a déjà utilisé chaque objet consommable ; tenu à part pour que les achats gardent leur prix
+export const loadConsumed = () => load<Record<string, number>>('consommes', {})
+
 export const owns = (id: string) => loadPurchases().some((p) => p.id === id)
+
+export const stockOf = (id: string, bought = loadPurchases(), consumed = loadConsumed()) =>
+  bought.reduce((s, p) => s + (p.id === id ? (p.n ?? 0) : 0), 0) - (consumed[id] ?? 0)
 
 export const balanceOf = (list: Play[], bought: Purchase[]) => earnedOf(list) - bought.reduce((s, p) => s + p.price, 0)
 
 export const WALLET_CHANGED = 'cg:wallet'
 
-// Achète un objet si on ne l'a pas déjà et qu'on peut le payer.
-export function buy(id: string, price: number): boolean {
+const changed = () => globalThis.dispatchEvent?.(new Event(WALLET_CHANGED))
+
+// Achète un objet si on ne l'a pas déjà et qu'on peut le payer ; un lot de `n` consommables, lui, se rachète.
+export function buy(id: string, price: number, n?: number): boolean {
   const bought = loadPurchases()
-  if (bought.some((p) => p.id === id) || balanceOf(plays(), bought) < price) return false
-  save('achats', [...bought, { id, price }])
-  globalThis.dispatchEvent?.(new Event(WALLET_CHANGED))
+  if ((!n && bought.some((p) => p.id === id)) || balanceOf(plays(), bought) < price) return false
+  save('achats', [...bought, n ? { id, price, n } : { id, price }])
+  changed()
+  return true
+}
+
+// Utilise un objet consommable, s'il en reste.
+export function consume(id: string): boolean {
+  if (stockOf(id) <= 0) return false
+  const consumed = loadConsumed()
+  save('consommes', { ...consumed, [id]: (consumed[id] ?? 0) + 1 })
+  changed()
   return true
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getWorld } from '../../geo/world'
-import { dailyTarget, hasFlag, revealOrder, score, targets, TILES, visibleTiles } from './game'
+import { dailyTarget, hasFlag, MAX_GUESSES, revealOrder, score, targets, TILES, visibleTiles } from './game'
 
 const world = getWorld()
 
@@ -25,5 +25,10 @@ describe('Flagle', () => {
   it('note de 100 au premier essai à 0 en cas d’échec', () => {
     expect(score(true, 1)).toBe(100)
     expect(score(false, 6)).toBe(0)
+  })
+
+  it('rend autant pour une victoire sur l’essai bonus d’un joker que sur le dernier essai', () => {
+    expect(score(true, MAX_GUESSES + 1)).toBe(score(true, MAX_GUESSES))
+    expect(score(true, MAX_GUESSES + 2)).toBeGreaterThan(0)
   })
 })

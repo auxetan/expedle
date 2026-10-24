@@ -36,4 +36,5 @@ export function visibleTiles(wrong: number, over: boolean): number {
   return over ? TILES : Math.min(TILES, 1 + wrong)
 }
 
-export const score = (won: boolean, guesses: number) => (won ? Math.round((100 * (MAX_GUESSES + 1 - guesses)) / MAX_GUESSES) : 0)
+// une victoire sur l'essai bonus d'un joker compte comme sur le dernier essai
+export const score = (won: boolean, guesses: number) => (won ? Math.round((100 * (MAX_GUESSES + 1 - Math.min(guesses, MAX_GUESSES))) / MAX_GUESSES) : 0)
