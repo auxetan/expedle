@@ -371,7 +371,7 @@
   padding: 8px 14px;
   font-size: 18px;
   color: var(--text);
-  animation: chip-in 0.35s ease-out;
+  animation: row-land 0.32s var(--spring);
 }
 
 .chip .n {
@@ -379,7 +379,9 @@
 }
 
 .chip .e {
+  display: inline-block;
   margin-left: 6px;
+  animation: tile-flip 0.26s var(--spring) 0.12s backwards;
 }
 
 .chip.off {
