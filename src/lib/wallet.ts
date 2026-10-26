@@ -2,23 +2,92 @@
 // quête du jour en offre davantage. On les dépense dans la boutique, pour des objets de tous les jeux. Elles ne s'achètent pas.
 // Le solde se recalcule depuis l'historique des parties, moins ce qu'ont coûté les achats.
 import { evaluate, levelOf, type Tier } from './achievements'
+import { msg } from './i18n'
 import { questRewards } from './quests'
-import { plays, type Play } from './stats'
-import { load, save } from './util'
+import { plays, victoryOf, type Play } from './stats'
+import { load, save, todayKey } from './util'
 
-export const playPepites = (p: Play) => 2 + Math.round(p.pts / 10) + (p.win ? 5 : 0)
+const WIN_PEPITES = 5
+
+const scorePepites = (p: Play) => 2 + Math.round(p.pts / 10)
+
+export const playPepites = (p: Play) => scorePepites(p) + (p.win ? WIN_PEPITES : 0)
+
+const COMBO_GAP = 30 * 60_000
+
+// +2 dès la 2e victoire d'affilée, puis 2 de plus à chacune, jusqu'à +10
+export const comboBonus = (combo: number) => (combo < 2 ? 0 : Math.min(10, 2 * (combo - 1)))
+
+export interface Extra {
+  combo: number
+  comboBonus: number
+  firstOfDay: number
+}
+
+// Ce que chaque partie rapporte en plus selon celles qui la précèdent (l'historique est rangé par date) : la première
+// de chaque jour compte double, et chaque victoire enchaînée à moins de 30 min de la précédente ajoute un bonus croissant.
+export function extrasOf(list: Play[]): Extra[] {
+  const days = new Set<string>()
+  let combo = 0
+  return list.map((p, i) => {
+    const prev = list[i - 1]
+    combo = victoryOf(p) ? (combo && p.t - prev.t <= COMBO_GAP ? combo + 1 : 1) : 0
+    const day = todayKey(new Date(p.t))
+    const first = !days.has(day)
+    days.add(day)
+    return { combo, comboBonus: comboBonus(combo), firstOfDay: first ? playPepites(p) : 0 }
+  })
+}
+
+// Le combo encore en cours à l'instant `now`, et ce que rapporterait la victoire suivante.
+export function comboNow(list: Play[], now = Date.now()): { combo: number; next: number } {
+  const last = list.at(-1)
+  const combo = last && now - last.t <= COMBO_GAP ? extrasOf(list).at(-1)!.combo : 0
+  return { combo, next: combo ? comboBonus(combo + 1) : 0 }
+}
 
 export const TIER_PEPITES: Record<Tier, number> = { bronze: 25, argent: 75, or: 200 }
 
 // à chaque niveau gagné
 export const LEVEL_PEPITES = 50
 
-export function earnedOf(list: Play[]): number {
+// les récompenses qui ne tiennent pas à une partie seule
+function bonuses(list: Play[]) {
   const progress = evaluate(list)
-  const level = levelOf(list, progress).level
-  const fromPlays = list.reduce((s, p) => s + playPepites(p), 0)
-  const fromAchievements = progress.filter((a) => a.unlocked).reduce((s, a) => s + TIER_PEPITES[a.tier], 0)
-  return fromPlays + fromAchievements + LEVEL_PEPITES * (level - 1) + questRewards(list)
+  return {
+    achievements: progress.filter((a) => a.unlocked).reduce((s, a) => s + TIER_PEPITES[a.tier], 0),
+    level: levelOf(list, progress).level,
+    quests: questRewards(list),
+  }
+}
+
+export function earnedOf(list: Play[]): number {
+  const { achievements, level, quests } = bonuses(list)
+  const extras = extrasOf(list).reduce((s, e) => s + e.comboBonus + e.firstOfDay, 0)
+  return list.reduce((s, p) => s + playPepites(p), 0) + extras + achievements + LEVEL_PEPITES * (level - 1) + quests
+}
+
+export interface Gain {
+  label: string
+  params?: Record<string, number>
+  n: number
+}
+
+// Ce qu'une partie vient de rapporter, source par source, à la suite de l'historique `before`.
+export function gainsOf(before: Play[], play: Play): Gain[] {
+  const was = bonuses(before)
+  const now = bonuses([...before, play])
+  const extra = extrasOf([...before, play]).at(-1)!
+  const gains: Gain[] = [
+    { label: msg('Partie'), n: scorePepites(play) },
+    { label: msg('Victoire'), n: play.win ? WIN_PEPITES : 0 },
+    { label: msg('Première partie du jour'), n: extra.firstOfDay },
+    { label: msg('Combo ×{n}'), params: { n: extra.combo }, n: extra.comboBonus },
+    { label: msg('Quête du jour'), n: now.quests - was.quests },
+    { label: msg('Succès'), n: now.achievements - was.achievements },
+    { label: msg('Niveau {n}'), params: { n: now.level }, n: LEVEL_PEPITES * (now.level - was.level) },
+  ]
+  return gains.filter((g) => g.n > 0)
 }
 
 // un achat garde son prix : changer les prix de la boutique ne touche pas aux soldes
