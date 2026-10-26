@@ -1,3 +1,5 @@
+@import './ui/motion.css';
+
 *,
 *::before,
 *::after {
@@ -193,11 +195,6 @@ a {
   animation: rise-in 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
 }
 
-/* retour tactile : le bouton s'enfonce légèrement sous le doigt */
-:is(.ui-tool, .ui-back, .ui-btn, .mg-cta, .qz-cta, .qz-opt, .gh-cat, .st-go, .big-teal, .pink, .itin-turn, .ghh-go, .stats-cta, .record):active:not(:disabled) {
-  transform: scale(0.97);
-}
-
 /* les enfants arrivent l'un après l'autre */
 .stagger > * {
   animation: rise-in 0.35s ease-out backwards;
@@ -357,19 +354,6 @@ a {
   from {
     opacity: 0;
   }
-}
-
-/* boutons de choix : un léger enfoncement au toucher, comme une touche */
-.qz-opt:active:not(:disabled),
-.tr-options button:active:not(:disabled),
-.wd-caps button:active:not(:disabled),
-.wd-flags button:active:not(:disabled),
-.ui-tool:active,
-.home-chip:active,
-.home-program-card:active,
-.home-teaser:active {
-  transform: scale(0.96);
-  transition: transform 0.08s;
 }
 
 /* chargement d'une page : trois points qui respirent */
