@@ -243,10 +243,6 @@
   filter: brightness(1.08);
 }
 
-.mg-cta:active {
-  transform: scale(0.98);
-}
-
 .mg-cta:disabled {
   opacity: 0.45;
   box-shadow: none;
