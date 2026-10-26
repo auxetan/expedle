@@ -14,6 +14,7 @@ import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
+import { feedbackScore } from '../../lib/feedback'
 
 export type Variant = 'objets' | 'geo' | '1000' | 'pop'
 
@@ -400,6 +401,7 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, challenge, onFi
 
   function lockIn() {
     setRevealed(true)
+    feedbackScore(score)
     setScores([...scores, score])
     setAnswers([...answers, answer])
     const maxH = Math.max(targetH, tgt.heightUnits)
