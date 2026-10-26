@@ -59,7 +59,24 @@
 .wd-row.filled {
   border-style: solid;
   background: var(--card);
-  animation: rise-in 0.3s ease-out;
+  animation: row-land 0.32s var(--spring);
+}
+
+/* les cases se retournent l'une après l'autre ; les lignes vides n'ont pas d'animation */
+.wd-row.filled > span {
+  animation: tile-flip 0.26s var(--spring) backwards;
+}
+
+.wd-row.filled > :nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.wd-row.filled > :nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.wd-row.filled > :nth-child(4) {
+  animation-delay: 150ms;
 }
 
 .wd-row span {
