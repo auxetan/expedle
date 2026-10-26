@@ -27,6 +27,15 @@ export function recordPlay(g: string, detail: Omit<Play, 'g' | 't'>): void {
   globalThis.dispatchEvent?.(new CustomEvent<Play>(PLAYED, { detail: play }))
 }
 
+export type Victory = 'parfait' | 'victoire' | 'bravo'
+
+// Une partie qui mérite d'être fêtée : gagnée, ou bien réussie dans un jeu qui ne se gagne pas.
+export function victoryOf(p: Play): Victory | null {
+  if (p.win === false) return null
+  if (p.pts >= 95) return 'parfait'
+  if (p.win) return 'victoire'
+  return p.pts >= 60 ? 'bravo' : null
+}
 
 // Durée écoulée depuis le début de la partie, relancée quand `reset` change.
 export function useStopwatch(reset?: unknown): () => number {
@@ -99,6 +108,14 @@ export function summarize(list: Play[], now = new Date()): Summary {
   for (const [g, n] of perGame) if (!favorite || n > perGame.get(favorite)!) favorite = g
 
   return { total: list.length, points, ms, days: byDay.size, streak, bestStreak, byDay, bestDay, weekdays, hours, favorite }
+}
+
+// La série que fait grandir une partie, si c'est la première de son jour.
+export function streakStep(before: Play[], play: Play): { from: number; to: number } | null {
+  const day = dayOf(play.t)
+  if (before.some((p) => dayOf(p.t) === day)) return null
+  const now = new Date(play.t)
+  return { from: summarize(before, now).streak, to: summarize([...before, play], now).streak }
 }
 
 export function playStats(): { total: number; streak: number } {
