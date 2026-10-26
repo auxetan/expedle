@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { evaluate, levelOf } from './achievements'
-import { questRewards } from './quests'
+import { questRewards, questsOf } from './quests'
 import type { Play } from './stats'
-import { balanceOf, buy, consume, earnedOf, LEVEL_PEPITES, loadPurchases, loadUses, mergeWallets, owns, playPepites, stockOf, TIER_PEPITES } from './wallet'
+import { balanceOf, buy, comboNow, consume, earnedOf, extrasOf, gainsOf, LEVEL_PEPITES, loadPurchases, loadUses, mergeWallets, owns, playPepites, stockOf, TIER_PEPITES } from './wallet'
 
 const play = (p: Partial<Play> = {}): Play => ({ g: 'worldle', t: new Date('2026-10-20T12:00:00').getTime(), pts: 0, ...p })
 
@@ -25,7 +25,8 @@ describe('pépites', () => {
     const fromAchievements = progress.filter((a) => a.unlocked).reduce((s, a) => s + TIER_PEPITES[a.tier], 0)
     expect(fromAchievements).toBeGreaterThan(0)
     const level = levelOf(list, progress).level
-    expect(earnedOf(list)).toBe(17 + 6 + fromAchievements + LEVEL_PEPITES * (level - 1) + questRewards(list))
+    // la première partie du jour compte double
+    expect(earnedOf(list)).toBe(17 * 2 + 6 + fromAchievements + LEVEL_PEPITES * (level - 1) + questRewards(list))
   })
 
   it('se dépensent au prix payé, même si la boutique change ses prix ensuite', () => {
@@ -41,6 +42,85 @@ describe('pépites', () => {
     expect(buy('avatar:🐉', 5)).toBe(false)
     expect(owns('avatar:🐉')).toBe(true)
     expect(loadPurchases()).toMatchObject([{ id: 'avatar:🐉', price: 5 }])
+  })
+})
+
+describe('gains d’une partie', () => {
+  const total = (gains: { n: number }[]) => gains.reduce((s, g) => s + g.n, 0)
+  const level = (list: Play[]) => levelOf(list, evaluate(list)).level
+
+  it('détaillent tout ce que la partie fait gagner, ligne par ligne', () => {
+    const before = [play({ pts: 80 }), play({ g: 'quiz', pts: 90 })]
+    const last = play({ pts: 100, win: true })
+    const gains = gainsOf(before, last)
+    expect(gains.slice(0, 2)).toEqual([
+      { label: 'Partie', n: 12 },
+      { label: 'Victoire', n: 5 },
+    ])
+    expect(total(gains)).toBe(earnedOf([...before, last]) - earnedOf(before))
+  })
+
+  it('ne parlent pas de victoire quand la partie est perdue', () => {
+    const gains = gainsOf([play({ pts: 80 })], play({ pts: 30, win: false }))
+    expect(gains.map((g) => g.label)).not.toContain('Victoire')
+    expect(gains[0]).toEqual({ label: 'Partie', n: 5 })
+  })
+
+  it('nomment le niveau atteint', () => {
+    const before = Array.from({ length: 6 }, () => play({ g: 'quiz', pts: 60 }))
+    const last = play({ g: 'quiz', pts: 100 })
+    const after = level([...before, last])
+    expect(after).toBeGreaterThan(level(before))
+    expect(gainsOf(before, last)).toContainEqual({ label: 'Niveau {n}', params: { n: after }, n: LEVEL_PEPITES * (after - level(before)) })
+  })
+
+  it('comptent la quête du jour qu’elle vient de remplir', () => {
+    const quest = questsOf('2026-10-20').find((q) => q.id.startsWith('jeu:'))!
+    const last = play({ g: quest.id.slice(4) })
+    expect(gainsOf([], last)).toContainEqual({ label: 'Quête du jour', n: quest.reward })
+  })
+})
+
+describe('bonus d’enchaînement', () => {
+  const MIN = 60_000
+  const t0 = new Date('2026-10-20T12:00:00').getTime()
+  const at = (min: number, p: Partial<Play> = {}) => play({ t: t0 + min * MIN, pts: 80, win: true, ...p })
+  const combos = (list: Play[]) => extrasOf(list).map((e) => e.combo)
+  const bonuses = (list: Play[]) => extrasOf(list).map((e) => e.comboBonus)
+
+  it('font grimper le combo à chaque victoire enchaînée, +2 de plus à chaque fois, jusqu’à +10', () => {
+    const list = Array.from({ length: 7 }, (_, i) => at(i * 10))
+    expect(combos(list)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(bonuses(list)).toEqual([0, 2, 4, 6, 8, 10, 10])
+  })
+
+  it('cassent le combo après une défaite ou plus de 30 minutes sans jouer', () => {
+    expect(combos([at(0), at(10), at(20, { win: false }), at(30)])).toEqual([1, 2, 0, 1])
+    expect(combos([at(0), at(10), at(41)])).toEqual([1, 2, 1])
+  })
+
+  it('comptent un bon score comme une victoire dans les jeux qui ne se gagnent pas', () => {
+    expect(combos([at(0, { win: undefined, pts: 70 }), at(5, { win: undefined, pts: 40 }), at(9, { win: undefined, pts: 95 })])).toEqual([1, 0, 1])
+  })
+
+  it('doublent la première partie de chaque jour', () => {
+    const list = [at(0, { pts: 50, win: false }), at(10, { pts: 50, win: false }), at(24 * 60, { pts: 50, win: false })]
+    expect(extrasOf(list).map((e) => e.firstOfDay)).toEqual([playPepites(list[0]), 0, playPepites(list[2])])
+  })
+
+  it('apparaissent dans les gains de la partie', () => {
+    const before = [at(0), at(10)]
+    const gains = gainsOf(before, at(20))
+    expect(gains).toContainEqual({ label: 'Combo ×{n}', params: { n: 3 }, n: 4 })
+    expect(gains.map((g) => g.label)).not.toContain('Première partie du jour')
+    expect(gainsOf([], at(0))).toContainEqual({ label: 'Première partie du jour', n: playPepites(at(0)) })
+  })
+
+  it('disent le combo encore vivant, et ce que vaudra la prochaine victoire', () => {
+    const list = [at(0), at(10)]
+    expect(comboNow(list, t0 + 15 * MIN)).toEqual({ combo: 2, next: 4 })
+    expect(comboNow(list, t0 + 45 * MIN)).toEqual({ combo: 0, next: 0 })
+    expect(comboNow([...list, at(20, { win: false })], t0 + 21 * MIN)).toEqual({ combo: 0, next: 0 })
   })
 })
 
