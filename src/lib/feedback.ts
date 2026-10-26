@@ -49,39 +49,102 @@ function rustle(ctx: AudioContext) {
   source.start()
 }
 
-function play(cue: Cue) {
+function context(): AudioContext | null {
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-  if (!AC) return
+  if (!AC) return null
   audio ??= new AC()
   // un navigateur garde le son suspendu tant que la page n'a pas reçu de geste
   if (audio.state === 'suspended') void audio.resume()
-  if (cue === 'page') return rustle(audio)
+  return audio
+}
+
+// gamme pentatonique, en demi-tons
+const PENTATONIC = [0, 2, 4, 7, 9]
+
+// un cran de la gamme par niveau, jusqu'à l'octave
+const lift = (level: number) => {
+  const s = Math.max(0, Math.min(level, 5))
+  return 2 ** ((12 * Math.floor(s / 5) + PENTATONIC[s % 5]) / 12)
+}
+
+function play(cue: Cue, level: number) {
+  const ctx = context()
+  if (!ctx) return
+  if (cue === 'page') return rustle(ctx)
   const { notes, step, wave, gain } = SOUNDS[cue]
-  const t0 = audio.currentTime
+  const pitch = cue === 'good' || cue === 'tap' ? lift(level) : 1
+  const t0 = ctx.currentTime
   notes.forEach((freq, i) => {
-    const osc = audio!.createOscillator()
-    const amp = audio!.createGain()
+    const osc = ctx.createOscillator()
+    const amp = ctx.createGain()
     osc.type = wave
-    osc.frequency.value = freq
+    osc.frequency.value = freq * pitch
     const start = t0 + i * step
     amp.gain.setValueAtTime(0, start)
     amp.gain.linearRampToValueAtTime(gain, start + 0.01)
     amp.gain.exponentialRampToValueAtTime(0.0001, start + step * 2.2)
-    osc.connect(amp).connect(audio!.destination)
+    osc.connect(amp).connect(ctx.destination)
     osc.start(start)
     osc.stop(start + step * 2.4)
   })
 }
 
-export function feedback(cue: Cue): void {
+// Une pépite qui tombe dans le solde : une note de cloche (un partiel inharmonique lui donne son timbre de métal),
+// un cran plus aiguë à chaque pépite, et la dernière qui résonne.
+export function coin(i: number, last = false): void {
+  if (typeof window === 'undefined') return
+  const settings = feedbackSettings()
+  if (settings.haptics) navigator.vibrate?.(last ? [14] : [4])
+  if (!settings.sound) return
+  try {
+    const ctx = context()
+    if (!ctx) return
+    const step = Math.min(i, 9)
+    const freq = 880 * 2 ** ((12 * Math.floor(step / 5) + PENTATONIC[step % 5]) / 12)
+    const t0 = ctx.currentTime
+    const decay = last ? 0.9 : 0.25
+    for (const [ratio, gain] of [
+      [1, 0.045],
+      [2.76, 0.012],
+    ]) {
+      const osc = ctx.createOscillator()
+      const amp = ctx.createGain()
+      osc.frequency.value = freq * ratio
+      amp.gain.setValueAtTime(0, t0)
+      amp.gain.linearRampToValueAtTime(gain, t0 + 0.004)
+      amp.gain.exponentialRampToValueAtTime(0.0001, t0 + decay)
+      osc.connect(amp).connect(ctx.destination)
+      osc.start(t0)
+      osc.stop(t0 + decay + 0.05)
+    }
+  } catch {
+    // pas de son possible ici : la pépite arrive en silence
+  }
+}
+
+// les bonnes réponses d'affilée au bout d'une liste de résultats
+export function runOf(oks: boolean[]): number {
+  let n = 0
+  while (n < oks.length && oks[oks.length - 1 - n]) n++
+  return n
+}
+
+// `level` fait monter la note d'une bonne réponse ou d'un « tap » : les bonnes réponses d'affilée, ou la proximité
+export function feedback(cue: Cue, level = 0): void {
   if (typeof window === 'undefined') return
   const settings = feedbackSettings()
   try {
-    if (settings.sound) play(cue)
+    if (settings.sound) play(cue, level)
   } catch {
     // pas de son possible ici : le jeu continue en silence
   }
   if (settings.haptics) navigator.vibrate?.(VIBRATIONS[cue])
+}
+
+// Le son d'une manche notée de 0 à 100 : d'autant plus aigu que la réponse est juste.
+export function feedbackScore(score: number): void {
+  if (score >= 80) feedback('good', Math.round((score - 80) / 5))
+  else feedback(score >= 40 ? 'tap' : 'bad')
 }
 
 // la vibration seule, pour un jeu qui joue ses propres sons
