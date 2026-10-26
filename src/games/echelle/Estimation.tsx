@@ -11,6 +11,7 @@ import MgShell, { HelpStep, MgHelp } from './MgShell'
 import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import './mg.css'
 import { locale, plural, t } from '../../lib/i18n'
+import { feedbackScore } from '../../lib/feedback'
 
 export function magnitudeError(guess: number, answer: number): number {
   return Math.abs(Math.log10(Math.max(guess, 1e-9) / answer))
@@ -281,6 +282,7 @@ function Survival() {
     const loss = Math.round(magnitudeError(guess, q.a) * 10) / 10
     const newLife = Math.max(0, Math.round((life - loss) * 10) / 10)
     setLast({ guess, loss })
+    if (newLife > 0) feedbackScore(Math.round(100 * (1 - loss)))
     setLife(newLife)
     setPhase('feedback')
     setTimeout(() => {
