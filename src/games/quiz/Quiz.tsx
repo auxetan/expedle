@@ -12,7 +12,7 @@ import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './ba
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
-import { feedback } from '../../lib/feedback'
+import { feedback, runOf } from '../../lib/feedback'
 
 type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
 
@@ -146,7 +146,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
     if (picked !== null) return
     const remaining = Math.max(0, TIME - (performance.now() - t0.current))
     const ok = opt === item.answer
-    feedback(ok ? 'good' : 'bad')
+    feedback(ok ? 'good' : 'bad', runOf(results))
     if (ok && item.code) stamp(item.code, 'quiz-' + kind)
     const pts = ok ? 100 + Math.round((remaining / TIME) * 100) : 0
     setPicked(opt)
