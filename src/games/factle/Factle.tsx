@@ -12,6 +12,7 @@ import CountryInput from '../../ui/CountryInput'
 import { mark, MAX_TRIES, question, score, SIZE, type Mark } from './game'
 import './factle.css'
 import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 interface Saved {
   tries: string[][]
@@ -62,7 +63,8 @@ export default function Factle({ mode }: { mode?: string }) {
     stamp(attempt.filter((code, i) => mark(q, i, code) === 'exact'), 'factle')
     // les bonnes places restent, le reste se rejoue
     setSlots(attempt.map((code, i) => (mark(q, i, code) === 'exact' ? code : null)))
-    if (!done) return
+    const exact = attempt.filter((code, i) => mark(q, i, code) === 'exact').length
+    if (!done) return feedback(exact ? 'good' : 'bad', exact - 1)
     const total = score(win, tries.length, attempt.filter((code, i) => mark(q, i, code) === 'exact').length)
     if (!practice && !dailyResult('factle', day)) saveDailyResult('factle', { won: win, tries: tries.length }, day)
     recordPlay('factle', { pts: total, s: tries.length, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
