@@ -23,6 +23,7 @@ import {
 } from './model'
 import './jetpunk.css'
 import { msg, plural, t, tx } from '../../lib/i18n'
+import { feedback } from '../../lib/feedback'
 
 const minutes = (s: number) => (s < 60 ? `${s} s` : `${Math.round(s / 60)} min`)
 const shareLink = (q: TableQuiz) => `${location.origin}${location.pathname}#/jetpunk/partage?d=${encodeQuiz(q)}`
@@ -184,6 +185,8 @@ function QuizPlay({ quiz, shared }: { quiz: TableQuiz; shared?: boolean }) {
   const [phase, setPhase] = useState<Phase>('ready')
   const [found, setFound] = useState<Set<number>>(new Set())
   const [fresh, setFresh] = useState<Set<number>>(new Set())
+  // les réponses trouvées coup sur coup (moins de 4 s d'écart) font monter la note
+  const streak = useRef({ n: 0, at: 0 })
   const [value, setValue] = useState('')
   const [startAt, setStartAt] = useState(0)
   const [now, setNow] = useState(0)
@@ -245,6 +248,9 @@ function QuizPlay({ quiz, shared }: { quiz: TableQuiz; shared?: boolean }) {
     const hits = matchAnswer(quiz, v, found)
     if (!hits.length) return setValue(v)
     const next = new Set([...found, ...hits])
+    const now = Date.now()
+    streak.current = { n: now - streak.current.at < 4000 ? streak.current.n + 1 : 0, at: now }
+    if (next.size < total) feedback('good', streak.current.n)
     setFound(next)
     setFresh(new Set(hits))
     setValue('')
