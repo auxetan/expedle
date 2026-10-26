@@ -8,7 +8,7 @@ import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import { deck as makeDeck, DECK, fits, LIVES, score, sorted } from './game'
 import './wikitrivia.css'
-import { feedback } from '../../lib/feedback'
+import { feedback, runOf } from '../../lib/feedback'
 
 interface Saved {
   // pour chaque carte jouée, dans l'ordre du paquet : bien placée ou non
@@ -41,7 +41,7 @@ export default function Wikitrivia({ mode }: { mode?: string }) {
   function place(index: number) {
     if (!current) return
     const ok = fits(timeline, index, current)
-    feedback(ok ? 'good' : 'bad')
+    feedback(ok ? 'good' : 'bad', runOf(state.results))
     const results = [...state.results, ok]
     const done = results.filter((r) => !r).length >= LIVES || results.length >= DECK - 1
     const ms = elapsed()
