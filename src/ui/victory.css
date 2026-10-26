@@ -1,0 +1,313 @@
+/* Le moment d'une victoire (Victory.tsx) : une pépite, un chiffre, puis les pépites qui rejoignent le solde */
+.vic {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  font-family: var(--font);
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* une fois l'éclat lancé, la page redevient visible et cliquable sous les pépites en vol */
+.vic.burst {
+  pointer-events: none;
+}
+
+.vic-bg {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: fade-in 0.35s ease-out;
+  transition: opacity 0.5s ease;
+}
+
+.vic.burst .vic-bg {
+  opacity: 0;
+}
+
+.vic-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vic-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.vic-hero {
+  position: relative;
+  width: 144px;
+  height: 144px;
+}
+
+/* lueur et ondes, plus grandes que la pépite, centrées sur elle */
+.vic-hero > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+
+.vic-nugget {
+  position: absolute;
+  inset: 8px;
+}
+
+.vic-nugget {
+  width: 128px;
+  height: 128px;
+  overflow: visible;
+  filter: drop-shadow(0 12px 20px color-mix(in srgb, var(--or) 22%, transparent));
+  animation: vic-drop 0.8s 0.1s ease-out backwards;
+}
+
+/* un reflet traverse la pépite une fois posée */
+.vic-shine {
+  fill: #fff;
+  opacity: 0.5;
+  animation: vic-shine 0.9s 0.75s ease-in-out both;
+}
+
+.vic-glow {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--or) 26%, transparent), transparent);
+  animation: vic-glow 1.4s 0.2s ease-out backwards;
+  transition: opacity 0.4s;
+}
+
+.vic-ring,
+.vic-pop {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1.5px solid var(--or);
+  opacity: 0;
+}
+
+/* l'onde part à l'instant où la pépite touche le sol */
+.vic-ring {
+  animation: vic-ring 1.1s 0.48s cubic-bezier(0.15, 0.7, 0.3, 1);
+}
+
+.vic-ring.late {
+  animation-delay: 0.68s;
+}
+
+.vic-pop {
+  width: 56px;
+  height: 56px;
+  border-width: 2px;
+}
+
+.vic.burst .vic-pop {
+  animation: vic-ring 0.45s ease-out;
+}
+
+.vic.burst .vic-nugget {
+  animation: vic-shatter 0.2s ease-in forwards;
+}
+
+.vic.burst .vic-glow {
+  opacity: 0;
+}
+
+.vic-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+
+.vic.burst .vic-copy {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.vic-title {
+  margin: 20px 0 6px;
+  font-size: 20px;
+  font-weight: 500;
+  animation: rise-in 0.45s 0.3s backwards;
+}
+
+.vic-total {
+  font-size: clamp(56px, 17vw, 76px);
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--or);
+  font-variant-numeric: tabular-nums;
+  animation: rise-in 0.45s 0.4s backwards;
+}
+
+.vic-rows {
+  display: grid;
+  gap: 7px;
+  width: min(220px, 70vw);
+  margin: 22px 0 0;
+  font-size: 14px;
+}
+
+.vic-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* chaque ligne a sa place d'avance, pour que rien ne bouge quand elle arrive */
+.vic-rows div:not(.on) {
+  visibility: hidden;
+}
+
+.vic-rows .on {
+  animation: rise-in 0.3s ease-out backwards;
+}
+
+.vic-rows dt {
+  color: var(--muted);
+}
+
+.vic-rows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* le solde de secours, à la place de celui de la barre quand il est caché */
+.vic-wallet {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 18px;
+  background: var(--bg);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.vic.burst .vic-wallet {
+  opacity: 1;
+}
+
+.vic.burst.over .vic-wallet {
+  opacity: 0;
+}
+
+@keyframes vic-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.55) rotate(-20deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(1.1, 0.92) rotate(3deg);
+  }
+  72% {
+    transform: translateY(-4px) scale(0.97, 1.03) rotate(-1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes vic-shine {
+  to {
+    transform: translateX(36px);
+  }
+}
+
+@keyframes vic-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes vic-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@keyframes vic-shatter {
+  to {
+    opacity: 0;
+    transform: scale(0.2) rotate(12deg);
+  }
+}
+
+/* La série qui grandit (StreakToast, dans Celebrations.tsx), dans l'annonce des succès */
+.ach-toast.streak .ach-badge {
+  --tier: var(--orange);
+}
+
+.ach-toast.streak svg {
+  animation: streak-flame 0.55s 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ach-toast.out {
+  animation: streak-out 0.3s ease-in forwards;
+}
+
+.streak-roll {
+  display: inline-block;
+  height: 1.25em;
+  line-height: 1.25em;
+  overflow: hidden;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+
+.streak-reel {
+  display: flex;
+  flex-direction: column;
+  animation: streak-reel 0.45s 0.9s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.streak-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@keyframes streak-reel {
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes streak-flame {
+  50% {
+    transform: scale(1.3) rotate(-6deg);
+  }
+}
+
+@keyframes streak-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
