@@ -12,6 +12,7 @@ import { emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 import { t, tx } from '../../lib/i18n'
+import { feedbackScore } from '../../lib/feedback'
 
 const ROUNDS = 3
 
@@ -94,6 +95,7 @@ export default function Balance({ date }: { date?: string | null }) {
   function lock() {
     if (!valid) return
     setRevealed(true)
+    feedbackScore(score)
     setScores([...scores, score])
     setAnswers([...answers, q])
   }
