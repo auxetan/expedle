@@ -1463,4 +1463,5 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Inarrêtable": ["Unstoppable", "Imparable", "Unaufhaltsam", "Inarrestabile", "Imparável"],
   "Légendaire": ["Legendary", "Legendario", "Legendär", "Leggendario", "Lendário"],
   "Oups": ["Oops", "Uy", "Hoppla", "Ops", "Ups"],
+  "Vie : {n}": ["Life: {n}", "Vida: {n}", "Leben: {n}", "Vita: {n}", "Vida: {n}"],
 }
