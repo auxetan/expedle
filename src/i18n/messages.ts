@@ -1464,4 +1464,10 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Légendaire": ["Legendary", "Legendario", "Legendär", "Leggendario", "Lendário"],
   "Oups": ["Oops", "Uy", "Hoppla", "Ops", "Ups"],
   "Vie : {n}": ["Life: {n}", "Vida: {n}", "Leben: {n}", "Vita: {n}", "Vida: {n}"],
+  "Connecte-toi pour te classer parmi les joueurs du jour": ["Sign in to rank among today’s players", "Inicia sesión para clasificarte entre los jugadores del día", "Melde dich an, um dich unter den Spielern des Tages einzureihen", "Accedi per classificarti tra i giocatori del giorno", "Inicia sessão para te classificares entre os jogadores do dia"],
+  "du jour": ["today", "de hoy", "heute", "di oggi", "de hoje"],
+  "Tu mènes le classement du jour": ["You lead today’s leaderboard", "Lideras la clasificación del día", "Du führst die Tageswertung an", "Sei in testa alla classifica del giorno", "Lideras a classificação do dia"],
+  "Encore {n} pts pour passer {rank}": ["{n} more pts to move up to {rank}", "{n} pts más para pasar a {rank}", "Noch {n} Pkt. bis Platz {rank}", "Ancora {n} pt per passare {rank}", "Mais {n} pts para passares a {rank}"],
+  "À égalité avec {name}, départagés au chrono": ["Tied with {name}, split by time", "Empatado con {name}, decide el tiempo", "Punktgleich mit {name}, die Zeit entscheidet", "A pari con {name}, decide il tempo", "Empatado com {name}, decide o tempo"],
+  "{rank} cette semaine": ["{rank} this week", "{rank} esta semana", "{rank} diese Woche", "{rank} questa settimana", "{rank} esta semana"],
 }
