@@ -4,6 +4,7 @@ import { readChallenge, type Result as Outcome } from '../../lib/challenge'
 import { go } from '../../lib/router'
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
 import Joker from '../../ui/Joker'
 import type { EstimateQuestion } from './estimates'
 import { estimationBank } from './estimationBank'
@@ -12,6 +13,7 @@ import NumberInput, { formatNumber, parseNumber } from './NumberInput'
 import './mg.css'
 import { locale, plural, t } from '../../lib/i18n'
 import { feedbackScore } from '../../lib/feedback'
+import { roundStep, type Step } from '../../lib/hud'
 
 export function magnitudeError(guess: number, answer: number): number {
   return Math.abs(Math.log10(Math.max(guess, 1e-9) / answer))
@@ -237,6 +239,8 @@ function Survival() {
   const [deck, setDeck] = useState<ReturnType<typeof estimationBank>>([])
   const [i, setI] = useState(0)
   const [life, setLife] = useState(10)
+  // chaque réponse, notée comme une manche, pour la traîne du bandeau
+  const [steps, setSteps] = useState<Step[]>([])
   const [value, setValue] = useState('')
   const [left, setLeft] = useState(TIME)
   const [last, setLast] = useState<{ guess: number; loss: number } | null>(null)
@@ -267,6 +271,7 @@ function Survival() {
     setOutcome(null)
     setI(0)
     setLife(10)
+    setSteps([])
     setValue('')
     setLast(null)
     setJokered(false)
@@ -282,6 +287,7 @@ function Survival() {
     const loss = Math.round(magnitudeError(guess, q.a) * 10) / 10
     const newLife = Math.max(0, Math.round((life - loss) * 10) / 10)
     setLast({ guess, loss })
+    setSteps((s) => [...s, roundStep(Math.round(100 * (1 - loss)))])
     if (newLife > 0) feedbackScore(Math.round(100 * (1 - loss)))
     setLife(newLife)
     setPhase('feedback')
@@ -324,14 +330,14 @@ function Survival() {
   return (
     <MgShell title="Survival Mode" help={<SurvivalHelp />}>
       <section className="dq">
-        <div className="sv-bar">
-          <span className="sv-q">{t('QUESTION {n}', { n: phase === 'idle' ? 1 : i + 1 })}</span>
-          {phase !== 'idle' && phase !== 'over' && (
-            <div className="sv-timer">
-              <div style={{ width: `${(left / TIME) * 100}%` }} />
-            </div>
-          )}
-          <span className="sv-life">♥ {life.toLocaleString(locale(), { minimumFractionDigits: 1 })}</span>
+        <div className="sv-hud">
+          <GameHud
+            steps={phase === 'play' ? [...steps, null] : steps}
+            trail={10}
+            label={t('QUESTION {n}', { n: phase === 'idle' ? 1 : i + 1 })}
+            gauge={{ value: life, max: Math.max(10, life) }}
+            time={phase === 'play' || phase === 'feedback' ? { left, total: TIME } : undefined}
+          />
         </div>
 
         {phase === 'idle' && (
