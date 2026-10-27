@@ -1,7 +1,7 @@
 import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
 import { coin } from '../lib/feedback'
-import { fmt, locale, t, tx } from '../lib/i18n'
+import { fmt, locale, ordinal, t, tx } from '../lib/i18n'
 import { plays, summarize } from '../lib/stats'
 import { dailyProgram, NEW_GAMES, playIds, PROGRAM_SIZE, suggest } from '../lib/suggest'
 import { load, save, todayKey, weekKey } from '../lib/util'
@@ -10,6 +10,7 @@ import { dailyStatus } from '../ui/daily'
 import GameIcon from '../ui/GameIcon'
 import { ALL_GAMES, familiesOf, GAME_SECTIONS, type GameEntry } from '../ui/games'
 import Mascot, { type Mood } from '../ui/Mascot'
+import { useWeekRank } from '../ui/useWeekRank'
 import { isDoneToday, loadProfile } from '../ui/Panels'
 import './hub.css'
 
@@ -88,6 +89,7 @@ export default function Hub() {
   const played = new Set(history.map((p) => p.g))
   const hello = greeting(new Date(now).getHours())
   const [mood, setMood] = useState<Mood>('calme')
+  const weekRank = useWeekRank()
 
   // Pépite sourit et tinte quand on la touche
   function poke() {
@@ -121,7 +123,11 @@ export default function Hub() {
                 {' · '}
               </>
             )}
-            <a href="#/stats">{t('Statistiques')}</a> · <a href="#/passeport">{t('Passeport')}</a> · <a href="#/classements">{t('Classements')}</a> ·{' '}
+            <a href="#/stats">{t('Statistiques')}</a> · <a href="#/passeport">{t('Passeport')}</a> · <a href="#/classements">
+              {t('Classements')}
+              {weekRank && <small className="home-rank"> {ordinal(weekRank)}</small>}
+            </a>{' '}
+            ·{' '}
             <a href="#/defis">{t('Défis')}</a>
           </p>
         </section>
