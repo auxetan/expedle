@@ -657,46 +657,10 @@
   font-style: italic;
 }
 
-.sv-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.sv-hud {
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
   margin-bottom: 26px;
-}
-
-.sv-q {
-  font-family: var(--font);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  letter-spacing: 0.15em;
-  color: var(--muted);
-}
-
-.sv-timer {
-  flex: 1;
-  height: 6px;
-  background: var(--line);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.sv-timer div {
-  height: 100%;
-  background: var(--red);
-  transition: width 0.1s linear;
-}
-
-.sv-life {
-  margin-left: auto;
-  font-family: var(--font);
-  font-variant-numeric: tabular-nums;
-  color: var(--target);
-  background: var(--hover);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
 }
 
 .sv-start {
