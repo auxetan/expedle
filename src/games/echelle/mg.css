@@ -65,22 +65,10 @@
   margin: 26px 0 14px;
 }
 
-.mg-counter {
-  display: flex;
-  justify-content: center;
-  gap: 36px;
-  font-family: var(--font);
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  letter-spacing: 0.15em;
-  color: var(--muted);
-  margin-bottom: 22px;
-}
-
-.mg-counter b {
-  font-size: 19px;
-  color: var(--fg);
-  margin: 0 4px;
+.mg-hud {
+  max-width: 720px;
+  margin: 0 auto 12px;
+  padding: 0 16px;
 }
 
 .mg-board {
