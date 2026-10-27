@@ -4,6 +4,8 @@ import { newSeed, readChallenge } from '../../lib/challenge'
 import { go } from '../../lib/router'
 import { seededRng, shuffle, todayKey } from '../../lib/util'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
+import { roundStep } from '../../lib/hud'
 import { WEIGHTS, type WeightItem } from './estimates'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
 import MgSummary, { recordTotal } from './MgSummary'
@@ -143,9 +145,8 @@ export default function Balance({ date }: { date?: string | null }) {
       }
     >
       <p className="mg-sub">{t('Équilibre la référence avec le bon nombre d’objets.')}</p>
-      <div className="mg-counter">
-        <span>{tx('MANCHE {n} / {total}', { n: <b>{index + 1}</b>, total: ROUNDS })}</span>
-        <span>{tx('SCORE {score}', { score: <b>{total}</b> })}</span>
+      <div className="mg-hud">
+        <GameHud steps={Array.from({ length: ROUNDS }, (_, k) => (k < scores.length ? roundStep(scores[k]) : null))} label={t('MANCHE {n} / {total}', { n: index + 1, total: ROUNDS })} score={total} />
       </div>
       <div className="mg-board bal-board">
         <svg viewBox="0 0 900 400" width="100%" style={{ display: 'block' }}>
