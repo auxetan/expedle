@@ -816,7 +816,6 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Plus tu es proche en ordre de grandeur, plus tu marques (jusqu’à 100 points par manche).": ["The closer your order of magnitude, the more you score (up to 100 points per round).", "Cuanto más te acerques en orden de magnitud, más puntos (hasta 100 por ronda).", "Je näher du an der Größenordnung liegst, desto mehr Punkte (bis zu 100 pro Runde).", "Più sei vicino come ordine di grandezza, più punti fai (fino a 100 per round).", "Quanto mais perto ficares em ordem de grandeza, mais pontos fazes (até 100 por ronda)."],
   "Équilibre la référence avec le bon nombre d’objets.": ["Balance the reference with the right number of objects.", "Equilibra la referencia con el número correcto de objetos.", "Gleiche die Referenz mit der richtigen Anzahl Objekte aus.", "Bilancia il riferimento con il giusto numero di oggetti.", "Equilibra a referência com o número certo de objetos."],
   "MANCHE {n} / {total}": ["ROUND {n} / {total}", "RONDA {n} / {total}", "RUNDE {n} / {total}", "ROUND {n} / {total}", "RONDA {n} / {total}"],
-  "SCORE {score}": ["SCORE {score}", "PUNTOS {score}", "PUNKTE {score}", "PUNTI {score}", "PONTOS {score}"],
   "Ta réponse : {answer}": ["Your answer: {answer}", "Tu respuesta: {answer}", "Deine Antwort: {answer}", "La tua risposta: {answer}", "A tua resposta: {answer}"],
   "Réel : {real}": ["Actual: {real}", "Real: {real}", "Tatsächlich: {real}", "Reale: {real}", "Real: {real}"],
   "Quantité…": ["Quantity…", "Cantidad…", "Menge…", "Quantità…", "Quantidade…"],
@@ -1459,4 +1458,9 @@ export const MESSAGES: Record<string, [string, string, string, string, string]> 
   "Pépites": ["Nuggets", "Pepitas", "Nuggets", "Pepite", "Pepitas"],
   "Boutique et quêtes du jour": ["Shop and daily quests", "Tienda y misiones del día", "Shop und Tagesquests", "Negozio e missioni del giorno", "Loja e missões do dia"],
   "Réglages de ce jeu": ["This game’s settings", "Ajustes de este juego", "Einstellungen dieses Spiels", "Impostazioni di questo gioco", "Definições deste jogo"],
+  "Pépite": ["Nugget", "Pepita", "Nugget", "Pepita", "Pepita"],
+  "Ça chauffe": ["Heating up", "Esto se calienta", "Es wird heiß", "Si scalda", "Está a aquecer"],
+  "Inarrêtable": ["Unstoppable", "Imparable", "Unaufhaltsam", "Inarrestabile", "Imparável"],
+  "Légendaire": ["Legendary", "Legendario", "Legendär", "Leggendario", "Lendário"],
+  "Oups": ["Oops", "Uy", "Hoppla", "Ops", "Ups"],
 }
