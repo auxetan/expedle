@@ -328,6 +328,12 @@
 }
 
 /* une famille de jeux dans une rubrique, sous un petit titre */
+/* le rang de la semaine, à côté du lien vers les classements */
+.home-rank {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .home-family + .home-family {
   margin-top: 22px;
 }
