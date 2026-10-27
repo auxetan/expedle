@@ -80,6 +80,11 @@
   color: var(--muted);
 }
 
+/* la teinte de la rubrique du jeu suivant, rapprochée du texte : la teinte seule passe sous 4,5:1 en thème clair */
+.ng[data-tint] .ng-text small {
+  color: color-mix(in oklab, var(--rubrique) 70%, var(--fg));
+}
+
 .ng-text b {
   font-size: 21px;
   font-weight: 500;
