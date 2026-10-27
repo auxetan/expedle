@@ -4,6 +4,7 @@ import { addFriend, challengeBoard, myFriends, sendChallenge, submitChallenge, u
 import { plural, t } from '../lib/i18n'
 import { copyText } from '../lib/util'
 import { gameInfo } from './gameInfo'
+import DailyRank from './DailyRank'
 import NextGame from './NextGame'
 import { loadProfile } from './Panels'
 
@@ -27,7 +28,7 @@ interface Props {
   result: Result
 }
 
-// Fin de partie : le jeu à enchaîner, puis comparer avec les autres joueurs du défi et lancer un défi sur ce même tirage.
+// Fin de partie : le rang du jour, le jeu à enchaîner, puis comparer avec les autres joueurs du défi et lancer un défi sur ce même tirage.
 export default function ChallengeBox({ game, path, seed, result }: Props) {
   const account = useAccount()
   const [challenge] = useState(() => {
@@ -111,6 +112,7 @@ export default function ChallengeBox({ game, path, seed, result }: Props) {
   const bare = !(board && board.length > 0) && !(rival && !board) && !friends
   return (
     <>
+      <DailyRank game={game} />
       <NextGame />
       <section className={bare ? 'ch-box bare' : 'ch-box'}>
         {board && board.length > 0 && (
