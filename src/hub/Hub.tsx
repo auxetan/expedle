@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
+import { coin } from '../lib/feedback'
 import { fmt, locale, t, tx } from '../lib/i18n'
 import { plays, summarize } from '../lib/stats'
 import { dailyProgram, NEW_GAMES, playIds, PROGRAM_SIZE, suggest } from '../lib/suggest'
@@ -8,6 +9,7 @@ import AppBar from '../ui/AppBar'
 import { dailyStatus } from '../ui/daily'
 import GameIcon from '../ui/GameIcon'
 import { ALL_GAMES, familiesOf, GAME_SECTIONS, type GameEntry } from '../ui/games'
+import Mascot, { type Mood } from '../ui/Mascot'
 import { isDoneToday, loadProfile } from '../ui/Panels'
 import './hub.css'
 
@@ -85,13 +87,26 @@ export default function Hub() {
 
   const played = new Set(history.map((p) => p.g))
   const hello = greeting(new Date(now).getHours())
+  const [mood, setMood] = useState<Mood>('calme')
+
+  // Pépite sourit et tinte quand on la touche
+  function poke() {
+    setMood('joie')
+    coin(4, true)
+    window.setTimeout(() => setMood('calme'), 1400)
+  }
 
   return (
     <div className="home">
       <AppBar home />
       <main className="home-main">
         <section className="home-intro">
-          <h1>{name ? t('{hello} {name}.', { hello, name }) : `${hello}.`}</h1>
+          <div className="home-hello">
+            <button onClick={poke} aria-label={t('Pépite')}>
+              <Mascot mood={mood} size={46} />
+            </button>
+            <h1>{name ? t('{hello} {name}.', { hello, name }) : `${hello}.`}</h1>
+          </div>
           <a href="#/succes" className="home-level" aria-label={t('Niveau {n}, {title} : voir mes succès', { n: level.level, title: t(level.title) })}>
             <b>
               <Roll from={last?.level} to={level.level} delay={1200} />
@@ -158,7 +173,7 @@ export default function Hub() {
           </section>
 
         {GAME_SECTIONS.map((section) => (
-          <section key={section.label} className="home-section">
+          <section key={section.label} className="home-section" data-tint={section.tint}>
             <h2>{t(section.label)}</h2>
             {familiesOf(section.games).map((f) => (
               <div key={f.family ?? section.label} className="home-family">
