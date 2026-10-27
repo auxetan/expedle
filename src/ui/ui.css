@@ -30,6 +30,32 @@
   text-align: center;
 }
 
+/* la teinte d'une rubrique (data-tint, voir games.ts) : un repère, jamais un aplat ; l'or reste aux pépites */
+[data-tint='teal'] {
+  --rubrique: var(--teal);
+}
+
+[data-tint='orange'] {
+  --rubrique: var(--orange);
+}
+
+[data-tint='rose'] {
+  --rubrique: var(--rose);
+}
+
+/* le point de la rubrique : devant le titre du jeu, et devant les rubriques du menu Jeux */
+[data-tint] .ui-bar-title::before,
+.ui-game-section[data-tint] h4::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--rubrique);
+  vertical-align: 0.15em;
+}
+
 /* toujours dans la dernière colonne, même quand la barre n'a pas de titre (l'accueil) */
 .ui-bar-right {
   grid-column: 3;
