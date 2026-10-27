@@ -382,6 +382,11 @@
   margin-left: auto;
 }
 
+.ui-row-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* le menu Profil : qui tu es, en tête */
 .ui-me {
   display: flex;
