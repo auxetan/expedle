@@ -6,6 +6,7 @@ import { feedback } from '../lib/feedback'
 import { plays, PLAYED, streakStep, victoryOf, type Play } from '../lib/stats'
 import { gainsOf } from '../lib/wallet'
 import { setFlying } from './Pepites'
+import { Flame } from './Mascot'
 import Victory, { type Win } from './Victory'
 
 interface Toast {
@@ -19,15 +20,6 @@ interface Toast {
 let next = 0
 
 type Moment = { kind: 'victoire'; win: Win } | { kind: 'serie'; from: number; to: number }
-
-function Flame() {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
-      <path d="M12 2.5c.8 3 4.5 5.3 4.5 10a4.5 4.5 0 0 1-9 0c0-2.2 1-3.8 2.3-4.8.1 1.5.8 2.5 1.8 2.9-.3-3.2.1-5.8.4-8.1z" fill="var(--orange)" />
-      <path d="M12 13.2c1 .9 1.8 2 1.8 3.3a1.8 1.8 0 0 1-3.6 0c0-1.2.8-2.3 1.8-3.3z" fill="var(--or)" />
-    </svg>
-  )
-}
 
 // La série qui grandit avec la première partie du jour : le chiffre roule d'un cran, la flamme se ravive.
 function StreakToast({ from, to, onDone }: { from: number; to: number; onDone: () => void }) {
