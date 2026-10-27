@@ -333,7 +333,7 @@ export function GamesPanel({ onPick }: { onPick: () => void }) {
       )}
       {sections.length === 0 && <p className="ui-note">{t('Aucun jeu ne correspond à « {query} ».', { query })}</p>}
       {sections.map((s) => (
-        <div key={s.label} className="ui-game-section">
+        <div key={s.label} className="ui-game-section" data-tint={s.tint}>
           <h4>{t(s.label)}</h4>
           {familiesOf(s.games).map((f) => (
             <div key={f.family ?? s.label} className="ui-game-family">
