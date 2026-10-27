@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cloudEnabled, dailyBoard, pointsBoard, useAccount, type DailyRow, type PointsRow } from '../lib/cloud'
-import { load, save, todayKey } from '../lib/util'
+import { load, save, todayKey, weekStart } from '../lib/util'
 import AppBar, { SubLink } from '../ui/AppBar'
 import { gameInfo } from '../ui/gameInfo'
 import GameIcon from '../ui/GameIcon'
@@ -27,11 +27,6 @@ function clock(ms: number | null): string {
   if (ms === null) return ''
   const s = Math.round(ms / 1000)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
-
-// Lundi 0 h, heure locale.
-function weekStart(now = new Date()): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
 }
 
 function Rank({ rank }: { rank: number }) {
