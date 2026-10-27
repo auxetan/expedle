@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
 import AccountBox from './Account'
-import { LANGS, plural, setLang, t, useLang } from '../lib/i18n'
+import { LANGS, ordinal, plural, setLang, t, useLang } from '../lib/i18n'
 import { dailyResult, plays, summarize } from '../lib/stats'
 import { load, normalize, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
@@ -12,6 +12,7 @@ import { feedback, feedbackSettings, saveFeedbackSettings, type FeedbackSettings
 import InstallButton from './InstallButton'
 import { Pepites, useWallet } from './Pepites'
 import { PREMIUM_AVATARS } from './shop'
+import { useWeekRank } from './useWeekRank'
 
 export interface Profile {
   name: string
@@ -97,6 +98,7 @@ export function ProfilePanel({ onChange, onPick, extra, focus }: { onChange?: (p
   const [editing, setEditing] = useState(false)
   const settingsRef = useRef<HTMLElement>(null)
   const { owned, balance } = useWallet()
+  const weekRank = useWeekRank()
   // les avatars offerts, puis ceux achetés dans la boutique
   const avatars = [...AVATARS, ...PREMIUM_AVATARS.map(([a]) => a).filter((a) => owned.has(`avatar:${a}`))]
   const history = plays()
@@ -169,7 +171,13 @@ export function ProfilePanel({ onChange, onPick, extra, focus }: { onChange?: (p
       <Row href="#/stats" icon={ICONS.chart} label={t('Statistiques')} onPick={onPick} />
       <Row href="#/passeport" icon={ICONS.passport} label={t('Mon passeport')} onPick={onPick} />
       <h4>{t('Entre joueurs')}</h4>
-      <Row href="#/classements" icon={ICONS.podium} label={t('Classements')} onPick={onPick} />
+      <Row
+        href="#/classements"
+        icon={ICONS.podium}
+        label={t('Classements')}
+        end={weekRank && <small className="ui-row-note">{t('{rank} cette semaine', { rank: ordinal(weekRank) })}</small>}
+        onPick={onPick}
+      />
       <Row href="#/defis" icon={ICONS.swords} label={t('Défis entre amis')} onPick={onPick} />
       <h4>{t('Pépites')}</h4>
       <Row href="#/boutique" icon={ICONS.bag} label={t('Boutique et quêtes du jour')} end={<Pepites n={balance} />} onPick={onPick} />
