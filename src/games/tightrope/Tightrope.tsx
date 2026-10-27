@@ -6,6 +6,7 @@ import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../li
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
 import { pickQuestions } from '../quiz/bank'
 import './tightrope.css'
 import { feedback, runOf } from '../../lib/feedback'
@@ -95,10 +96,11 @@ export default function Tightrope({ mode }: { mode?: string }) {
             {fell ? '💥' : over ? '🏁' : '🤸'}
           </i>
         </div>
-        <div className="tr-hud">
-          <span>{t('Question {n} / {total}', { n: Math.min(shown + 1, STEPS), total: STEPS })}</span>
-          <span aria-label={t('{n} vies', { n: lives })}>{Array.from({ length: LIVES }, (_, i) => (i < lives ? '❤️' : '🤍')).join('')}</span>
-        </div>
+        <GameHud
+          steps={Array.from({ length: STEPS }, (_, k) => (k < state.answers.length ? state.answers[k] === items[k].a : null))}
+          label={t('Question {n} / {total}', { n: Math.min(shown + 1, STEPS), total: STEPS })}
+          lives={{ left: lives, total: LIVES }}
+        />
 
         {!ended && (
           <section className="tr-card" key={item.id}>
