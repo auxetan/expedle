@@ -315,6 +315,18 @@
   margin-bottom: 14px;
 }
 
+/* le point de la rubrique, le même que devant le titre d'un jeu (ui.css) */
+.home-section[data-tint] h2::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--rubrique);
+  vertical-align: 0.15em;
+}
+
 /* une famille de jeux dans une rubrique, sous un petit titre */
 .home-family + .home-family {
   margin-top: 22px;
@@ -348,7 +360,7 @@
 }
 
 .home-card:hover {
-  border-color: var(--muted);
+  border-color: var(--rubrique, var(--muted));
   background: var(--hover);
 }
 
