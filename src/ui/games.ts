@@ -19,9 +19,17 @@ const PAYS = msg('Trouver le pays')
 const MONDE = msg('Explorer le monde')
 const CARTES = msg('Cartes')
 
-export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
+export interface GameSection {
+  label: string
+  // la teinte de la rubrique, un jeton de index.css posé en data-tint ; l'or reste aux pépites
+  tint: 'teal' | 'orange' | 'rose'
+  games: GameEntry[]
+}
+
+export const GAME_SECTIONS: GameSection[] = [
   {
     label: 'Géographie',
+    tint: 'teal',
     games: [
       { href: '#/itineraire', title: 'Travle', tagline: 'Relier deux pays par la terre', rhythm: 'quotidien', dailyId: 'itineraire', icon: 'travle', family: VOYAGER },
       { href: '#/itineraire/hebdo', title: 'Travle : défi hebdo', tagline: 'Un long trajet, chaque lundi', rhythm: 'hebdo', dailyId: 'itineraire-hebdo', weekly: true, icon: 'travle-hebdo', family: VOYAGER },
@@ -44,6 +52,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
   },
   {
     label: 'Magnitudle',
+    tint: 'orange',
     games: [
       { href: '#/echelle', title: 'Size It Up', tagline: 'La silhouette à sa vraie taille', rhythm: 'quotidien', dailyId: 'echelle-objets', icon: 'size-it-up' },
       { href: '#/echelle/pop', title: 'Size It Up : Pop Culture', tagline: 'La taille officielle des héros de fiction', rhythm: 'quotidien', dailyId: 'echelle-pop', icon: 'size-it-up-pop' },
@@ -56,6 +65,7 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
   },
   {
     label: 'Culture générale',
+    tint: 'rose',
     games: [
       { href: '#/quiz/jour', title: 'Quiz du jour', tagline: 'Dix questions, les mêmes pour tous', rhythm: 'quotidien', dailyId: 'quiz-jour', icon: 'quiz-jour' },
       { href: '#/factle', title: 'Factle', tagline: 'Les cinq premiers d’un classement, dans l’ordre', rhythm: 'quotidien', dailyId: 'factle', icon: 'factle' },
@@ -70,6 +80,16 @@ export const GAME_SECTIONS: { label: string; games: GameEntry[] }[] = [
 ]
 
 export const ALL_GAMES = GAME_SECTIONS.flatMap((s) => s.games)
+
+// La rubrique d'une page : celle du jeu dont l'adresse est le plus long préfixe du chemin (#/itineraire/usa avant #/itineraire).
+export function rubriqueOf(hash: string): GameSection | undefined {
+  const path = hash.split('?')[0]
+  let best: { section: GameSection; length: number } | undefined
+  for (const section of GAME_SECTIONS)
+    for (const { href } of section.games)
+      if ((path === href || path.startsWith(href + '/')) && href.length > (best?.length ?? 0)) best = { section, length: href.length }
+  return best?.section
+}
 
 // Les jeux d'une rubrique, regroupés par famille dans l'ordre où ils viennent.
 export function familiesOf(games: GameEntry[]): { family?: string; games: GameEntry[] }[] {
