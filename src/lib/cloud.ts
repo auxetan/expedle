@@ -260,6 +260,9 @@ function sync(full: boolean) {
   return queue
 }
 
+// Attend que les envois en cours soient faits : un classement lu ensuite compte la partie qu'on vient de finir.
+export const whenSynced = () => queue
+
 let started = false
 
 // Écoute la session (rétablie au chargement, ouverte par un code, fermée ailleurs) et envoie chaque partie terminée.
