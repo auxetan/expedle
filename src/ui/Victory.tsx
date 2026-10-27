@@ -1,11 +1,12 @@
 // Le moment d'une victoire : une pépite tombe au centre et le gain se compte, source par source ; puis elle éclate
 // en petites pépites qui filent se poser sur le solde de la barre du haut, qui les compte une à une.
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { coin } from '../lib/feedback'
 import { fmt, msg, plural, t } from '../lib/i18n'
 import type { Victory as Tier } from '../lib/stats'
 import type { Gain } from '../lib/wallet'
-import { barWallet, center, FACETS, fly, OUTLINE, shares } from './flight'
+import { barWallet, center, fly, shares } from './flight'
+import Mascot from './Mascot'
 import { Pepites, setFlying, useFlying, useWallet } from './Pepites'
 import './victory.css'
 
@@ -20,27 +21,9 @@ const TITLES: Record<Tier, string> = { parfait: msg('Parfait'), victoire: msg('V
 const COUNT_AT = 450
 const ROW_GAP = 260
 const HOLD = 600
+// l'instant où la pépite touche le sol, accordé à l'animation vic-drop
+const LANDING = 520
 const MAX_COINS = 14
-
-function Nugget() {
-  const clip = useId()
-  return (
-    <svg className="vic-nugget pepite-facets" viewBox="0 0 24 24" aria-hidden>
-      <clipPath id={clip}>
-        <path d={OUTLINE} />
-      </clipPath>
-      {FACETS.map((d, i) => (
-        <path key={i} d={d} className={`f${i}`} />
-      ))}
-      <g clipPath={`url(#${clip})`}>
-        <g transform="rotate(25 12 12)">
-          <rect className="vic-shine" x="-10" y="-6" width="5" height="36" />
-        </g>
-      </g>
-    </svg>
-  )
-}
-
 
 const easeOut = (k: number) => 1 - (1 - k) ** 3
 
@@ -51,6 +34,8 @@ export default function Victory({ win, onDone }: { win: Win; onDone: () => void 
   const [rows, setRows] = useState(0)
   const [burst, setBurst] = useState(false)
   const [over, setOver] = useState(false)
+  // Pépite tombe, surprise, et sourit en touchant le sol
+  const [landed, setLanded] = useState(false)
   const [shown, setShown] = useState(0)
   // sans solde visible (un téléphone où la barre porte les outils du jeu), les pépites rejoignent un solde à elles
   const [ownWallet] = useState(() => !barWallet())
@@ -71,6 +56,7 @@ export default function Victory({ win, onDone }: { win: Win; onDone: () => void 
   useEffect(() => {
     setFlying(total)
     const ids = win.gains.map((_, i) => window.setTimeout(() => setRows((r) => Math.max(r, i + 1)), COUNT_AT + i * ROW_GAP))
+    ids.push(window.setTimeout(() => setLanded(true), LANDING))
     ids.push(window.setTimeout(() => setBurst(true), COUNT_AT + win.gains.length * ROW_GAP + HOLD))
     return () => {
       ids.forEach(clearTimeout)
@@ -154,7 +140,7 @@ export default function Victory({ win, onDone }: { win: Win; onDone: () => void 
           <span className="vic-ring" />
           {win.tier === 'parfait' && <span className="vic-ring late" />}
           <span className="vic-pop" />
-          <Nugget />
+          <Mascot className="vic-nugget" mood={landed ? 'joie' : 'surprise'} shine />
         </div>
         <div className="vic-copy">
           <p className="vic-title">{t(TITLES[win.tier])}</p>
