@@ -7,6 +7,7 @@ import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/ut
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
+import GameHud from '../../ui/GameHud'
 import Joker from '../../ui/Joker'
 import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
@@ -297,47 +298,44 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
           )}
         </main>
       ) : (
-        <main className="qz-card" key={`${i}-${run}-${item.id}`}>
-          <div className="qz-head">
-            <span className="qz-kicker">
-              {t('QUESTION {n} / {total}', { n: i + 1, total: COUNT })} · {t(item.cat).toLocaleUpperCase(locale())}
-            </span>
-            <span className="qz-score">{t('{n} pts', { n: score })}</span>
+        <>
+          {/* hors de la carte, recréée à chaque question : le bandeau garde le fil de la partie */}
+          <div className="qz-hud">
+            <GameHud
+              steps={items.map((_, k) => (k < results.length ? results[k] : null))}
+              label={`${t('QUESTION {n} / {total}', { n: i + 1, total: COUNT })} · ${t(item.cat).toLocaleUpperCase(locale())}`}
+              score={score}
+              time={{ left, total: TIME }}
+            />
           </div>
-          <div className="qz-progress">
-            {items.map((_, k) => (
-              <span key={k} className={k < results.length ? (results[k] ? 'ok' : 'ko') : k === i ? 'now' : ''} />
-            ))}
-          </div>
-          <div className="qz-timer">
-            <div style={{ width: `${(left / TIME) * 100}%` }} className={left < 5000 ? 'low' : ''} />
-          </div>
-          <h2 className="qz-q">{item.q}</h2>
-          {item.big && <div className={kind === 'drapeaux' ? 'qz-big flag' : 'qz-big'}>{item.big}</div>}
-          <div className="qz-options stagger">
-            {item.options.map((opt, k) => {
-              const state =
-                picked === null ? '' : opt === item.answer ? 'right' : opt === picked ? 'wrong' : 'dim'
-              return (
-                <button key={opt} className={`qz-opt ${state}`} onClick={() => answer(opt)} disabled={picked !== null}>
-                  <span className="qz-letter">{letters[k]}</span>
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
-          {picked === null && jokers && <Joker id="joker:passe" onUse={skip} />}
-          {picked !== null && (
-            <div className="qz-feedback">
-              <span className={picked === item.answer ? 'qz-pill ok' : 'qz-pill ko'}>
-                {picked === item.answer ? t('Bonne réponse ! +{n}', { n: gain }) : picked === '' ? t('Temps écoulé !') : t('Raté !')}
-              </span>
-              <button className="qz-cta" onClick={next} autoFocus>
-                {i + 1 >= items.length ? t('Voir le score') : t('Question suivante →')}
-              </button>
+          <main className="qz-card" key={`${i}-${run}-${item.id}`}>
+            <h2 className="qz-q">{item.q}</h2>
+            {item.big && <div className={kind === 'drapeaux' ? 'qz-big flag' : 'qz-big'}>{item.big}</div>}
+            <div className="qz-options stagger">
+              {item.options.map((opt, k) => {
+                const state =
+                  picked === null ? '' : opt === item.answer ? 'right' : opt === picked ? 'wrong' : 'dim'
+                return (
+                  <button key={opt} className={`qz-opt ${state}`} onClick={() => answer(opt)} disabled={picked !== null}>
+                    <span className="qz-letter">{letters[k]}</span>
+                    {opt}
+                  </button>
+                )
+              })}
             </div>
-          )}
-        </main>
+            {picked === null && jokers && <Joker id="joker:passe" onUse={skip} />}
+            {picked !== null && (
+              <div className="qz-feedback">
+                <span className={picked === item.answer ? 'qz-pill ok' : 'qz-pill ko'}>
+                  {picked === item.answer ? t('Bonne réponse ! +{n}', { n: gain }) : picked === '' ? t('Temps écoulé !') : t('Raté !')}
+                </span>
+                <button className="qz-cta" onClick={next} autoFocus>
+                  {i + 1 >= items.length ? t('Voir le score') : t('Question suivante →')}
+                </button>
+              </div>
+            )}
+          </main>
+        </>
       )}
     </div>
   )
