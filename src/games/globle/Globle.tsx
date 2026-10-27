@@ -14,6 +14,7 @@ import { dailyTarget, heat } from './game'
 import './globle.css'
 import { locale, plural, t } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 interface Saved {
   guesses: string[]
@@ -61,7 +62,12 @@ export default function Globle({ mode }: { mode?: string }) {
 
   function guess(code: string) {
     const guesses = [...state.guesses, code]
-    if (code !== target) return update({ ...state, guesses })
+    if (code !== target) {
+      const km = borderDistanceKm(atlas, code, target)
+      // plus c'est chaud, plus la note monte
+      feedback('tap', km < 500 ? 5 : km < 2000 ? 3 : km < 6000 ? 1 : 0)
+      return update({ ...state, guesses })
+    }
     const ms = elapsed()
     update({ ...state, guesses, ms })
     stamp(target, 'globle')

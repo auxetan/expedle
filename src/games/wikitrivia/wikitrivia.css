@@ -18,13 +18,6 @@
   gap: 14px;
 }
 
-.wt-hud {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 14px;
-}
-
 .wt-current {
   position: sticky;
   top: calc(64px + env(safe-area-inset-top, 0px));

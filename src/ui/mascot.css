@@ -1,0 +1,110 @@
+/* Pépite, la mascotte (Mascot.tsx) */
+.mascot {
+  display: inline-block;
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.mascot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: 50% 80%;
+}
+
+.mascot .mascot-eyes circle,
+.mascot .mascot-mouth {
+  fill: #2a2522;
+  stroke: none;
+}
+
+.mascot .mascot-line {
+  fill: none;
+  stroke: #2a2522;
+  stroke-opacity: 1;
+  stroke-width: 0.75;
+  stroke-linecap: round;
+}
+
+.mascot .mascot-line.thin {
+  stroke-width: 0.6;
+}
+
+/* un clignement de temps en temps, pour qu'elle ait l'air vivante */
+.mascot .mascot-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-blink 5s 1.2s infinite;
+}
+
+.mascot .mascot-shine {
+  fill: #fff;
+  opacity: 0.5;
+}
+
+/* changer d'humeur rejoue le geste qui va avec */
+.mascot .joie {
+  animation: mascot-hop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mascot .rate {
+  animation: mascot-wobble 0.5s ease-in-out;
+}
+
+.mascot .surprise {
+  animation: mascot-pop 0.3s ease-out;
+}
+
+/* l'accueil : Pépite à côté du bonjour, qu'on peut toucher */
+.home-hello {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-hello button {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: none;
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes mascot-hop {
+  40% {
+    transform: translateY(-14%) scale(1.06, 0.96);
+  }
+  70% {
+    transform: scale(0.97, 1.03);
+  }
+}
+
+@keyframes mascot-wobble {
+  20% {
+    transform: rotate(-9deg);
+  }
+  45% {
+    transform: rotate(7deg);
+  }
+  70% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes mascot-pop {
+  from {
+    transform: scale(0.9);
+  }
+}

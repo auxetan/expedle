@@ -58,7 +58,7 @@ export default function GeoGrid({ mode }: { mode?: string }) {
     // un pays déjà placé n'use pas d'essai : c'est une étourderie, pas une erreur
     if (result === 'used') return setMessage(MESSAGES.used())
     const cells = [...state.cells]
-    feedback(result === 'ok' ? 'good' : 'bad')
+    feedback(result === 'ok' ? 'good' : 'bad', state.cells.filter(Boolean).length)
     if (result === 'ok') {
       stamp(code, 'geogrid')
       cells[active] = code

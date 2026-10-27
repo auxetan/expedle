@@ -136,6 +136,8 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const [clicks, setClicks] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [flash, setFlash] = useState<{ code: string; kind: 'wrong' | 'right' } | null>(null)
+  // les pays trouvés du premier coup d'affilée, qui font monter la note
+  const run = useRef(0)
   const [hover, setHover] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Set<string>>(new Set())
   const learning = mode === 'apprendre'
@@ -242,7 +244,8 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   }
 
   function resolve(status: Target['status']) {
-    feedback(status === 'fail' ? 'bad' : 'good')
+    feedback(status === 'fail' ? 'bad' : 'good', run.current)
+    run.current = status === 'fail' ? 0 : run.current + 1
     if (status !== 'fail') stamp(current, 'cartographe')
     const t = targets.get(current)!
     const next = new Map(targets)
@@ -256,6 +259,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
 
   function miss(code?: string) {
     feedback('tap')
+    run.current = 0
     const t = targets.get(current)!
     const tries = t.tries + 1
     const next = new Map(targets)

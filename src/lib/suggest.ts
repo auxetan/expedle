@@ -94,3 +94,12 @@ export function dailyProgram(games: GameEntry[], history: Play[], done: (g: Game
   save(key, picked.map((g) => g.href))
   return picked
 }
+
+// Le jeu à enchaîner après une partie : le premier du programme du jour pas encore fait, sinon la meilleure
+// suggestion ; jamais celui qu'on vient de finir.
+export function nextGame(games: GameEntry[], history: Play[], done: (g: GameEntry) => boolean, now = Date.now()): Suggestion | undefined {
+  const program = dailyProgram(games, history, done, now)
+  const last = history.at(-1)
+  const picks = suggest(games, history, done, now).filter((s) => !last || !playIds(s.game).includes(last.g))
+  return picks.find((s) => program.includes(s.game) && !done(s.game)) ?? picks[0]
+}

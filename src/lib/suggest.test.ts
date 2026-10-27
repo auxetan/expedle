@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
 import type { Play } from './stats'
-import { dailyProgram, playIds, PROGRAM_SIZE, suggest } from './suggest'
+import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, suggest } from './suggest'
 
 const NOW = new Date(2026, 9, 18, 15).getTime()
 const game = (href: string) => ALL_GAMES.find((g) => g.href === href)!
@@ -47,5 +47,23 @@ describe('suggestions', () => {
     expect(first.every((g) => g.dailyId && !g.weekly)).toBe(true)
     const later = dailyProgram(ALL_GAMES, [play('worldle', 0)], (g) => g.href === first[0].href, NOW + 3600000)
     expect(later.map((g) => g.href)).toEqual(first.map((g) => g.href))
+  })
+
+  it('enchaîne sur le programme du jour, jamais sur le jeu qu’on vient de finir', () => {
+    const history = [play('worldle', 0.1)]
+    const done = (g: { href: string }) => g.href === '#/worldle'
+    const program = dailyProgram(ALL_GAMES, history, done, NOW)
+    const next = nextGame(ALL_GAMES, history, done, NOW)!
+    expect(next.game.href).not.toBe('#/worldle')
+    expect(program).toContain(next.game)
+  })
+
+  it('propose encore un jeu quand le programme est terminé', () => {
+    const history = [play('worldle', 0.1)]
+    const program = dailyProgram(ALL_GAMES, history, () => false, NOW)
+    const done = (g: { href: string }) => program.some((p) => p.href === g.href)
+    const next = nextGame(ALL_GAMES, history, done, NOW)!
+    expect(program).not.toContain(next.game)
+    expect(next.game.href).not.toBe('#/worldle')
   })
 })

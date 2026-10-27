@@ -206,6 +206,14 @@
   font-size: 20px;
 }
 
+.gh-cat-result > * {
+  animation: tile-flip 0.26s var(--spring) backwards;
+}
+
+.gh-cat-result > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
 .gh-rank {
   font-size: 14px;
   border-radius: 8px;

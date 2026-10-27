@@ -30,7 +30,35 @@
   text-align: center;
 }
 
+/* la teinte d'une rubrique (data-tint, voir games.ts) : un repère, jamais un aplat ; l'or reste aux pépites */
+[data-tint='teal'] {
+  --rubrique: var(--teal);
+}
+
+[data-tint='orange'] {
+  --rubrique: var(--orange);
+}
+
+[data-tint='rose'] {
+  --rubrique: var(--rose);
+}
+
+/* le point de la rubrique : devant le titre du jeu, et devant les rubriques du menu Jeux */
+[data-tint] .ui-bar-title::before,
+.ui-game-section[data-tint] h4::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--rubrique);
+  vertical-align: 0.15em;
+}
+
+/* toujours dans la dernière colonne, même quand la barre n'a pas de titre (l'accueil) */
 .ui-bar-right {
+  grid-column: 3;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -76,6 +104,25 @@
   display: grid;
   place-items: center;
   font-size: 17px;
+}
+
+/* sur grand écran, le menu dit ce qu'il contient */
+.ui-menu span {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .ui-tool.ui-menu {
+    width: auto;
+    display: flex;
+    gap: 8px;
+    padding: 0 14px 0 12px;
+    border-radius: 999px;
+    font-size: 14px;
+  }
+  .ui-menu span {
+    display: inline;
+  }
 }
 
 .ui-subnav {
@@ -239,30 +286,6 @@
   border-color: var(--fg);
 }
 
-.ui-figures {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.ui-figures div {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.ui-figures b {
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--fg);
-}
-
 .ui-seg {
   display: inline-flex;
   flex-wrap: wrap;
@@ -319,6 +342,156 @@
 
 .ui-game-section h4 {
   margin-top: 20px;
+}
+
+.ui-game-family h5 {
+  margin: 12px 0 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* la recherche du menu Jeux */
+.ui-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin: 0 0 14px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+}
+
+.ui-search:focus-within {
+  border-color: var(--muted);
+}
+
+.ui-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-size: 15px;
+}
+
+.ui-row-end {
+  margin-left: auto;
+}
+
+.ui-row-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* le menu Profil : qui tu es, en tête */
+.ui-me {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ui-me-avatar {
+  flex: none;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 30px;
+}
+
+.ui-me-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui-me-text b {
+  font-size: 19px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-me-text b.empty {
+  color: var(--muted);
+}
+
+.ui-me-text small {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ui-me-level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.ui-me-level > i {
+  flex: 1;
+  max-width: 110px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.ui-me-level > i > i {
+  display: block;
+  height: 100%;
+  background: var(--fg);
+}
+
+.ui-me-edit {
+  flex: none;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.ui-me-form {
+  margin-top: 18px;
+}
+
+.ui-me-account {
+  margin-top: 24px;
+}
+
+.ui-me-settings {
+  scroll-margin-top: 12px;
+}
+
+.ui-me-settings h4 {
+  margin-top: 28px;
+}
+
+/* les réglages du jeu en cours, en tête des réglages du site */
+.ui-extra {
+  margin-bottom: 22px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ui-extra h5 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .ui-game-row {
@@ -475,15 +648,6 @@
   .ui-bar-right {
     gap: 6px;
   }
-}
-
-.ui-stats-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-  text-decoration: none;
 }
 
 /* Saisie d'un pays avec autocomplétion (Worldle, Globle) */

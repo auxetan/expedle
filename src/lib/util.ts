@@ -35,6 +35,11 @@ export function todayKey(d = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
+// Lundi 0 h, heure locale.
+export function weekStart(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
+}
+
 export function weekKey(d = new Date()): string {
   const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
   const dayNum = t.getUTCDay() || 7

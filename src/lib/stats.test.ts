@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calendarWeeks, gameRecords, summarize, type Play } from './stats'
+import { calendarWeeks, gameRecords, streakStep, summarize, victoryOf, type Play } from './stats'
 
 const at = (day: string, hour = 12, extra: Partial<Play> = {}): Play => ({
   g: 'quiz-culture',
@@ -67,5 +67,34 @@ describe('calendarWeeks', () => {
     expect(weeks[2][4]).toBe('2026-10-16')
     expect(weeks[2][5]).toBeNull()
     expect(weeks[2][6]).toBeNull()
+  })
+})
+
+describe('victoryOf', () => {
+  it('fête toute partie gagnée, et la parfaite plus encore', () => {
+    expect(victoryOf(at('2026-10-16', 12, { win: true, pts: 20 }))).toBe('victoire')
+    expect(victoryOf(at('2026-10-16', 12, { win: true, pts: 100 }))).toBe('parfait')
+    expect(victoryOf(at('2026-10-16', 12, { win: false, pts: 70 }))).toBeNull()
+  })
+
+  it('fête un bon score dans les jeux sans victoire', () => {
+    expect(victoryOf(at('2026-10-16', 12, { pts: 59 }))).toBeNull()
+    expect(victoryOf(at('2026-10-16', 12, { pts: 60 }))).toBe('bravo')
+    expect(victoryOf(at('2026-10-16', 12, { pts: 95 }))).toBe('parfait')
+  })
+})
+
+describe('streakStep', () => {
+  it('fait grandir la série avec la première partie du jour', () => {
+    const before = [at('2026-10-14'), at('2026-10-15')]
+    expect(streakStep(before, at('2026-10-16', 9))).toEqual({ from: 2, to: 3 })
+  })
+
+  it('ne dit rien des parties suivantes du même jour', () => {
+    expect(streakStep([at('2026-10-15'), at('2026-10-16', 9)], at('2026-10-16', 15))).toBeNull()
+  })
+
+  it('repart de 1 après un jour sans partie', () => {
+    expect(streakStep([at('2026-10-13'), at('2026-10-14')], at('2026-10-16'))).toEqual({ from: 0, to: 1 })
   })
 })

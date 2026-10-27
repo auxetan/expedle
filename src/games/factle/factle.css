@@ -50,7 +50,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  animation: rise-in 0.3s ease-out;
+  animation: row-land 0.32s var(--spring);
 }
 
 .fc-chip {
@@ -63,6 +63,23 @@
   border: 1px solid var(--line);
   background: var(--card);
   min-width: 0;
+  animation: tile-flip 0.26s var(--spring) backwards;
+}
+
+.fc-chip:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.fc-chip:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.fc-chip:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.fc-chip:nth-child(5) {
+  animation-delay: 160ms;
 }
 
 .fc-chip > span {

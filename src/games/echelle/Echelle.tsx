@@ -4,6 +4,8 @@ import { readChallenge, type Result } from '../../lib/challenge'
 import { go } from '../../lib/router'
 import { hashString, load, save, seededRng, shuffle, todayKey, weekKey } from '../../lib/util'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
+import { roundStep } from '../../lib/hud'
 import { loadGeoShapes, type GeoShape } from './geoItems'
 import { OBJECTS, POP_ITEMS, WEEKLY_THEMES, type Dim, type ObjectItem } from './items'
 import MgShell, { HelpStep, MgHelp } from './MgShell'
@@ -14,6 +16,7 @@ import { drawingBox, emojiSilhouette } from './silhouette'
 import { cssColor, useTheme } from '../../ui/theme'
 import './mg.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
+import { feedbackScore } from '../../lib/feedback'
 
 export type Variant = 'objets' | 'geo' | '1000' | 'pop'
 
@@ -400,6 +403,7 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, challenge, onFi
 
   function lockIn() {
     setRevealed(true)
+    feedbackScore(score)
     setScores([...scores, score])
     setAnswers([...answers, answer])
     const maxH = Math.max(targetH, tgt.heightUnits)
@@ -468,9 +472,8 @@ function Game({ title, subtitle, variant, rounds, daily, dayKey, challenge, onFi
       {summary && result && <ChallengeBox game={challenge.game} path={challenge.path} seed={challenge.seed} result={result} />}
       {summary ? null : (
         <>
-      <div className="mg-counter">
-        <span>{tx('MANCHE {n} / {total}', { n: <b>{index + 1}</b>, total: ROUNDS })}</span>
-        <span>{tx('SCORE {score}', { score: <b>{total}</b> })}</span>
+      <div className="mg-hud">
+        <GameHud steps={rounds.map((_, k) => (k < scores.length ? roundStep(scores[k]) : null))} label={t('MANCHE {n} / {total}', { n: index + 1, total: ROUNDS })} score={total} />
       </div>
 
       <div className="mg-board" ref={boxRef} onWheel={onWheel}>

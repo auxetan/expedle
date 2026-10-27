@@ -1,0 +1,54 @@
+/* Les pépites à facettes (la grosse du moment de victoire, les petites en vol) et leur vol (flight.ts) */
+.pepite-facets {
+  --pepite: var(--or);
+}
+
+/* l'or du thème clair, plus sombre pour le texte, s'éclaircit ici pour garder l'éclat du métal */
+:root[data-theme='clair'] .pepite-facets {
+  --pepite: color-mix(in srgb, var(--or), #fff 22%);
+}
+
+.pepite-facets path {
+  stroke: var(--bg);
+  stroke-opacity: 0.25;
+  stroke-width: 0.22;
+  stroke-linejoin: round;
+}
+
+.pepite-facets .f0 {
+  fill: color-mix(in srgb, var(--pepite), #fff 38%);
+}
+
+.pepite-facets .f1 {
+  fill: color-mix(in srgb, var(--pepite), #fff 16%);
+}
+
+.pepite-facets .f2 {
+  fill: var(--pepite);
+}
+
+.pepite-facets .f3 {
+  fill: color-mix(in srgb, var(--pepite), #000 32%);
+}
+
+.pepite-facets .f4 {
+  fill: color-mix(in srgb, var(--pepite), #000 14%);
+}
+
+/* au-dessus de tout, moment de victoire compris, et transparent aux clics */
+.flight {
+  position: fixed;
+  inset: 0;
+  z-index: 131;
+  pointer-events: none;
+}
+
+.flight-coin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  visibility: hidden;
+  will-change: transform;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}

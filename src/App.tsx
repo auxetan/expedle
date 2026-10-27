@@ -5,6 +5,7 @@ import Celebrations from './ui/Celebrations'
 import OfflineBadge from './ui/OfflineBadge'
 import { t, useLang } from './lib/i18n'
 import { useRoute } from './lib/router'
+import { rubriqueOf } from './ui/games'
 
 const Itineraire = lazy(() => import('./games/itineraire/Itineraire'))
 const Echelle = lazy(() => import('./games/echelle/Echelle'))
@@ -139,7 +140,8 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<div className="page-loading">{t('Chargement…')}</div>}>
-        <div className="page" key={`${lang}/${page ?? ''}/${sub ?? ''}`}>
+        {/* data-tint pose --rubrique (ui.css) : la teinte de la rubrique, repère de la page */}
+        <div className="page" key={`${lang}/${page ?? ''}/${sub ?? ''}`} data-tint={rubriqueOf(`#/${route.segments.join('/')}`)?.tint}>
           {content}
         </div>
       </Suspense>

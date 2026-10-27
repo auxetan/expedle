@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
-import { plural, t } from '../lib/i18n'
+import { coin } from '../lib/feedback'
+import { fmt, locale, ordinal, t, tx } from '../lib/i18n'
 import { plays, summarize } from '../lib/stats'
 import { dailyProgram, NEW_GAMES, playIds, PROGRAM_SIZE, suggest } from '../lib/suggest'
-import { normalize } from '../lib/util'
+import { load, save, todayKey, weekKey } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import { dailyStatus } from '../ui/daily'
 import GameIcon from '../ui/GameIcon'
-import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
-import { Icon, ICONS, isDoneToday, loadProfile } from '../ui/Panels'
+import { ALL_GAMES, familiesOf, GAME_SECTIONS, type GameEntry } from '../ui/games'
+import Mascot, { type Mood } from '../ui/Mascot'
+import { useWeekRank } from '../ui/useWeekRank'
+import { isDoneToday, loadProfile } from '../ui/Panels'
 import './hub.css'
 
 function greeting(hour: number): string {
@@ -18,19 +21,62 @@ function greeting(hour: number): string {
   return t('Bonsoir')
 }
 
+// Ce que l'accueil montrait à la dernière visite : au retour, seul ce qui a bougé depuis s'anime.
+interface LastView {
+  level: number
+  progress: number
+  streak: number
+  done: string[]
+}
+
+const LAST_VIEW = 'accueil-vu'
+const CASCADE = 'cg:accueil-cascade'
+
+// un jeu fini l'est pour sa journée, ou pour sa semaine s'il est hebdomadaire
+const doneKey = (g: GameEntry) => `${g.href}@${g.weekly ? weekKey() : todayKey()}`
+
+// Le nombre vu la dernière fois sort par le haut, le nouveau entre par le bas.
+function Roll({ from, to, delay }: { from?: number; to: number; delay: number }) {
+  const [rolling, setRolling] = useState(from !== undefined && from < to)
+  if (!rolling) return <>{fmt(to)}</>
+  return (
+    <span className="home-roll" style={{ '--delay': `${delay}ms` } as CSSProperties} onAnimationEnd={() => setRolling(false)}>
+      <span aria-hidden>{fmt(from!)}</span>
+      <span>{fmt(to)}</span>
+    </span>
+  )
+}
+
 export default function Hub() {
-  const [searching, setSearching] = useState(false)
-  const [query, setQuery] = useState('')
-  const searchRef = useRef<HTMLInputElement>(null)
   const [now] = useState(() => Date.now())
   const history = useMemo(() => plays(), [])
   const { streak } = summarize(history)
   const level = levelOf(history, evaluate(history))
+  const progress = level.into / level.need
   const name = loadProfile().name
+  const [last] = useState(() => load<LastView | null>(LAST_VIEW, null))
+  const [cascade] = useState(() => {
+    try {
+      return !sessionStorage.getItem(CASCADE)
+    } catch {
+      return false
+    }
+  })
 
+  // enregistré une fois les animations posées : un rechargement rapide ne les rejoue pas
   useEffect(() => {
-    if (searching) searchRef.current?.focus()
-  }, [searching])
+    const done = ALL_GAMES.filter((g) => dailyStatus(g).state === 'done').map(doneKey)
+    save(LAST_VIEW, { level: level.level, progress, streak, done } satisfies LastView)
+    try {
+      sessionStorage.setItem(CASCADE, '1')
+    } catch {
+      // stockage indisponible : la cascade reviendra à chaque visite
+    }
+  }, [level.level, progress, streak])
+
+  // le filet repart d'où on l'avait laissé ; un niveau gagné le remplit jusqu'au bout avant de repartir de zéro
+  const levelMove = !last || last.level > level.level ? '' : last.level < level.level ? 'up' : last.progress < progress ? 'grow' : ''
+  const streakRoll = <Roll from={last?.streak} to={streak} delay={600} />
 
   const program = useMemo(() => dailyProgram(ALL_GAMES, history, isDoneToday, now), [history, now])
   const programDone = program.filter(isDoneToday).length
@@ -41,59 +87,52 @@ export default function Hub() {
   }, [history, now, program])
 
   const played = new Set(history.map((p) => p.g))
-  const q = normalize(query)
-  const sections = GAME_SECTIONS.map((s) => ({
-    ...s,
-    // la recherche marche dans la langue du site comme en français
-    games: s.games.filter((g) => !q || normalize(`${t(g.title)} ${t(g.tagline)} ${t(s.label)} ${g.title} ${g.tagline}`).includes(q)),
-  })).filter((s) => s.games.length)
-
-  function closeSearch() {
-    setSearching(false)
-    setQuery('')
-  }
-
-  const search = searching ? (
-    <div className="home-search">
-      <Icon d={ICONS.search} />
-      <input
-        ref={searchRef}
-        value={query}
-        placeholder={t('Rechercher un jeu…')}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
-      />
-      <button onClick={closeSearch} aria-label={t('Fermer la recherche')}>
-        <Icon d={ICONS.close} />
-      </button>
-    </div>
-  ) : (
-    <button className="ui-tool" onClick={() => setSearching(true)} aria-label={t('Rechercher')}>
-      <Icon d={ICONS.search} />
-    </button>
-  )
-
   const hello = greeting(new Date(now).getHours())
+  const [mood, setMood] = useState<Mood>('calme')
+  const weekRank = useWeekRank()
+
+  // Pépite sourit et tinte quand on la touche
+  function poke() {
+    setMood('joie')
+    coin(4, true)
+    window.setTimeout(() => setMood('calme'), 1400)
+  }
 
   return (
     <div className="home">
-      <AppBar home tools={search} />
+      <AppBar home />
       <main className="home-main">
         <section className="home-intro">
-          <h1>{name ? t('{hello} {name}.', { hello, name }) : `${hello}.`}</h1>
+          <div className="home-hello">
+            <button onClick={poke} aria-label={t('Pépite')}>
+              <Mascot mood={mood} size={46} />
+            </button>
+            <h1>{name ? t('{hello} {name}.', { hello, name }) : `${hello}.`}</h1>
+          </div>
           <a href="#/succes" className="home-level" aria-label={t('Niveau {n}, {title} : voir mes succès', { n: level.level, title: t(level.title) })}>
-            <b>{level.level}</b>
+            <b>
+              <Roll from={last?.level} to={level.level} delay={1200} />
+            </b>
             <span>{t(level.title)}</span>
-            <i style={{ width: `${(level.into / level.need) * 100}%` }} />
+            <i className={levelMove} style={{ width: `${progress * 100}%`, '--from': `${(last?.progress ?? 0) * 100}%` } as CSSProperties} />
           </a>
           <p>
-            {streak ? `${plural(streak, 'série de {n} jour', 'série de {n} jours')} · ` : ''}
-            <a href="#/stats">{t('Statistiques')}</a> · <a href="#/passeport">{t('Passeport')}</a> · <a href="#/classements">{t('Classements')}</a> ·{' '}
+            {streak > 0 && (
+              <>
+                {new Intl.PluralRules(locale()).select(streak) === 'one' ? tx('série de {n} jour', { n: streakRoll }) : tx('série de {n} jours', { n: streakRoll })}
+                {' · '}
+              </>
+            )}
+            <a href="#/stats">{t('Statistiques')}</a> · <a href="#/passeport">{t('Passeport')}</a> · <a href="#/classements">
+              {t('Classements')}
+              {weekRank && <small className="home-rank"> {ordinal(weekRank)}</small>}
+            </a>{' '}
+            ·{' '}
             <a href="#/defis">{t('Défis')}</a>
           </p>
         </section>
 
-        {!q && nextUp && (
+        {nextUp && (
           <a href={nextUp.game.href} className="home-next">
             <GameIcon icon={nextUp.game.icon} size={64} />
             <span className="home-next-text">
@@ -107,24 +146,30 @@ export default function Hub() {
           </a>
         )}
 
-        {!q && (
-          <section className="home-program">
+        <section className="home-program">
             <div className="home-program-head">
               <h2>{t('Ton programme du jour')}</h2>
               <span>
                 {programDone}/{PROGRAM_SIZE}
               </span>
             </div>
-            <ol className="home-program-list">
+            <ol className={cascade ? 'home-program-list stagger' : 'home-program-list'}>
               {program.map((g) => {
                 const st = dailyStatus(g)
+                const justDone = last && st.state === 'done' && !last.done.includes(doneKey(g))
                 return (
                   <li key={g.href}>
                     <a href={g.href} className={`home-program-card ${st.state}`}>
                       <GameIcon icon={g.icon} size={36} />
                       <span>
                         <b>{t(g.title)}</b>
-                        <small>{st.state === 'done' ? `✓ ${st.label}` : st.label}</small>
+                        {st.state === 'done' ? (
+                          <small>
+                            <span className={justDone ? 'home-tick bounce' : 'home-tick'}>✓</span> {st.label}
+                          </small>
+                        ) : (
+                          <small>{st.label}</small>
+                        )}
                       </span>
                     </a>
                   </li>
@@ -132,32 +177,35 @@ export default function Hub() {
               })}
             </ol>
           </section>
-        )}
 
-        {sections.length === 0 && <p className="home-empty">{t('Aucun jeu ne correspond à « {query} ».', { query })}</p>}
-        {sections.map((section) => (
-          <section key={section.label} className="home-section">
+        {GAME_SECTIONS.map((section) => (
+          <section key={section.label} className="home-section" data-tint={section.tint}>
             <h2>{t(section.label)}</h2>
-            <div className="home-grid">
-              {section.games.map((g) => {
-                const done = isDoneToday(g)
-                const fresh = NEW_GAMES.has(g.href) && !playIds(g).some((id) => played.has(id))
-                return (
-                  <a key={g.href} href={g.href} className="home-card">
-                    <span className={done ? 'home-card-state done' : fresh ? 'home-card-state new' : 'home-card-state'}>
-                      {done ? `✓ ${t('joué')}` : fresh ? t('nouveau') : t(g.rhythm)}
-                    </span>
-                    <div className="home-card-art">
-                      <GameIcon icon={g.icon} size={76} />
-                    </div>
-                    <div className="home-card-text">
-                      <b>{t(g.title)}</b>
-                      <span>{t(g.tagline)}</span>
-                    </div>
-                  </a>
-                )
-              })}
-            </div>
+            {familiesOf(section.games).map((f) => (
+              <div key={f.family ?? section.label} className="home-family">
+                {f.family && <h3>{t(f.family)}</h3>}
+                <div className={cascade ? 'home-grid stagger' : 'home-grid'}>
+                  {f.games.map((g) => {
+                    const done = isDoneToday(g)
+                    const fresh = NEW_GAMES.has(g.href) && !playIds(g).some((id) => played.has(id))
+                    return (
+                      <a key={g.href} href={g.href} className="home-card">
+                        <span className={done ? 'home-card-state done' : fresh ? 'home-card-state new' : 'home-card-state'}>
+                          {done ? `✓ ${t('joué')}` : fresh ? t('nouveau') : t(g.rhythm)}
+                        </span>
+                        <div className="home-card-art">
+                          <GameIcon icon={g.icon} size={76} />
+                        </div>
+                        <div className="home-card-text">
+                          <b>{t(g.title)}</b>
+                          <span>{t(g.tagline)}</span>
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </section>
         ))}
       </main>

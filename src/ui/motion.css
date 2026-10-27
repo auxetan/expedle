@@ -1,0 +1,182 @@
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --quick: 120ms;
+}
+
+/* Retour tactile : le bouton s'enfonce vite sous le doigt et revient en ressort.
+   « :root » passe devant les « transition » propres à chaque composant (chargés après ce fichier),
+   d'où la liste de propriétés qui reprend tout ce qu'ils animaient. */
+:root :is(
+    .ui-btn,
+    .ui-btn-line,
+    .ui-tool,
+    .ui-back,
+    .ui-joker,
+    .mg-cta,
+    .mg-ghost-btn,
+    .qz-cta,
+    .qz-opt,
+    .gh-b,
+    .ghh-go,
+    .ghh-tiles button,
+    .st-go,
+    .big-teal,
+    .pink,
+    .itin-turn,
+    .itin-guess,
+    .itin-help,
+    .itin-send,
+    .itin-chips .chip,
+    .hint,
+    .stats-cta,
+    .tr-options button,
+    .wd-caps button,
+    .wd-flags button,
+    .wt-gap button,
+    .gr-cell,
+    .num-chips button,
+    .mga-cell,
+    .home-card,
+    .home-program-card,
+    .home-next,
+    .home-level,
+    .mgh-card,
+    .jp-card,
+    .jp-featured,
+    .st-tile,
+    .maps-card,
+    .ghh-ch,
+    .record,
+    .stats-passport,
+    .wg-modes button,
+    .gh-cat
+  ) {
+  transition:
+    transform 0.32s var(--spring),
+    background-color 0.18s,
+    border-color 0.18s,
+    color 0.18s,
+    opacity 0.18s,
+    filter 0.18s,
+    box-shadow 0.18s;
+}
+
+/* au toucher, un survol resterait collé après le tap : la carte ne se soulève qu'à la souris */
+@media (hover: hover) {
+  :root :is(
+      .home-card,
+      .home-program-card,
+      .home-next,
+      .home-level,
+      .mgh-card,
+      .jp-card,
+      .jp-featured,
+      .st-tile,
+      .maps-card,
+      .ghh-ch,
+      .record,
+      .stats-passport,
+      .wg-modes button,
+      .gh-cat
+    ):hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+}
+
+:root :is(
+    .ui-btn,
+    .ui-btn-line,
+    .ui-tool,
+    .ui-back,
+    .ui-joker,
+    .mg-cta,
+    .mg-ghost-btn,
+    .qz-cta,
+    .qz-opt,
+    .gh-b,
+    .ghh-go,
+    .ghh-tiles button,
+    .st-go,
+    .big-teal,
+    .pink,
+    .itin-turn,
+    .itin-guess,
+    .itin-help,
+    .itin-send,
+    .itin-chips .chip,
+    .hint,
+    .stats-cta,
+    .tr-options button,
+    .wd-caps button,
+    .wd-flags button,
+    .wt-gap button,
+    .gr-cell,
+    .num-chips button,
+    .mga-cell
+  ):active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: var(--quick);
+  transition-timing-function: ease-out;
+}
+
+/* les cartes, plus larges, s'enfoncent moins pour ne pas trop bouger */
+:root :is(
+    .home-card,
+    .home-program-card,
+    .home-next,
+    .home-level,
+    .mgh-card,
+    .jp-card,
+    .jp-featured,
+    .st-tile,
+    .maps-card,
+    .ghh-ch,
+    .record,
+    .stats-passport,
+    .wg-modes button,
+    .gh-cat
+  ):active:not(:disabled) {
+  transform: scale(0.98);
+  transition-duration: var(--quick);
+  transition-timing-function: ease-out;
+}
+
+/* bonne réponse : un petit rebond et un anneau vert qui s'efface ;
+   « :root » passe devant l'animation d'entrée propre à l'élément */
+:root .pop {
+  animation: pop-good 0.36s ease-out;
+}
+
+@keyframes pop-good {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent);
+  }
+  35% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.99);
+  }
+  100% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--good) 0%, transparent);
+  }
+}
+
+/* une ligne d'essai qui se pose : elle monte, dépasse à peine, s'arrête */
+@keyframes row-land {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+/* une case qui se retourne pour dévoiler sa valeur, à lancer en « backwards » avec un délai par case */
+@keyframes tile-flip {
+  from {
+    opacity: 0;
+    transform: perspective(320px) rotateX(-90deg);
+  }
+  to {
+    transform: perspective(320px) rotateX(0deg);
+  }
+}

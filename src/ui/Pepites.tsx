@@ -50,23 +50,44 @@ export function useWallet(): Wallet {
   return wallet
 }
 
-// Le solde dans la barre du haut, qui mène à la boutique ; un gain s'y affiche un instant. `crowded` : la barre
-// porte déjà les outils d'un jeu, et le solde s'efface sur un téléphone pour leur laisser la place.
+// Les pépites d'une victoire encore en vol vers le solde : il ne les compte qu'à leur arrivée.
+let flying = 0
+const FLYING = 'cg:pepites-en-vol'
+
+export function setFlying(n: number) {
+  flying = n
+  window.dispatchEvent(new Event(FLYING))
+}
+
+export function useFlying(): number {
+  const [n, setN] = useState(flying)
+  useEffect(() => {
+    const refresh = () => setN(flying)
+    window.addEventListener(FLYING, refresh)
+    return () => window.removeEventListener(FLYING, refresh)
+  }, [])
+  return n
+}
+
+// Le solde dans la barre du haut, qui mène à la boutique ; un gain s'y affiche un instant, sauf celui d'une victoire,
+// dont les pépites viennent s'y poser une à une. `crowded` : la barre porte déjà les outils d'un jeu, et le solde
+// s'efface sur un téléphone pour leur laisser la place.
 export function WalletChip({ crowded }: { crowded?: boolean }) {
   const { balance } = useWallet()
+  const inFlight = useFlying()
   const before = useRef(balance)
   const [gain, setGain] = useState(0)
   useEffect(() => {
     const diff = balance - before.current
     before.current = balance
-    if (diff <= 0) return
+    if (diff <= 0 || flying > 0) return
     setGain(diff)
     const id = window.setTimeout(() => setGain(0), 2500)
     return () => clearTimeout(id)
   }, [balance])
   return (
     <a href="#/boutique" className={crowded ? 'ui-wallet crowded' : 'ui-wallet'} aria-label={t('Boutique : {n} pépites', { n: fmt(balance) })}>
-      <Pepites n={balance} />
+      <Pepites n={balance - inFlight} />
       {gain > 0 && <small>+{fmt(gain)}</small>}
     </a>
   )

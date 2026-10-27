@@ -6,9 +6,10 @@ import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../li
 import { copyText, load, save, seededRng, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
 import { deck as makeDeck, DECK, fits, LIVES, score, sorted } from './game'
 import './wikitrivia.css'
-import { feedback } from '../../lib/feedback'
+import { feedback, runOf } from '../../lib/feedback'
 
 interface Saved {
   // pour chaque carte jouée, dans l'ordre du paquet : bien placée ou non
@@ -41,7 +42,7 @@ export default function Wikitrivia({ mode }: { mode?: string }) {
   function place(index: number) {
     if (!current) return
     const ok = fits(timeline, index, current)
-    feedback(ok ? 'good' : 'bad')
+    feedback(ok ? 'good' : 'bad', runOf(state.results))
     const results = [...state.results, ok]
     const done = results.filter((r) => !r).length >= LIVES || results.length >= DECK - 1
     const ms = elapsed()
@@ -79,12 +80,11 @@ export default function Wikitrivia({ mode }: { mode?: string }) {
         </SubLink>
       </AppBar>
       <main className="wt-main">
-        <div className="wt-hud">
-          <span>{t('Carte {n} / {total}', { n: Math.min(played + 1, DECK - 1), total: DECK - 1 })}</span>
-          <span className="wt-lives" aria-label={t('{n} vies', { n: lives })}>
-            {Array.from({ length: LIVES }, (_, i) => (i < lives ? '❤️' : '🤍')).join('')}
-          </span>
-        </div>
+        <GameHud
+          steps={Array.from({ length: DECK - 1 }, (_, k) => (k < state.results.length ? state.results[k] : null))}
+          label={t('Carte {n} / {total}', { n: Math.min(played + 1, DECK - 1), total: DECK - 1 })}
+          lives={{ left: lives, total: LIVES }}
+        />
 
         {current ? (
           <section className="wt-current" key={current.name}>

@@ -1,0 +1,85 @@
+/* Le rang du jour en fin de partie (DailyRank.tsx) */
+.dr {
+  width: 100%;
+  max-width: 520px;
+  margin: 22px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font-family: var(--font);
+  text-align: left;
+  text-decoration: none;
+  animation: dr-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.dr:hover {
+  border-color: var(--muted);
+}
+
+.dr.out {
+  justify-content: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.dr-rank {
+  flex: none;
+  min-width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dr-rank b {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* le podium prend les couleurs des médailles */
+.dr.top1 .dr-rank b {
+  color: var(--or);
+}
+
+.dr.top2 .dr-rank b {
+  color: var(--argent);
+}
+
+.dr.top3 .dr-rank b {
+  color: var(--bronze);
+}
+
+.dr-rank small {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dr-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14.5px;
+}
+
+.dr-podium {
+  display: flex;
+  gap: 4px;
+  font-size: 16px;
+}
+
+@keyframes dr-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}

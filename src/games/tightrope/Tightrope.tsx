@@ -6,9 +6,10 @@ import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../li
 import { copyText, load, save, seededRng, shuffle, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
+import GameHud from '../../ui/GameHud'
 import { pickQuestions } from '../quiz/bank'
 import './tightrope.css'
-import { feedback } from '../../lib/feedback'
+import { feedback, runOf } from '../../lib/feedback'
 
 // Neuf questions sur la corde ; trois faux pas et c'est la chute.
 const STEPS = 9
@@ -46,7 +47,7 @@ export default function Tightrope({ mode }: { mode?: string }) {
   function answer(option: string) {
     if (picked !== undefined || over) return
     const answers = [...state.answers, option]
-    feedback(option === items[state.answers.length].a ? 'good' : 'bad')
+    feedback(option === items[state.answers.length].a ? 'good' : 'bad', runOf(state.answers.map((a, i) => a === items[i].a)))
     const right = answers.filter((a, i) => a === items[i].a).length
     const done = answers.length - right >= LIVES || answers.length >= STEPS
     const ms = elapsed()
@@ -95,10 +96,11 @@ export default function Tightrope({ mode }: { mode?: string }) {
             {fell ? '💥' : over ? '🏁' : '🤸'}
           </i>
         </div>
-        <div className="tr-hud">
-          <span>{t('Question {n} / {total}', { n: Math.min(shown + 1, STEPS), total: STEPS })}</span>
-          <span aria-label={t('{n} vies', { n: lives })}>{Array.from({ length: LIVES }, (_, i) => (i < lives ? '❤️' : '🤍')).join('')}</span>
-        </div>
+        <GameHud
+          steps={Array.from({ length: STEPS }, (_, k) => (k < state.answers.length ? state.answers[k] === items[k].a : null))}
+          label={t('Question {n} / {total}', { n: Math.min(shown + 1, STEPS), total: STEPS })}
+          lives={{ left: lives, total: LIVES }}
+        />
 
         {!ended && (
           <section className="tr-card" key={item.id}>

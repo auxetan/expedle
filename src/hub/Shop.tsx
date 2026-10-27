@@ -2,7 +2,7 @@
 // l'édition dorée de l'icône de chaque jeu, les motifs de territoire de Frontières et des jokers.
 import { useState } from 'react'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
-import { feedback } from '../lib/feedback'
+import { coin, feedback } from '../lib/feedback'
 import { fmt, msg, t } from '../lib/i18n'
 import { progressOf, questsOf } from '../lib/quests'
 import { plays } from '../lib/stats'
@@ -13,7 +13,8 @@ import { skinById } from '../games/openfront/progress'
 import AppBar from '../ui/AppBar'
 import GameIcon from '../ui/GameIcon'
 import { loadProfile } from '../ui/Panels'
-import { Pepites, useWallet } from '../ui/Pepites'
+import { barWallet, center, fly, shares } from '../ui/flight'
+import { Pepites, setFlying, useFlying, useWallet } from '../ui/Pepites'
 import { ITEMS, type ShopItem } from '../ui/shop'
 import './shop.css'
 
@@ -28,11 +29,12 @@ export default function Shop() {
   const wallet = useWallet()
   // l'objet dont on confirme l'achat d'un second clic
   const [buying, setBuying] = useState('')
+  const inFlight = useFlying()
   const [avatar, setAvatar] = useState(() => loadProfile().avatar)
   const [skin, setSkin] = useState(() => load('openfront-motif', 'uni'))
 
   // un objet acheté se porte aussitôt : l'avatar sur le profil, le motif sur le territoire
-  function use(item: ShopItem) {
+  function wear(item: ShopItem) {
     if (item.kind === 'avatar') {
       const next = { ...loadProfile(), avatar: item.value }
       save('profile', next)
@@ -45,13 +47,36 @@ export default function Shop() {
     }
   }
 
-  function pick(item: ShopItem) {
-    if (item.kind !== 'joker' && wallet.owned.has(item.id)) return use(item)
+  function pick(item: ShopItem, el: HTMLElement) {
+    if (item.kind !== 'joker' && wallet.owned.has(item.id)) return wear(item)
     if (buying !== item.id) return setBuying(item.id)
     setBuying('')
     if (!buy(item.id, item.price, item.n)) return
-    feedback('good')
-    use(item)
+    pay(item.price, el)
+    wear(item)
+  }
+
+  // Le prix quitte le solde en pépites qui filent vers l'objet ; le solde les décompte à mesure qu'elles arrivent,
+  // sur une note qui descend, et l'objet saute en arrivant dans la collection.
+  function pay(price: number, el: HTMLElement) {
+    const from = barWallet()
+    if (!from || matchMedia('(prefers-reduced-motion: reduce)').matches) return feedback('good')
+    const count = Math.max(4, Math.min(12, Math.round(price / 40)))
+    const values = shares(price, count)
+    let left = price
+    setFlying(-price)
+    fly({
+      from: center(from),
+      to: center(el),
+      count,
+      spread: 36,
+      onLand: (i, last) => {
+        left -= values[i]
+        setFlying(-left)
+        coin(count - 1 - i, last)
+        if (last) el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' })
+      },
+    })
   }
 
   // les parties d'aujourd'hui, relues à chaque partie terminée (le portefeuille se met alors à jour)
@@ -65,7 +90,7 @@ export default function Shop() {
       <AppBar title={t('Boutique')} />
       <main className="home-main shop-main">
         <section className="shop-hero">
-          <Pepites n={wallet.balance} size={30} />
+          <Pepites n={wallet.balance - inFlight} size={30} />
           <p className="muted">
             {t('Les pépites sont la monnaie d’Expedle. Chaque partie en rapporte de 2 à 17 selon ton score, chaque succès de {bronze} à {or}, chaque niveau {level}. Elles se dépensent ici, pour tous les jeux.', {
               bronze: TIER_PEPITES.bronze,
@@ -110,7 +135,7 @@ export default function Shop() {
                     className={worn(item) ? 'on' : buying === item.id ? 'confirm' : ''}
                     disabled={short}
                     title={short ? t('Il te manque {n} pépites', { n: fmt(item.price - wallet.balance) }) : undefined}
-                    onClick={() => pick(item)}
+                    onClick={(e) => pick(item, e.currentTarget)}
                   >
                     {item.kind === 'avatar' && <span className="shop-emoji">{item.value}</span>}
                     {item.kind === 'icone' && <GameIcon icon={item.value} size={56} golden />}

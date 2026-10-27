@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { evaluate, levelOf, loadSeen, saveSeen, TIER_XP, type Tier } from '../lib/achievements'
 import { HISTORY_CHANGED } from '../lib/cloud'
 import { plural, t } from '../lib/i18n'
 import { feedback } from '../lib/feedback'
-import { plays, PLAYED, type Play } from '../lib/stats'
+import { plays, PLAYED, streakStep, victoryOf, type Play } from '../lib/stats'
+import { gainsOf } from '../lib/wallet'
+import { setFlying } from './Pepites'
+import { Flame } from './Mascot'
+import Victory, { type Win } from './Victory'
 
 interface Toast {
   id: number
@@ -15,12 +19,46 @@ interface Toast {
 
 let next = 0
 
-// Annonce les succès débloqués et les passages de niveau, un peu après la fin de la partie
-// pour laisser le résultat du jeu s'afficher d'abord. Un seul message à la fois, quoi qu'il arrive.
-const great = (p: Play) => (p.win === true && p.pts >= 60) || (p.win === undefined && p.pts >= 85)
+type Moment = { kind: 'victoire'; win: Win } | { kind: 'serie'; from: number; to: number }
 
+// La série qui grandit avec la première partie du jour : le chiffre roule d'un cran, la flamme se ravive.
+function StreakToast({ from, to, onDone }: { from: number; to: number; onDone: () => void }) {
+  const [out, setOut] = useState(false)
+  useEffect(() => {
+    const ids = [window.setTimeout(() => feedback('good', 5), 900), window.setTimeout(() => setOut(true), 3000), window.setTimeout(onDone, 3300)]
+    return () => ids.forEach(clearTimeout)
+  }, [onDone])
+  return (
+    <div className="ach-toasts" aria-live="polite">
+      <a href="#/stats" className={out ? 'ach-toast streak out' : 'ach-toast streak'}>
+        <span className="ach-badge small">
+          <Flame />
+        </span>
+        <span>
+          <b>
+            <span className="streak-roll" aria-hidden>
+              <span className="streak-reel">
+                <span>{from}</span>
+                <span>{to}</span>
+              </span>
+            </span>{' '}
+            <span className="streak-sr">{to} </span>
+            {plural(to, 'jour de série', 'jours de série')}
+          </b>
+          <small>{t('Reviens demain pour la faire grandir')}</small>
+        </span>
+      </a>
+    </div>
+  )
+}
+
+// Fête les victoires et la série qui grandit, puis annonce les succès débloqués et les passages de niveau, un peu après
+// la fin de la partie pour laisser le résultat du jeu s'afficher d'abord. Un seul message à la fois, quoi qu'il arrive.
 export default function Celebrations() {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [moments, setMoments] = useState<Moment[]>([])
+  const showing = useRef(false)
+  const recheck = useRef(() => {})
 
   useEffect(() => {
     function push(t: Omit<Toast, 'id'>, delay: number) {
@@ -30,6 +68,7 @@ export default function Celebrations() {
     }
 
     function check() {
+      if (showing.current) return
       const list = plays()
       const progress = evaluate(list)
       const unlocked = progress.filter((a) => a.unlocked)
@@ -50,6 +89,8 @@ export default function Celebrations() {
       else if (up) push({ glyph: '⬆️', title: t('Niveau {n}', { n: level.level }), desc: t(level.title) }, 0)
     }
 
+    recheck.current = check
+
     let timer = 0
     const onSync = () => {
       clearTimeout(timer)
@@ -58,7 +99,25 @@ export default function Celebrations() {
     // la fin de partie se signale d'un son ; le message, s'il y en a un, vient ensuite
     const onPlay = (e: Event) => {
       const play = (e as CustomEvent<Play>).detail
-      feedback(great(play) ? 'win' : play.win === false || play.pts < 30 ? 'lose' : 'good')
+      const tier = victoryOf(play)
+      feedback(tier ? 'win' : play.win === false || play.pts < 30 ? 'lose' : 'good')
+      if (!showing.current) {
+        const list = plays()
+        const before = list.at(-1)?.t === play.t ? list.slice(0, -1) : list
+        const queue: Moment[] = []
+        if (tier) {
+          const gains = gainsOf(before, play)
+          // tout de suite, avant que le solde de la barre ne compte ce gain d'un coup
+          setFlying(gains.reduce((s, g) => s + g.n, 0))
+          queue.push({ kind: 'victoire', win: { tier, gains } })
+        }
+        const step = streakStep(before, play)
+        if (step && step.to >= 2) queue.push({ kind: 'serie', ...step })
+        if (queue.length) {
+          showing.current = true
+          setMoments(queue)
+        }
+      }
       onSync()
     }
     check()
@@ -71,6 +130,18 @@ export default function Celebrations() {
     }
   }, [])
 
+  const advance = useCallback(() => setMoments((m) => m.slice(1)), [])
+
+  // les moments passés, les succès et niveaux en attente peuvent s'annoncer
+  useEffect(() => {
+    if (moments.length || !showing.current) return
+    showing.current = false
+    recheck.current()
+  }, [moments])
+
+  const moment = moments[0]
+  if (moment?.kind === 'victoire') return <Victory win={moment.win} onDone={advance} />
+  if (moment?.kind === 'serie') return <StreakToast from={moment.from} to={moment.to} onDone={advance} />
   if (!toasts.length) return null
   return (
     <div className="ach-toasts" aria-live="polite">

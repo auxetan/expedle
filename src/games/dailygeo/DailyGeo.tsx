@@ -14,6 +14,7 @@ import '../worldle/worldle.css'
 import { capitalChoices, clues, MAX_GUESSES, score, target as pickTarget } from './game'
 import './dailygeo.css'
 import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 interface Saved {
   guesses: string[]
@@ -51,6 +52,7 @@ export default function DailyGeo({ mode }: { mode?: string }) {
 
   function guess(code: string) {
     update({ ...state, guesses: [...state.guesses, code] })
+    feedback(code === target ? 'good' : 'tap')
     if (code === target) stamp(target, 'dailygeo')
   }
 

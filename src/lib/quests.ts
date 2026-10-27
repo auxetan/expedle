@@ -54,3 +54,12 @@ export function questRewards(list: Play[]): number {
   for (const [day, plays] of days) for (const q of questsOf(day)) if (progressOf(q, plays) >= q.goal) total += q.reward
   return total
 }
+
+// La quête du jour la plus proche d'être remplie, à montrer au moment de rejouer.
+export function closestQuest(list: Play[], day = todayKey()): { quest: Quest; done: number } | null {
+  const today = list.filter((p) => todayKey(new Date(p.t)) === day)
+  const open = questsOf(day)
+    .map((quest) => ({ quest, done: progressOf(quest, today) }))
+    .filter((q) => q.done < q.quest.goal)
+  return open.sort((a, b) => b.done / b.quest.goal - a.done / a.quest.goal)[0] ?? null
+}

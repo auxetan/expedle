@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { evaluate, levelOf } from '../lib/achievements'
 import { PROFILE_CHANGED, pushProfile } from '../lib/cloud'
 import AccountBox from './Account'
-import { LANGS, plural, setLang, t, useLang } from '../lib/i18n'
+import { LANGS, ordinal, plural, setLang, t, useLang } from '../lib/i18n'
 import { dailyResult, plays, summarize } from '../lib/stats'
-import { load, save, weekKey } from '../lib/util'
+import { load, normalize, save, weekKey } from '../lib/util'
 import GameIcon from './GameIcon'
-import { ALL_GAMES, GAME_SECTIONS } from './games'
+import { familiesOf, GAME_SECTIONS } from './games'
 import { setTheme, useTheme, type Theme } from './theme'
 import { feedback, feedbackSettings, saveFeedbackSettings, type FeedbackSettings } from '../lib/feedback'
 import InstallButton from './InstallButton'
-import { useWallet } from './Pepites'
+import { Pepites, useWallet } from './Pepites'
 import { PREMIUM_AVATARS } from './shop'
+import { useWeekRank } from './useWeekRank'
 
 export interface Profile {
   name: string
@@ -77,16 +78,32 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   )
 }
 
-export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) {
+// une destination du menu Profil, au même style que la liste des jeux
+function Row({ href, icon, label, end, onPick }: { href: string; icon: string; label: string; end?: ReactNode; onPick?: () => void }) {
+  return (
+    <a href={href} className="ui-game-row" onClick={onPick}>
+      <span className="ui-game-glyph">
+        <Icon d={icon} />
+      </span>
+      <b>{label}</b>
+      {end && <span className="ui-row-end">{end}</span>}
+    </a>
+  )
+}
+
+// Le menu Profil : qui tu es, puis tout ce qui n'est pas un jeu, rangé par groupes. Les réglages d'un jeu
+// (`extra`) passent en tête des réglages ; `focus` ouvre le menu directement sur eux.
+export function ProfilePanel({ onChange, onPick, extra, focus }: { onChange?: (p: Profile) => void; onPick?: () => void; extra?: ReactNode; focus?: 'reglages' }) {
   const [profile, setProfile] = useState(loadProfile)
-  const { owned } = useWallet()
+  const [editing, setEditing] = useState(false)
+  const settingsRef = useRef<HTMLElement>(null)
+  const { owned, balance } = useWallet()
+  const weekRank = useWeekRank()
   // les avatars offerts, puis ceux achetés dans la boutique
   const avatars = [...AVATARS, ...PREMIUM_AVATARS.map(([a]) => a).filter((a) => owned.has(`avatar:${a}`))]
   const history = plays()
   const { total, streak } = summarize(history)
   const level = levelOf(history, evaluate(history))
-  const dailies = ALL_GAMES.filter((g) => g.rhythm === 'quotidien')
-  const doneToday = dailies.filter(isDoneToday).length
 
   // le profil peut arriver du compte (connexion sur un nouvel appareil)
   useEffect(() => {
@@ -94,6 +111,10 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
     window.addEventListener(PROFILE_CHANGED, refresh)
     return () => window.removeEventListener(PROFILE_CHANGED, refresh)
   }, [])
+
+  useEffect(() => {
+    if (focus === 'reglages') settingsRef.current?.scrollIntoView({ block: 'start' })
+  }, [focus])
 
   function update(patch: Partial<Profile>) {
     const next = { ...profile, ...patch }
@@ -106,65 +127,73 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
   return (
     <>
       <h3>{t('Profil')}</h3>
-      <label className="ui-field">
-        <span>{t('Pseudo')}</span>
-        <input value={profile.name} maxLength={24} placeholder={t('Ton pseudo')} onChange={(e) => update({ name: e.target.value })} />
-      </label>
-      <div className="ui-field">
-        <span>{t('Avatar')}</span>
-        <div className="ui-avatars">
-          {avatars.map((a) => (
-            <button key={a} className={a === profile.avatar ? 'on' : ''} onClick={() => update({ avatar: a })}>
-              {a}
-            </button>
-          ))}
+      <section className="ui-me">
+        <span className="ui-me-avatar">{profile.avatar}</span>
+        <span className="ui-me-text">
+          <b className={profile.name ? '' : 'empty'}>{profile.name || t('Ton pseudo')}</b>
+          <a href="#/succes" className="ui-me-level" onClick={onPick}>
+            {t('Niveau {n}', { n: level.level })} · {t(level.title)}
+            <i>
+              <i style={{ width: `${(level.into / level.need) * 100}%` }} />
+            </i>
+          </a>
+          <small>
+            {streak} {plural(streak, 'jour de série', 'jours de série')} · {total} {plural(total, 'partie', 'parties')}
+          </small>
+        </span>
+        <button className="ui-me-edit" onClick={() => setEditing(!editing)} aria-expanded={editing}>
+          {editing ? t('Fermer') : t('Modifier')}
+        </button>
+      </section>
+      {editing && (
+        <div className="ui-me-form">
+          <label className="ui-field">
+            <span>{t('Pseudo')}</span>
+            <input value={profile.name} maxLength={24} placeholder={t('Ton pseudo')} onChange={(e) => update({ name: e.target.value })} />
+          </label>
+          <div className="ui-field">
+            <span>{t('Avatar')}</span>
+            <div className="ui-avatars">
+              {avatars.map((a) => (
+                <button key={a} className={a === profile.avatar ? 'on' : ''} onClick={() => update({ avatar: a })}>
+                  {a}
+                </button>
+              ))}
+            </div>
+            <a href="#/boutique" className="ui-note" onClick={onPick}>
+              {t('D’autres avatars t’attendent dans la boutique.')}
+            </a>
+          </div>
         </div>
-        <a href="#/boutique" className="ui-note">
-          {t('D’autres avatars t’attendent dans la boutique.')}
-        </a>
+      )}
+      <h4>{t('Progression')}</h4>
+      <Row href="#/succes" icon={ICONS.trophy} label={t('Mes succès')} onPick={onPick} />
+      <Row href="#/stats" icon={ICONS.chart} label={t('Statistiques')} onPick={onPick} />
+      <Row href="#/passeport" icon={ICONS.passport} label={t('Mon passeport')} onPick={onPick} />
+      <h4>{t('Entre joueurs')}</h4>
+      <Row
+        href="#/classements"
+        icon={ICONS.podium}
+        label={t('Classements')}
+        end={weekRank && <small className="ui-row-note">{t('{rank} cette semaine', { rank: ordinal(weekRank) })}</small>}
+        onPick={onPick}
+      />
+      <Row href="#/defis" icon={ICONS.swords} label={t('Défis entre amis')} onPick={onPick} />
+      <h4>{t('Pépites')}</h4>
+      <Row href="#/boutique" icon={ICONS.bag} label={t('Boutique et quêtes du jour')} end={<Pepites n={balance} />} onPick={onPick} />
+      <div className="ui-me-account">
+        <AccountBox />
       </div>
-      <div className="ui-figures">
-        <div>
-          <b>{total}</b>
-          {plural(total, 'partie', 'parties')}
-        </div>
-        <div>
-          <b>{streak}</b>
-          {plural(streak, 'jour de série', 'jours de série')}
-        </div>
-        <div>
-          <b>{level.level}</b>
-          {t(level.title).toLowerCase()}
-        </div>
-      </div>
-      <p className="ui-note">
-        {t('{done}/{total} jeux du jour terminés aujourd’hui.', { done: doneToday, total: dailies.length })}
-      </p>
-      <AccountBox />
-      <a href="#/classements" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.podium} />
-        {t('Classements')}
-      </a>
-      <a href="#/passeport" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.passport} />
-        {t('Mon passeport')}
-      </a>
-      <a href="#/defis" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.swords} />
-        {t('Défis entre amis')}
-      </a>
-      <a href="#/boutique" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.bag} />
-        {t('Boutique')}
-      </a>
-      <a href="#/succes" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.trophy} />
-        {t('Mes succès')}
-      </a>
-      <a href="#/stats" className="ui-btn-line ui-stats-link">
-        <Icon d={ICONS.chart} />
-        {t('Toutes mes statistiques')}
-      </a>
+      <section ref={settingsRef} className="ui-me-settings">
+        <h4>{t('Réglages')}</h4>
+        {extra && (
+          <div className="ui-extra">
+            <h5>{t('Réglages de ce jeu')}</h5>
+            {extra}
+          </div>
+        )}
+        <Settings />
+      </section>
     </>
   )
 }
@@ -172,7 +201,8 @@ export function ProfilePanel({ onChange }: { onChange?: (p: Profile) => void }) 
 // l'AGPL demande d'offrir le code à qui utilise le site
 const SOURCE = 'https://github.com/auxetan/m-ridien'
 
-export function SettingsPanel({ extra }: { extra?: ReactNode }) {
+// Les réglages du site, en bas du menu Profil.
+function Settings() {
   const theme = useTheme()
   const lang = useLang()
   const [confirm, setConfirm] = useState(false)
@@ -196,7 +226,6 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
 
   return (
     <>
-      <h3>{t('Réglages')}</h3>
       <div className="ui-field">
         <span>{t('Langue')}</span>
         <div className="ui-seg">
@@ -240,7 +269,6 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
         </div>
       )}
       <InstallButton />
-      {extra}
       <div className="ui-field">
         <span>{t('Code source')}</span>
         <p className="ui-note">
@@ -271,37 +299,66 @@ export function SettingsPanel({ extra }: { extra?: ReactNode }) {
   )
 }
 
+// Le menu Jeux : rien que les jeux, à chercher ou à parcourir par rubrique et par famille.
 export function GamesPanel({ onPick }: { onPick: () => void }) {
   const current = window.location.hash.split('?')[0]
+  const [query, setQuery] = useState('')
+  // au doigt, le clavier ne s'ouvre pas tout seul
+  const [fine] = useState(() => matchMedia('(pointer: fine)').matches)
+  const q = normalize(query)
+  // la recherche marche dans la langue du site comme en français
+  const sections = GAME_SECTIONS.map((s) => ({
+    ...s,
+    games: s.games.filter((g) => !q || normalize(`${t(g.title)} ${t(g.tagline)} ${t(s.label)} ${g.family ? t(g.family) : ''} ${g.title} ${g.tagline}`).includes(q)),
+  })).filter((s) => s.games.length)
+  const first = sections[0]?.games[0]
+
   return (
     <>
       <h3>{t('Jeux')}</h3>
-      <a href="#/" className="ui-game-row" onClick={onPick}>
-        <span className="ui-game-glyph">
-          <Icon d={ICONS.home} />
-        </span>
-        <b>{t('Accueil')}</b>
-      </a>
-      <a href="#/stats" className={current === '#/stats' ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
-        <span className="ui-game-glyph">
-          <Icon d={ICONS.chart} />
-        </span>
-        <b>{t('Statistiques')}</b>
-      </a>
-      {GAME_SECTIONS.map((s) => (
-        <div key={s.label} className="ui-game-section">
+      <label className="ui-search">
+        <Icon d={ICONS.search} />
+        <input
+          value={query}
+          autoFocus={fine}
+          placeholder={t('Rechercher un jeu…')}
+          aria-label={t('Rechercher un jeu…')}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !q || !first) return
+            window.location.hash = first.href
+            onPick()
+          }}
+        />
+      </label>
+      {!q && (
+        <a href="#/" className="ui-game-row" onClick={onPick}>
+          <span className="ui-game-glyph">
+            <Icon d={ICONS.home} />
+          </span>
+          <b>{t('Accueil')}</b>
+        </a>
+      )}
+      {sections.length === 0 && <p className="ui-note">{t('Aucun jeu ne correspond à « {query} ».', { query })}</p>}
+      {sections.map((s) => (
+        <div key={s.label} className="ui-game-section" data-tint={s.tint}>
           <h4>{t(s.label)}</h4>
-          {s.games.map((g) => (
-            <a key={g.href} href={g.href} className={current === g.href ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
-              <span className="ui-game-glyph">
-                <GameIcon icon={g.icon} size={30} />
-              </span>
-              <span className="ui-game-text">
-                <b>{t(g.title)}</b>
-                <small>{t(g.tagline)}</small>
-              </span>
-              {isDoneToday(g) && <span className="ui-game-done">✓</span>}
-            </a>
+          {familiesOf(s.games).map((f) => (
+            <div key={f.family ?? s.label} className="ui-game-family">
+              {f.family && <h5>{t(f.family)}</h5>}
+              {f.games.map((g) => (
+                <a key={g.href} href={g.href} className={current === g.href ? 'ui-game-row on' : 'ui-game-row'} onClick={onPick}>
+                  <span className="ui-game-glyph">
+                    <GameIcon icon={g.icon} size={30} />
+                  </span>
+                  <span className="ui-game-text">
+                    <b>{t(g.title)}</b>
+                    <small>{t(g.tagline)}</small>
+                  </span>
+                  {isDoneToday(g) && <span className="ui-game-done">✓</span>}
+                </a>
+              ))}
+            </div>
           ))}
         </div>
       ))}

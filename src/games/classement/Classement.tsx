@@ -11,6 +11,7 @@ import { averageTotal, MISSING_RANK, optimalAssignment } from './ranking'
 import { MODE_LABEL, rankMatrix, setupFor, setupFromSeed, setupSeed, type Mode } from './setup'
 import './classement.css'
 import { ordinal, t } from '../../lib/i18n'
+import { feedback } from '../../lib/feedback'
 
 function rankColor(r: number): string {
   if (r <= 5) return 'var(--good)'
@@ -56,6 +57,8 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
   const [showPerfect, setShowPerfect] = useState(false)
   const [copied, setCopied] = useState(false)
   const toastTimer = useRef(0)
+  // les meilleurs choix d'affilée, qui font monter la note
+  const run = useRef(0)
   const elapsed = useStopwatch()
   const [ms, setMs] = useState<number>()
 
@@ -79,6 +82,8 @@ function ClassementGame({ mode, easy }: { mode: Mode; easy: boolean }) {
     const best = Math.min(...categories.map((_, c) => (usedCats.has(c) ? Infinity : matrix[current][c])))
     const bestCat = categories.findIndex((_, c) => !usedCats.has(c) && matrix[current][c] === best)
     const good = r === best
+    feedback(good ? 'good' : 'bad', run.current)
+    run.current = good ? run.current + 1 : 0
     window.clearTimeout(toastTimer.current)
     setToast(
       good

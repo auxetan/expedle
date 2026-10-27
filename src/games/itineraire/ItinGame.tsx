@@ -11,6 +11,7 @@ import ChallengeBox from '../../ui/ChallengeBox'
 import { useTheme } from '../../ui/theme'
 import { plural, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
 
 const PALETTES = {
   sombre: { start: '#c9899a', end: '#88afa2', connected: '#d7c7a2', loose: '#4f4a45', solution: '#7d7464' },
@@ -152,6 +153,7 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
     if (target === end) return flash(t('{name} est la destination', { name: name(end) }))
     if (guessedSet.has(target)) return flash(t('Déjà essayé'))
     setGuesses([...guesses, target])
+    feedback('tap')
     setQuery('')
     setOpen(false)
     setMessage('')
