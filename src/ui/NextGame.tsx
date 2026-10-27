@@ -7,7 +7,7 @@ import { plays, PLAYED } from '../lib/stats'
 import { dailyProgram, nextGame, playIds, PROGRAM_SIZE } from '../lib/suggest'
 import { comboNow } from '../lib/wallet'
 import GameIcon from './GameIcon'
-import { ALL_GAMES } from './games'
+import { ALL_GAMES, rubriqueOf } from './games'
 import { isDoneToday } from './Panels'
 import { Pepites, useFlying } from './Pepites'
 import './nextgame.css'
@@ -49,7 +49,7 @@ export default function NextGame() {
   const done = program.filter(isDoneToday).length
 
   return (
-    <a href={next.game.href} className={ready ? 'ng ready' : 'ng'}>
+    <a href={next.game.href} className={ready ? 'ng ready' : 'ng'} data-tint={rubriqueOf(next.game.href)?.tint}>
       <span className="ng-head">
         <span>{done === PROGRAM_SIZE ? t('Programme du jour terminé') : t('Ton programme du jour')}</span>
         <span className="ng-dots" role="img" aria-label={`${done}/${PROGRAM_SIZE}`}>
