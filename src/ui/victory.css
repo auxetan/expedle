@@ -63,12 +63,12 @@
   translate: -50% -50%;
 }
 
-.vic-nugget {
+.vic-hero .vic-nugget {
   position: absolute;
   inset: 8px;
 }
 
-.vic-nugget {
+.vic-hero .vic-nugget {
   width: 128px;
   height: 128px;
   overflow: visible;
@@ -76,10 +76,8 @@
   animation: vic-drop 0.8s 0.1s ease-out backwards;
 }
 
-/* un reflet traverse la pépite une fois posée */
-.vic-shine {
-  fill: #fff;
-  opacity: 0.5;
+/* un reflet traverse Pépite une fois posée */
+.vic .mascot-shine {
   animation: vic-shine 0.9s 0.75s ease-in-out both;
 }
 
