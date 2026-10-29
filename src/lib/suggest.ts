@@ -5,7 +5,10 @@ import type { Play } from './stats'
 import { hashString, load, save, todayKey } from './util'
 
 // Les jeux arrivés récemment, mis en avant tant qu'on ne les a pas essayés.
-export const NEW_GAMES = new Set(['#/openfront', '#/statele', '#/dailygeo', '#/factle', '#/wikitrivia', '#/tightrope', '#/geoguessr/jour', '#/photoguessr/jour'])
+// le jeu signature d'Expedle, proposé en premier chaque jour tant qu'il n'est pas fait
+export const SIGNATURE = '#/expedition'
+
+export const NEW_GAMES = new Set(['#/expedition', '#/openfront', '#/statele', '#/dailygeo', '#/factle', '#/wikitrivia', '#/tightrope', '#/geoguessr/jour', '#/photoguessr/jour'])
 
 // Pour qui débute : les classiques, simples et rapides, avant les nouveautés.
 const STARTERS = new Set(['#/worldle', '#/itineraire', '#/quiz/jour', '#/flagle', '#/echelle', '#/globle', '#/question'])
@@ -53,6 +56,7 @@ export function suggest(games: GameEntry[], history: Play[], done: (g: GameEntry
       const ids = playIds(g)
       const played = history.some((p) => ids.includes(p.g))
       const reasons: [number, string][] = []
+      if (g.href === SIGNATURE && !done(g)) reasons.push([90, msg('L’expédition du jour t’attend')])
       if (g.dailyId && !done(g)) reasons.push(g.weekly ? [40, msg('Le défi de la semaine t’attend')] : [60, msg('Pas encore joué aujourd’hui')])
       if (beginner) {
         if (STARTERS.has(g.href)) reasons.push([25, msg('Parfait pour commencer')])
