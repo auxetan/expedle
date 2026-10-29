@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
 import type { Play } from './stats'
-import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, suggest } from './suggest'
+import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, SIGNATURE, suggest } from './suggest'
 
 const NOW = new Date(2026, 9, 18, 15).getTime()
 const game = (href: string) => ALL_GAMES.find((g) => g.href === href)!
@@ -33,9 +33,10 @@ describe('suggestions', () => {
     expect(rank('#/globle')).toBeGreaterThan(rank('#/worldle'))
   })
 
-  it('propose les classiques à qui débute, et un programme varié', () => {
+  it('propose l’expédition du jour d’abord, puis les classiques à qui débute, et un programme varié', () => {
     const list = suggest(ALL_GAMES, [], () => false, NOW)
-    expect(list[0].reason).toBe('Parfait pour commencer')
+    expect(list[0].game.href).toBe(SIGNATURE)
+    expect(list[1].reason).toBe('Parfait pour commencer')
     const program = dailyProgram(ALL_GAMES, [], () => false, NOW)
     const sections = program.map((g) => GAME_SECTIONS.find((s) => s.games.includes(g))!.label)
     for (const label of new Set(sections)) expect(sections.filter((x) => x === label).length).toBeLessThanOrEqual(2)
