@@ -13,13 +13,15 @@ interface Props {
   score?: number
   time?: { left: number; total: number }
   lives?: { left: number; total: number }
-  // une vie continue (Survival) : une jauge, dont chaque perte ou gain s'affiche un instant
-  gauge?: { value: number; max: number }
+  // une vie continue (Survival, les vivres de l'Expédition) : une jauge, dont chaque perte ou gain s'affiche un instant ;
+  // un cœur par défaut
+  gauge?: { value: number; max: number; icon?: ReactNode }
   // une partie sans fin : seules les `trail` dernières cases restent à l'écran
   trail?: number
 }
 
-const tenth = (n: number) => fmt(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+// une vie à décimales (Survival) garde son dixième ; des vivres entiers s'affichent entiers
+const tenth = (n: number) => (Number.isInteger(n) ? fmt(n) : fmt(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
 
 function Heart({ full }: { full: boolean }) {
   return (
@@ -87,7 +89,7 @@ export default function GameHud({ steps, label, score, time, lives, gauge, trail
         )}
         {gauge && (
           <span className={`hud-gauge ${ratio <= 0.25 ? 'low' : ratio <= 0.5 ? 'warn' : ''}`} role="img" aria-label={t('Vie : {n}', { n: tenth(gauge.value) })}>
-            <Heart full />
+            {gauge.icon ?? <Heart full />}
             <span className="hud-gauge-bar">
               <i style={{ width: `${Math.min(1, ratio) * 100}%` }} />
             </span>
