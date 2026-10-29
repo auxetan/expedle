@@ -42,6 +42,8 @@ export const GAMES: Record<string, GameInfo> = {
   'quiz-capitales': { title: 'Capitales', href: '#/quiz/capitales', unit: pts },
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
   worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
+  expedition: { title: 'L’Expédition', href: '#/expedition', unit: (s) => plural(s, '{n} frontière', '{n} frontières'), lower: true },
+  'expedition-tour': { title: 'Tour du monde', href: '#/expedition/tour', unit: (s) => plural(s, '{n} pays', '{n} pays'), untimed: true },
   statele: { title: 'Statele', href: '#/statele', unit: (s) => `${s}/6`, lower: true },
   dailygeo: { title: 'DailyGeo', href: '#/dailygeo', unit: (s) => `${s}/100` },
   factle: { title: 'Factle', href: '#/factle', unit: (s) => `${s}/5`, lower: true },
