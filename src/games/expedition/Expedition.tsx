@@ -2,7 +2,7 @@
 // reconnaissant chaque pays à la douane. Aussi le Tour du monde, sans destination, et la carte de ses expéditions.
 import { geoAzimuthalEqualArea, geoAzimuthalEquidistant, geoPath } from 'd3-geo'
 import type { FeatureCollection, Polygon } from 'geojson'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { worldAtlas, type Atlas } from '../../geo/atlas'
 import { COUNTRY_BY_CODE, flagEmoji } from '../../geo/countries'
 import { countryCenter, distanceKm, rhumbBearing } from '../../geo/measure'
@@ -18,6 +18,7 @@ import GameHud from '../../ui/GameHud'
 import Mascot from '../../ui/Mascot'
 import NextGame from '../../ui/NextGame'
 import { COUNTRY_STATS } from '../classement/data'
+import { flagUrl, hasFlag } from '../flagle/game'
 import Carnet from './Carnet'
 import {
   answerCustoms,
@@ -32,6 +33,7 @@ import {
   hops,
   known,
   miss,
+  remark,
   score,
   shareText,
   stars,
@@ -84,6 +86,19 @@ function Shape({ atlas, code, size = 72 }: { atlas: Atlas; code: string; size?: 
       <path d={d} />
     </svg>
   )
+}
+
+// En image et non en emoji : sous Windows, l'emoji d'un drapeau s'affiche en deux lettres, la réponse en clair.
+function FlagPic({ code }: { code: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    flagUrl(code).then((url) => alive && setSrc(url))
+    return () => {
+      alive = false
+    }
+  }, [code])
+  return <span className="ex-flag">{src && <img src={src} alt="" draggable={false} />}</span>
 }
 
 const W = 640
@@ -210,7 +225,7 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
     stamp(to, 'expedition')
     update({ run: next, log: logged })
     if (status(exp, next) !== 'en route') return finish(next)
-    if (customsDue(next)) setBonus({ q: customsQuestion(to, at, pool, atlas.region, capital, (c) => POP.get(c), seededRng(`${seed}:douane:${next.path.length}`)), code: to })
+    if (customsDue(next)) setBonus({ q: customsQuestion(to, at, pool, atlas.region, capital, (c) => POP.get(c), hasFlag, seededRng(`${seed}:douane:${next.path.length}`)), code: to })
   }
 
   function choose(to: string) {
@@ -259,6 +274,7 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
   const borders = bordersOf(atlas.neighbors, at)
   const center = countryCenter(atlas, at)
   const playing = st === 'en route' && !desk && !bonus
+  const mark = (o: string) => (!bonus?.picked ? '' : o === bonus.q.answer ? 'right' : o === bonus.picked ? 'wrong' : 'dim')
 
   return (
     <div className="ex">
@@ -292,6 +308,7 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
           trail={12}
           label={tour ? plural(visited(run), '{n} pays traversé', '{n} pays traversés') : plural(crossed, '{n} frontière passée', '{n} frontières passées')}
           gauge={{ value: Math.max(0, run.supplies), max: Math.max(exp.supplies, run.supplies), icon: <Bag /> }}
+          say={remark(atlas.neighbors, exp, run, tour ? bestScore('expedition-tour') : null)}
         />
 
         <ExMap atlas={atlas} exp={exp} run={run} onPick={playing ? choose : undefined} />
@@ -350,8 +367,26 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
                 <h2>{t('{country} : quelle capitale ?', { country: name(bonus.code) })}</h2>
                 <div className="ex-options">
                   {bonus.q.options.map((o) => (
-                    <button key={o} className={!bonus.picked ? '' : o === bonus.q.answer ? 'right' : o === bonus.picked ? 'wrong' : 'dim'} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
+                    <button key={o} className={mark(o)} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
                       {o}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : bonus.q.kind === 'drapeau' ? (
+              <>
+                <h2>{t('{country} : quel drapeau ?', { country: name(bonus.code) })}</h2>
+                <div className="ex-options flags">
+                  {bonus.q.options.map((o, i) => (
+                    <button
+                      key={o}
+                      className={mark(o)}
+                      disabled={!!bonus.picked}
+                      onClick={() => answerBonus(o)}
+                      aria-label={bonus.picked ? undefined : t('Drapeau {n}', { n: i + 1 })}
+                    >
+                      <FlagPic code={o} />
+                      {bonus.picked && <small>{name(o)}</small>}
                     </button>
                   ))}
                 </div>
@@ -361,7 +396,7 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
                 <h2>{t('{country} face à {other} : plus ou moins d’habitants ?', { country: name(bonus.code), other: name(bonus.q.than) })}</h2>
                 <div className="ex-options two">
                   {(['plus', 'moins'] as const).map((o) => (
-                    <button key={o} className={!bonus.picked ? '' : o === bonus.q.answer ? 'right' : o === bonus.picked ? 'wrong' : 'dim'} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
+                    <button key={o} className={mark(o)} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
                       {t(o)}
                     </button>
                   ))}
