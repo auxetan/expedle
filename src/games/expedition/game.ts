@@ -2,7 +2,7 @@
 // le reconnaître à la douane ; chaque frontière coûte un vivre, chaque erreur deux. Une frontière fermée et une réserve
 // de vivres, tirées de la même graine, font de chaque journée une expédition dont tout le monde parle.
 import { flagEmoji } from '../../geo/countries'
-import { t } from '../../lib/i18n'
+import { plural, t } from '../../lib/i18n'
 import { seededRng, shuffle } from '../../lib/util'
 
 export type Neighbors = Map<string, Set<string>>
@@ -168,10 +168,14 @@ export function choices(neighbors: Neighbors, region: (code: string) => string |
   return shuffle(out, rng)
 }
 
-export type CustomsQuestion = { kind: 'capitale'; options: string[]; answer: string } | { kind: 'population'; than: string; answer: 'plus' | 'moins' }
+export type CustomsQuestion =
+  | { kind: 'capitale'; options: string[]; answer: string }
+  // les options sont des codes de pays, montrés en drapeaux
+  | { kind: 'drapeau'; options: string[]; answer: string }
+  | { kind: 'population'; than: string; answer: 'plus' | 'moins' }
 
-// La douane renforcée, sur le pays où l'on vient d'entrer : sa capitale parmi quatre, ou s'il est plus peuplé que le
-// pays d'où l'on vient (quand on connaît les deux populations).
+// La douane renforcée, sur le pays où l'on vient d'entrer : sa capitale ou son drapeau parmi quatre, ou s'il est plus
+// peuplé que le pays d'où l'on vient. Faute de populations ou de drapeau connus, c'est la capitale.
 export function customsQuestion(
   code: string,
   prev: string,
@@ -179,15 +183,35 @@ export function customsQuestion(
   region: (code: string) => string | null,
   capital: (code: string) => string,
   pop: (code: string) => number | undefined,
+  hasFlag: (code: string) => boolean,
   rng: () => number,
 ): CustomsQuestion {
+  const kind = (['capitale', 'drapeau', 'population'] as const)[Math.floor(rng() * 3)]
   const [a, b] = [pop(code), pop(prev)]
-  if (rng() >= 0.5 && a && b && a !== b) return { kind: 'population', than: prev, answer: a > b ? 'plus' : 'moins' }
+  if (kind === 'population' && a && b && a !== b) return { kind, than: prev, answer: a > b ? 'plus' : 'moins' }
+  const others = shuffle(pool.filter((c) => c !== code && region(c) === region(code)), rng).concat(shuffle(pool.filter((c) => c !== code), rng))
+  if (kind === 'drapeau' && hasFlag(code)) return { kind, options: shuffle([code, ...[...new Set(others)].filter(hasFlag).slice(0, 3)], rng), answer: code }
   const answer = capital(code)
   const options = [answer]
-  const others = shuffle(pool.filter((c) => c !== code && region(c) === region(code)), rng).concat(shuffle(pool.filter((c) => c !== code), rng))
   for (const c of others) if (options.length < 4 && capital(c) && !options.includes(capital(c))) options.push(capital(c))
   return { kind: 'capitale', options: shuffle(options, rng), answer }
+}
+
+// Ce que Pépite dit en route, aux moments qui comptent : l'arrivée en vue, des vivres comptés au plus juste, le record du
+// Tour du monde à portée.
+export function remark(neighbors: Neighbors, exp: Expedition, run: Run, best: number | null): string | null {
+  if (status(exp, run) !== 'en route') return null
+  if (!exp.end) {
+    const need = best === null ? Infinity : best + 1 - visited(run)
+    if (need <= 0) return t('Nouveau record !')
+    if (need <= 3) return plural(need, 'Encore un pays pour battre ton record', 'Encore {n} pays pour battre ton record')
+    return run.supplies <= 2 ? plural(run.supplies, 'Dernier vivre !', 'Plus que {n} vivres') : null
+  }
+  const left = hops(neighbors, here(run), exp.closed).get(exp.end) ?? Infinity
+  if (left === 1) return t('Dernière frontière !')
+  if (run.supplies < left) return t('Il nous manque des vivres…')
+  if (run.supplies === left) return t('Plus droit à l’erreur')
+  return left <= 3 ? t('Plus que {n} frontières', { n: left }) : null
 }
 
 export function shareText(exp: Expedition, run: Run, day: string, name: (code: string) => string): string {
