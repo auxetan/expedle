@@ -14,6 +14,7 @@ import { dailyTarget, heat } from './game'
 import './globle.css'
 import { locale, plural, t } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { record } from '../../lib/savoir'
 import { feedback } from '../../lib/feedback'
 
 interface Saved {
@@ -75,6 +76,8 @@ export default function Globle({ mode }: { mode?: string }) {
   }
 
   function finish(n: number, win: boolean, ms: number) {
+    // sans limite d'essais, Globle ne se perd qu'en abandonnant
+    record(target, 'position', win)
     if (!practice && !dailyResult('globle', day)) saveDailyResult('globle', { won: win, guesses: n }, day)
     recordPlay('globle', { pts: points(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }
