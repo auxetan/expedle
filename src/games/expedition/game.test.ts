@@ -10,12 +10,14 @@ import {
   here,
   hops,
   miss,
+  remark,
   route,
   score,
   shareText,
   stars,
   startRun,
   status,
+  tourExpedition,
   type Expedition,
 } from './game'
 
@@ -138,18 +140,58 @@ describe('douane', () => {
 describe('douane renforcée', () => {
   const capital = (c: string) => ({ A: 'Alpha', B: 'Bêta', C: 'Gamma', D: 'Delta', E: 'Epsilon', X: 'Xi' })[c] ?? ''
   const pop = (c: string) => ({ A: 10, B: 30, C: 20 })[c as 'A']
+  const flag = (c: string) => c !== 'E'
+  const pool = ['A', 'B', 'C', 'D', 'E', 'X']
 
   it('demande la capitale parmi quatre, ou compare la population avec le pays d’avant', () => {
-    const pool = ['A', 'B', 'C', 'D', 'E', 'X']
-    const cap = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, () => 0.1)
+    const cap = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.1)
     expect(cap).toMatchObject({ kind: 'capitale', answer: 'Gamma' })
     if (cap.kind === 'capitale') expect(cap.options).toContain('Gamma')
-    const comp = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, () => 0.9)
+    const comp = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.9)
     expect(comp).toEqual({ kind: 'population', than: 'B', answer: 'moins' })
   })
 
-  it('se rabat sur la capitale quand la population manque', () => {
-    expect(customsQuestion('D', 'C', ['C', 'D', 'E', 'X'], () => 'Z', capital, pop, () => 0.9).kind).toBe('capitale')
+  it('montre le drapeau du pays parmi quatre, sans pays au drapeau inconnu', () => {
+    const q = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.5)
+    expect(q).toMatchObject({ kind: 'drapeau', answer: 'C' })
+    if (q.kind !== 'drapeau') return
+    expect(q.options).toHaveLength(4)
+    expect(new Set(q.options).size).toBe(4)
+    expect(q.options).toContain('C')
+    expect(q.options).not.toContain('E')
+  })
+
+  it('se rabat sur la capitale quand la population ou le drapeau manque', () => {
+    expect(customsQuestion('D', 'C', ['C', 'D', 'E', 'X'], () => 'Z', capital, pop, flag, () => 0.9).kind).toBe('capitale')
+    expect(customsQuestion('E', 'D', pool, () => 'Z', capital, pop, flag, () => 0.5).kind).toBe('capitale')
+  })
+})
+
+describe('Pépite en route', () => {
+  it('compte les dernières frontières, puis se tait à l’arrivée', () => {
+    let run = startRun(exp())
+    expect(remark(LINE, exp(), run, null)).toBeNull()
+    run = cross(exp(), run, 'B')
+    expect(remark(LINE, exp(), run, null)).toBe('Plus que 3 frontières')
+    run = cross(exp(), cross(exp(), run, 'C'), 'D')
+    expect(remark(LINE, exp(), run, null)).toBe('Dernière frontière !')
+    expect(remark(LINE, exp(), cross(exp(), run, 'E'), null)).toBeNull()
+  })
+
+  it('prévient quand les vivres se comptent au plus juste', () => {
+    const tight = exp({ supplies: 4 })
+    expect(remark(LINE, tight, startRun(tight), null)).toBe('Plus droit à l’erreur')
+    expect(remark(LINE, tight, miss(startRun(tight), 'B'), null)).toBe('Il nous manque des vivres…')
+  })
+
+  it('pousse vers le record du Tour du monde, puis le fête', () => {
+    const tour = tourExpedition('A')
+    let run = startRun(tour)
+    expect(remark(LINE, tour, run, null)).toBeNull()
+    expect(remark(LINE, tour, run, 3)).toBe('Encore 3 pays pour battre ton record')
+    for (const c of ['B', 'C', 'D']) run = cross(tour, run, c)
+    expect(remark(LINE, tour, run, 3)).toBe('Nouveau record !')
+    expect(remark(LINE, tour, { ...run, supplies: 1 }, null)).toBe('Dernier vivre !')
   })
 })
 
