@@ -18,6 +18,8 @@ interface Props {
   gauge?: { value: number; max: number; icon?: ReactNode }
   // une partie sans fin : seules les `trail` dernières cases restent à l'écran
   trail?: number
+  // ce que Pépite dit d'elle-même (l'Expédition : « Dernière frontière ! »), à la place du mot du palier
+  say?: string | null
 }
 
 // une vie à décimales (Survival) garde son dixième ; des vivres entiers s'affichent entiers
@@ -31,8 +33,9 @@ function Heart({ full }: { full: boolean }) {
   )
 }
 
-export default function GameHud({ steps, label, score, time, lives, gauge, trail }: Props) {
+export default function GameHud({ steps, label, score, time, lives, gauge, trail, say }: Props) {
   const { combo, mood, word } = hudState(steps)
+  const said = say ?? (word && t(word))
   const answered = steps.filter((s) => s !== null).length
   const current = steps.indexOf(null)
 
@@ -118,9 +121,9 @@ export default function GameHud({ steps, label, score, time, lives, gauge, trail
           </span>
         )}
         <span className="hud-pepite">
-          {word && (
-            <span key={answered} className="hud-word">
-              {t(word)}
+          {said && (
+            <span key={`${answered}:${said}`} className="hud-word">
+              {said}
             </span>
           )}
           <Mascot mood={shown} size={34} />
