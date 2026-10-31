@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import Hub from './hub/Hub'
 import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
@@ -148,6 +149,7 @@ export default function App() {
       <Celebrations />
       <OfflineBadge />
       <CloudSync />
+      <Analytics />
     </>
   )
 }
