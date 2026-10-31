@@ -1,4 +1,6 @@
-import type { Topology } from 'topojson-specification'
+import type { Feature, FeatureCollection, Polygon } from 'geojson'
+import { feature, mergeArcs } from 'topojson-client'
+import type { GeometryCollection, MultiPolygon as TopoMultiPolygon, Polygon as TopoPolygon, Topology } from 'topojson-specification'
 import { getLang } from '../lib/i18n'
 import { COUNTRY_BY_CODE, CONTINENT_NAMES, countryName, foreignNames } from './countries'
 import { assemble, getWorld, polygonPart, type PolygonArcs, type RawPolygon, type World } from './world'
@@ -144,6 +146,54 @@ export function loadUsaAtlas(): Promise<Atlas> {
     } satisfies Atlas
   })
   return usa
+}
+
+// Les régions et leurs départements (code INSEE), outre-mer compris.
+export const FR_REGIONS: Record<string, string[]> = {
+  'Auvergne-Rhône-Alpes': ['01', '03', '07', '15', '26', '38', '42', '43', '63', '69', '73', '74'],
+  'Bourgogne-Franche-Comté': ['21', '25', '39', '58', '70', '71', '89', '90'],
+  Bretagne: ['22', '29', '35', '56'],
+  'Centre-Val de Loire': ['18', '28', '36', '37', '41', '45'],
+  Corse: ['2A', '2B'],
+  'Grand Est': ['08', '10', '51', '52', '54', '55', '57', '67', '68', '88'],
+  'Hauts-de-France': ['02', '59', '60', '62', '80'],
+  'Île-de-France': ['75', '77', '78', '91', '92', '93', '94', '95'],
+  Normandie: ['14', '27', '50', '61', '76'],
+  'Nouvelle-Aquitaine': ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '87'],
+  Occitanie: ['09', '11', '12', '30', '31', '32', '34', '46', '48', '65', '66', '81', '82'],
+  'Pays de la Loire': ['44', '49', '53', '72', '85'],
+  'Provence-Alpes-Côte d’Azur': ['04', '05', '06', '13', '83', '84'],
+  Guadeloupe: ['971'],
+  Martinique: ['972'],
+  Guyane: ['973'],
+  'La Réunion': ['974'],
+  Mayotte: ['976'],
+}
+
+export interface France {
+  departements: World
+  // les régions, recomposées à partir de leurs départements : leurs frontières se superposent exactement
+  regions: World
+  // les cadres des départements d'outre-mer, rapprochés de la métropole (voir france/LICENSE.md)
+  frames: Feature<Polygon>[]
+}
+
+let france: Promise<France> | null = null
+export function loadFrance(): Promise<France> {
+  france ??= import('./france/departements.json').then((mod) => {
+    const topo = (mod.default ?? mod) as unknown as Topology
+    const geoms = (topo.objects.departements as GeometryCollection).geometries as (TopoPolygon | TopoMultiPolygon)[]
+    const byCode = new Map(geoms.map((g) => [String(g.id), g]))
+    const polygons = (code: string, g: TopoPolygon | TopoMultiPolygon): RawPolygon[] =>
+      (g.type === 'Polygon' ? [g.arcs] : g.arcs).map((arcs) => ({ code, comp: code, arcs, part: polygonPart(topo, code, arcs) }))
+    const regions = Object.entries(FR_REGIONS).flatMap(([name, codes]) => polygons(name, mergeArcs(topo, codes.map((c) => byCode.get(c)!))))
+    return {
+      departements: assemble(topo, [...byCode].flatMap(([code, g]) => polygons(code, g)), []),
+      regions: assemble(topo, regions, []),
+      frames: (feature(topo, topo.objects.cadres) as FeatureCollection<Polygon>).features,
+    }
+  })
+  return france
 }
 
 export function loadAtlas(id: AtlasId): Promise<Atlas> {
