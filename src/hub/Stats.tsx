@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { parseQuizId, ASK_LABEL } from '../games/cartographe/quizzes'
+import { quizTitle } from '../games/cartographe/quizzes'
 import { calendarWeeks, gameRecords, plays, summarize, type Play } from '../lib/stats'
 import { todayKey } from '../lib/util'
 import AppBar from '../ui/AppBar'
@@ -145,10 +145,9 @@ function SeterraTimes({ list }: { list: Play[] }) {
   for (const p of list) if (p.g === 'cartographe' && p.sub) byQuiz.set(p.sub, [...(byQuiz.get(p.sub) ?? []), p])
   if (!byQuiz.size) return null
   const rows = [...byQuiz].map(([id, ps]) => {
-    const q = parseQuizId(id)
     const best = Math.max(...ps.map((p) => p.s ?? 0))
     const perfect = ps.filter((p) => p.s === 100 && p.ms).map((p) => p.ms!)
-    return { id, label: q ? `${t(q.region.name)} · ${t(ASK_LABEL[q.ask])}` : id, n: ps.length, best, time: perfect.length ? Math.min(...perfect) : null }
+    return { id, label: quizTitle(id) ?? id, n: ps.length, best, time: perfect.length ? Math.min(...perfect) : null }
   })
   return (
     <section className="stats-card">
