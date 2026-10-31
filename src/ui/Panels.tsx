@@ -47,6 +47,7 @@ export const ICONS = {
   passport: 'M6 3h12v18H6zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 17h6',
   bag: 'M6 8h12l-1 12H7L6 8zM9 8V6a3 3 0 0 1 6 0v2',
   swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M5 13l6 6M8 16l-4 4M3 19l2 2',
+  bolt: 'M13 2 4 14h7l-1 8 9-12h-7z',
   board: 'M3 4h18v11H3zM8 20l4-5 4 5M7 8.5h6M7 11.5h3',
 }
 
@@ -100,6 +101,7 @@ export function ProfilePanel({ onChange, onPick, extra, focus }: { onChange?: (p
   const settingsRef = useRef<HTMLElement>(null)
   const { owned, balance } = useWallet()
   const weekRank = useWeekRank()
+  const duelWins = plays().filter((p) => p.g === 'duel' && p.win).length
   // les avatars offerts, puis ceux achetés dans la boutique
   const avatars = [...AVATARS, ...PREMIUM_AVATARS.map(([a]) => a).filter((a) => owned.has(`avatar:${a}`))]
   const history = plays()
@@ -180,6 +182,13 @@ export function ProfilePanel({ onChange, onPick, extra, focus }: { onChange?: (p
         onPick={onPick}
       />
       <Row href="#/defis" icon={ICONS.swords} label={t('Défis entre amis')} onPick={onPick} />
+      <Row
+        href="#/duel"
+        icon={ICONS.bolt}
+        label={t('Duel en direct')}
+        end={duelWins > 0 && <small className="ui-row-note">{plural(duelWins, '{n} victoire', '{n} victoires')}</small>}
+        onPick={onPick}
+      />
       <Row href="#/classe" icon={ICONS.board} label={t('Mode classe')} onPick={onPick} />
       <h4>{t('Pépites')}</h4>
       <Row href="#/boutique" icon={ICONS.bag} label={t('Boutique et quêtes du jour')} end={<Pepites n={balance} />} onPick={onPick} />
