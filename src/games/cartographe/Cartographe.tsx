@@ -1,10 +1,11 @@
-import { geoAzimuthalEqualArea, geoNaturalEarth1, geoPath, type GeoProjection } from 'd3-geo'
+import { geoAzimuthalEqualArea, geoConicConformal, geoNaturalEarth1, geoPath, type GeoProjection } from 'd3-geo'
 import { select } from 'd3-selection'
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom'
-import type { MultiPoint } from 'geojson'
+import type { Feature, MultiPoint, Polygon } from 'geojson'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { COUNTRY_BY_CODE, countryName, flagEmoji, foreignNames } from '../../geo/countries'
-import { getWorld } from '../../geo/world'
+import { FR_REGIONS, loadFrance, type France } from '../../geo/atlas'
+import { COUNTRIES, COUNTRY_BY_CODE, countryName, flagEmoji, foreignNames } from '../../geo/countries'
+import { getWorld, type World } from '../../geo/world'
 import { go } from '../../lib/router'
 import { bestScore, recordPlay, submitBest } from '../../lib/stats'
 import { newSeed, readChallenge } from '../../lib/challenge'
@@ -13,7 +14,8 @@ import ChallengeBox from '../../ui/ChallengeBox'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import CountUp from '../../ui/CountUp'
 import { Icon } from '../../ui/Panels'
-import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Region } from './quizzes'
+import { DEPARTEMENTS } from '../quiz/facts'
+import { FRANCE_ASKS, parseFranceId, parseQuizId, quizId, quizTitle, REGIONS, type Ask, type FranceAsk, type Region } from './quizzes'
 import './cartographe.css'
 import { locale, msg, plural, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
@@ -29,11 +31,25 @@ const MODES: [PlayMode, string, string][] = [
 ]
 
 export default function Cartographe({ quizId: id, params }: { quizId?: string; params: URLSearchParams }) {
-  const parsed = id ? parseQuizId(id) : null
-  if (!parsed) return <QuizList />
   const m = params.get('mode')
   const mode: PlayMode = m === 'saisir' || m === 'placer' || m === 'apprendre' ? m : 'epingler'
-  return <Quiz region={parsed.region} ask={parsed.ask} mode={mode} />
+  const france = id ? parseFranceId(id) : null
+  if (france) return <FranceQuiz ask={france} mode={mode} />
+  const parsed = id ? parseQuizId(id) : null
+  if (!parsed) return <QuizList />
+  return <Quiz spec={worldSpec(parsed.region, parsed.ask)} mode={mode} />
+}
+
+// Hors de quizzes.ts, qui reste léger : les pages qui n'affichent que des titres de quiz ne chargent pas la carte du monde.
+function quizMembers(region: Region): string[] {
+  const present = new Set(getWorld().codes)
+  return COUNTRIES.filter(
+    (c) => !c.territory && present.has(c.code) && region.continents.includes(c.continent) && c.capital !== '—',
+  ).map((c) => c.code)
+}
+
+function franceMembers(ask: FranceAsk): string[] {
+  return ask === 'regions' ? Object.keys(FR_REGIONS) : Object.values(FR_REGIONS).flat()
 }
 
 function Brand() {
@@ -48,7 +64,21 @@ function Brand() {
           {t(r.name)}
         </SubLink>
       ))}
+      <SubLink href="#/cartographe/france-departements" active={current.startsWith('#/cartographe/france-')}>
+        {t('France')}
+      </SubLink>
     </AppBar>
+  )
+}
+
+function Tile({ id, count }: { id: string; count: number }) {
+  const best = bestScore('carto-' + id)
+  return (
+    <a href={`#/cartographe/${id}`} className="st-tile">
+      <b>{quizTitle(id)}</b>
+      <span>{plural(count, '{n} question', '{n} questions')}</span>
+      {best !== null && <em>{t('Record : {n} %', { n: best })}</em>}
+    </a>
   )
 }
 
@@ -64,23 +94,53 @@ function QuizList() {
           <section key={ask}>
             <h2>{ask === 'pays' ? t('Jeux de carte') : ask === 'capitales' ? t('Jeux de capitales') : t('Jeux de drapeaux')}</h2>
             <div className="st-grid">
-              {REGIONS.map((r) => {
-                const id = quizId(r.id, ask)
-                const best = bestScore('carto-' + id)
-                return (
-                  <a key={id} href={`#/cartographe/${id}`} className="st-tile">
-                    <b>{t('{region} : {ask}', { region: t(r.name), ask: t(ASK_LABEL[ask]) })}</b>
-                    <span>{plural(quizMembers(r).length, '{n} question', '{n} questions')}</span>
-                    {best !== null && <em>{t('Record : {n} %', { n: best })}</em>}
-                  </a>
-                )
-              })}
+              {REGIONS.map((r) => (
+                <Tile key={r.id} id={quizId(r.id, ask)} count={quizMembers(r).length} />
+              ))}
             </div>
           </section>
         ))}
+        <section>
+          <h2>{t('France')}</h2>
+          <div className="st-grid">
+            {FRANCE_ASKS.map((ask) => (
+              <Tile key={ask} id={`france-${ask}`} count={franceMembers(ask).length} />
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   )
+}
+
+// Ce que demande un quiz : la carte, les zones à trouver et comment les nommer.
+interface Spec {
+  id: string
+  title: string
+  map: World
+  // les zones dessinées, du quiz ou non
+  drawn: string[]
+  members: string[]
+  name: (code: string) => string
+  prompt: (code: string) => string
+  answers: (code: string) => string[]
+  // ce que montre le mode Apprendre
+  label: (code: string) => string
+  flag: boolean
+  // la question est le nom de la zone : en mode Saisir, la carte la montre
+  asksName: boolean
+  // le passeport ne compte que des pays
+  countries: boolean
+  // le globe en fond, pour la carte du monde entier
+  sphere: boolean
+  placeholder: string
+  // ce qu'affiche le mode Apprendre tant que rien n'est survolé
+  hint: string
+  info: string
+  projection: (w: number, h: number) => GeoProjection
+  // hauteur de la carte pour une largeur de 1, sur grand écran puis sur téléphone
+  ratio: [number, number]
+  frames: Feature<Polygon>[]
 }
 
 function boxPoints(r: Region): MultiPoint {
@@ -102,6 +162,114 @@ function projectionFor(r: Region, w: number, h: number): GeoProjection {
   )
 }
 
+function worldSpec(region: Region, ask: Ask): Spec {
+  const world = getWorld()
+  const members = quizMembers(region)
+  const capital = (code: string) => COUNTRY_BY_CODE.get(code)!.capital
+  return {
+    id: quizId(region.id, ask),
+    title: quizTitle(quizId(region.id, ask))!,
+    map: world,
+    drawn: world.codes.filter((c) => c !== 'AQ' || region.world),
+    members,
+    name: countryName,
+    prompt: (c) => (ask === 'capitales' ? capital(c) : ask === 'drapeaux' ? flagEmoji(c) : countryName(c)),
+    answers: (c) => {
+      const meta = COUNTRY_BY_CODE.get(c)!
+      return [meta.name, ...meta.aliases, ...foreignNames(c)]
+    },
+    label: (c) => (ask === 'capitales' ? `${countryName(c)} · ${capital(c)}` : ask === 'drapeaux' ? `${flagEmoji(c)} ${countryName(c)}` : countryName(c)),
+    flag: ask === 'drapeaux',
+    asksName: ask === 'pays',
+    countries: true,
+    sphere: !!region.world,
+    placeholder: t('Quel est ce pays ?'),
+    hint: t('Survole ou clique un pays'),
+    info: t('{n} pays à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs, le pays clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.', { n: members.length }),
+    projection: (w, h) => projectionFor(region, w, h),
+    ratio: region.world ? [0.52, 0.8] : [0.72, 1.15],
+    frames: [],
+  }
+}
+
+const DEPS = new Map(DEPARTEMENTS.map(([num, name, pref]) => [num, { name, pref }]))
+
+// Réponses acceptées en plus du nom officiel.
+const FR_ALIASES: Record<string, string[]> = {
+  '90': ['Belfort'],
+  '973': ['Guyane française', 'French Guiana'],
+  '974': ['Réunion'],
+  Bretagne: ['Brittany'],
+  Normandie: ['Normandy'],
+  Corse: ['Corsica'],
+  'Centre-Val de Loire': ['Centre'],
+  'Provence-Alpes-Côte d’Azur': ['PACA'],
+  Guyane: ['Guyane française', 'French Guiana'],
+  'La Réunion': ['Réunion'],
+}
+
+// Les noms des régions et des départements restent en français, dans toutes les langues du site.
+function franceSpec(france: France, ask: FranceAsk): Spec {
+  const regions = ask === 'regions'
+  const map = regions ? france.regions : france.departements
+  const members = franceMembers(ask)
+  const name = (c: string) => (regions ? c : DEPS.get(c)!.name)
+  const pref = (c: string) => DEPS.get(c)!.pref
+  const info = regions
+    ? t('{n} régions à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs, la région clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.', { n: members.length })
+    : t('{n} départements à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs, le département clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.', { n: members.length })
+  return {
+    id: `france-${ask}`,
+    title: quizTitle(`france-${ask}`)!,
+    map,
+    drawn: map.codes,
+    members,
+    name,
+    prompt: (c) => (ask === 'numeros' ? c : ask === 'prefectures' ? pref(c) : name(c)),
+    answers: (c) => [name(c), ...(FR_ALIASES[c] ?? [])],
+    label: (c) => (ask === 'numeros' ? `${c} · ${name(c)}` : ask === 'prefectures' ? `${name(c)} · ${pref(c)}` : name(c)),
+    flag: false,
+    asksName: regions || ask === 'departements',
+    countries: false,
+    sphere: false,
+    placeholder: regions ? t('Quelle est cette région ?') : t('Quel est ce département ?'),
+    hint: regions ? t('Survole ou clique une région') : t('Survole ou clique un département'),
+    info,
+    // Lambert-93 : la projection dans laquelle l'outre-mer a été rapproché ; le bas reste aux boutons de zoom,
+    // qui cacheraient la Corse
+    projection: (w, h) =>
+      geoConicConformal()
+        .parallels([44, 49])
+        .rotate([-3, 0])
+        .fitExtent(
+          [
+            [8, 8],
+            [w - 8, h - 90],
+          ],
+          { type: 'FeatureCollection', features: [...map.features.values(), ...france.frames] },
+        ),
+    ratio: [0.82, 1.25],
+    frames: france.frames,
+  }
+}
+
+// La carte de France se charge à la demande, à la première ouverture d'un de ses quiz.
+function FranceQuiz({ ask, mode }: { ask: FranceAsk; mode: PlayMode }) {
+  const [france, setFrance] = useState<France | null>(null)
+  useEffect(() => {
+    void loadFrance().then(setFrance)
+  }, [])
+  const spec = useMemo(() => (france ? franceSpec(france, ask) : null), [france, ask])
+  if (!spec)
+    return (
+      <div className="st">
+        <Brand />
+        <p className="page-loading">{t('Chargement…')}</p>
+      </div>
+    )
+  return <Quiz spec={spec} mode={mode} />
+}
+
 interface Target {
   code: string
   tries: number
@@ -116,21 +284,14 @@ const FILL: Record<Target['status'], string> = {
   fail: 'var(--bad)',
 }
 
-function prompt(code: string, ask: Ask): string {
-  if (ask === 'capitales') return COUNTRY_BY_CODE.get(code)!.capital
-  if (ask === 'drapeaux') return flagEmoji(code)
-  return countryName(code)
-}
-
-function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode }) {
-  const world = getWorld()
-  const members = useMemo(() => quizMembers(region), [region])
+function Quiz({ spec, mode }: { spec: Spec; mode: PlayMode }) {
+  const { map: world, members, name, prompt } = spec
   const memberSet = useMemo(() => new Set(members), [members])
   const [challenge] = useState(readChallenge)
   // l'ordre des questions vient d'une graine : un lien de défi pose les mêmes, dans le même ordre
   const [seed, setSeed] = useState(() => challenge?.seed ?? newSeed())
   const order = useMemo(() => shuffle(members, seededRng('seterra-' + seed)), [members, seed])
-  const pagePath = `/cartographe/${quizId(region.id, ask)}${mode === 'epingler' ? '' : `?mode=${mode}`}`
+  const pagePath = `/cartographe/${spec.id}${mode === 'epingler' ? '' : `?mode=${mode}`}`
   const [targets, setTargets] = useState<Map<string, Target>>(() => new Map(members.map((c) => [c, { code: c, tries: 0, status: 'pending' }])))
   const [index, setIndex] = useState(0)
   const [clicks, setClicks] = useState(0)
@@ -171,7 +332,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const [width, setWidth] = useState(900)
   // sur téléphone la carte est plus haute que large pour rester lisible
-  const height = Math.round(width * (width < 640 ? (region.world ? 0.8 : 1.15) : region.world ? 0.52 : 0.72))
+  const height = Math.round(width * spec.ratio[width < 640 ? 1 : 0])
   const [zt, setZt] = useState<ZoomTransform>(zoomIdentity)
 
   useLayoutEffect(() => {
@@ -196,16 +357,9 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
     }
   }, [width, height])
 
-  const projection = useMemo(() => projectionFor(region, width, height), [region, width, height])
+  const projection = useMemo(() => spec.projection(width, height), [spec, width, height])
   const path = useMemo(() => geoPath(projection), [projection])
-  const shapes = useMemo(
-    () =>
-      world.codes
-        .filter((c) => c !== 'AQ' || region.world)
-        .map((c) => ({ code: c, d: path(world.features.get(c)!) ?? '' }))
-        .filter((s) => s.d),
-    [world, path, region],
-  )
+  const shapes = useMemo(() => spec.drawn.map((c) => ({ code: c, d: path(world.features.get(c)!) ?? '' })).filter((s) => s.d), [spec, world, path])
   const centers = useMemo(() => {
     const out = new Map<string, { x: number; y: number; small: boolean }>()
     for (const code of members) {
@@ -231,9 +385,9 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   useEffect(() => {
     if (!finished || !started) return
     const pct = Math.round((correct / Math.max(clicks, 1)) * 100)
-    recordPlay('cartographe', { pts: pct, s: pct, ms: now - startAt, sub: quizId(region.id, ask) })
-    setRecord(submitBest('carto-' + quizId(region.id, ask), pct))
-  }, [finished, started, correct, clicks, region, ask, now, startAt])
+    recordPlay('cartographe', { pts: pct, s: pct, ms: now - startAt, sub: spec.id })
+    setRecord(submitBest('carto-' + spec.id, pct))
+  }, [finished, started, correct, clicks, spec, now, startAt])
 
   const elapsed = started ? (finished ? now : performance.now()) - startAt : 0
 
@@ -246,7 +400,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   function resolve(status: Target['status']) {
     feedback(status === 'fail' ? 'bad' : 'good', run.current)
     run.current = status === 'fail' ? 0 : run.current + 1
-    if (status !== 'fail') stamp(current, 'cartographe')
+    if (status !== 'fail' && spec.countries) stamp(current, 'cartographe')
     const t = targets.get(current)!
     const next = new Map(targets)
     next.set(current, { ...t, status })
@@ -305,8 +459,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
 
   function onType() {
     if (!started || finished) return
-    const meta = COUNTRY_BY_CODE.get(current)!
-    const ok = [meta.name, ...meta.aliases, ...foreignNames(current)].some((n) => normalize(n) === normalize(typed))
+    const ok = spec.answers(current).some((n) => normalize(n) === normalize(typed))
     if (ok) {
       const tries = targets.get(current)!.tries
       setClicks((c) => c + 1)
@@ -341,7 +494,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
   const pct = clicks ? Math.round((correct / clicks) * 100) : 0
   const blink = started && !finished && (targets.get(current)?.tries ?? 0) >= 3
   const k = zt.k
-  const title = t('{region} : {ask}', { region: t(region.name), ask: t(ASK_LABEL[ask]) })
+  const title = spec.title
 
   return (
     <div className="st">
@@ -353,7 +506,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               <span className="st-score">
                 <b>{t('Apprendre')}</b>
               </span>
-              <span className="st-target">{hover ? countryName(hover) : t('Survole ou clique un pays')}</span>
+              <span className="st-target">{hover ? name(hover) : spec.hint}</span>
               <span className="st-right">
                 <button className="st-pill ui-btn line" onClick={() => setPinned(pinned.size ? new Set() : new Set(members))}>
                   {pinned.size ? t('Masquer les noms') : t('Tous les noms')}
@@ -373,9 +526,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 <i />
                 <b>{pct}%</b>
               </span>
-              {!finished && mode === 'epingler' && (
-                <span className={ask === 'drapeaux' ? 'st-target flag' : 'st-target'}>{prompt(current, ask)}</span>
-              )}
+              {!finished && mode === 'epingler' && <span className={spec.flag ? 'st-target flag' : 'st-target'}>{prompt(current)}</span>}
               <span className="st-right">
                 <span className="st-time">{formatTime(elapsed)}</span>
                 <button className="st-x" onClick={() => go('/cartographe')} aria-label={t('Quitter')}>
@@ -395,7 +546,10 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           >
             <rect width={width} height={height} className="st-sea" />
             <g transform={zt.toString()}>
-              {region.world && <path d={path({ type: 'Sphere' }) ?? ''} className="st-sphere" />}
+              {spec.frames.map((f) => (
+                <path key={'f' + f.id} d={path(f) ?? ''} className="st-inset" />
+              ))}
+              {spec.sphere && <path d={path({ type: 'Sphere' }) ?? ''} className="st-sphere" />}
               {shapes.map(({ code, d }) => {
                 const inQuiz = memberSet.has(code)
                 const t = targets.get(code)
@@ -406,7 +560,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   'st-land',
                   inQuiz ? 'q' : '',
                   blink && code === current ? 'blink' : '',
-                  mode === 'saisir' && ask === 'pays' && started && !finished && code === current ? 'ask' : '',
+                  mode === 'saisir' && spec.asksName && started && !finished && code === current ? 'ask' : '',
                 ].join(' ')
                 return <path key={code} data-code={code} d={d} style={{ fill }} className={cls} onClick={() => onCountry(code)} />
               })}
@@ -414,7 +568,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 const c = centers.get(code)
                 if (!c?.small) return null
                 const t = targets.get(code)!
-                const isAsk = mode === 'saisir' && ask === 'pays' && started && !finished && code === current
+                const isAsk = mode === 'saisir' && spec.asksName && started && !finished && code === current
                 return (
                   <circle
                     key={'c' + code}
@@ -437,7 +591,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   return (
                     <g key={'p' + code} transform={`translate(${c.x * k + zt.x},${c.y * k + zt.y})`} className="st-label st-placed">
                       <text y={4} textAnchor="middle">
-                        {countryName(code)}
+                        {name(code)}
                       </text>
                     </g>
                   )
@@ -449,7 +603,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                 return (
                   <g key={'l' + code} transform={`translate(${c.x * k + zt.x},${c.y * k + zt.y})`} className="st-label">
                     <text y={4} textAnchor="middle">
-                      {ask === 'capitales' ? `${countryName(code)} · ${COUNTRY_BY_CODE.get(code)!.capital}` : ask === 'drapeaux' ? `${flagEmoji(code)} ${countryName(code)}` : countryName(code)}
+                      {spec.label(code)}
                     </text>
                   </g>
                 )
@@ -462,7 +616,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
                   <g transform={`translate(${c.x * k + zt.x},${c.y * k + zt.y})`} className="st-label">
                     {flash.kind === 'right' && <circle r={22} className="st-ring" />}
                     <text y={flash.kind === 'right' ? 34 : 4} textAnchor="middle">
-                      {countryName(flash.code)}
+                      {name(flash.code)}
                     </text>
                   </g>
                 )
@@ -482,7 +636,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
               <span className="st-kicker">{t('MODE DE JEU')}</span>
               <div className="st-modes">
                 {MODES.map(([m, label, icon]) => (
-                  <a key={m} href={`#/cartographe/${quizId(region.id, ask)}${m === 'epingler' ? '' : `?mode=${m}`}`} className={mode === m ? 'on' : ''}>
+                  <a key={m} href={`#/cartographe/${spec.id}${m === 'epingler' ? '' : `?mode=${m}`}`} className={mode === m ? 'on' : ''}>
                     <span>
                       <Icon d={icon} size={22} />
                     </span>
@@ -527,23 +681,23 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
           <div className="st-place">
             <span className="ui-label">{t('Glisse l’étiquette sur la carte')}</span>
             <button className={drag ? 'st-chip dragging' : 'st-chip'} onPointerDown={startDrag}>
-              {prompt(current, ask)}
+              {prompt(current)}
             </button>
           </div>
         )}
         {drag && (
           <div className="st-chip st-chip-ghost" style={{ left: drag.x, top: drag.y }}>
-            {prompt(current, ask)}
+            {prompt(current)}
           </div>
         )}
         {mode === 'saisir' && started && !finished && (
           <div className="st-type">
-            {ask !== 'pays' && <span className={ask === 'drapeaux' ? 'st-target flag' : 'st-target'}>{prompt(current, ask)}</span>}
+            {!spec.asksName && <span className={spec.flag ? 'st-target flag' : 'st-target'}>{prompt(current)}</span>}
             <input
               autoFocus
               className={shake ? 'shake' : ''}
               value={typed}
-              placeholder={t('Quel est ce pays ?')}
+              placeholder={spec.placeholder}
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onType()}
             />
@@ -555,10 +709,9 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
 
         <section className="st-info">
           <h2>{title}</h2>
-          <p>
-            {t('{n} pays à trouver. Premier essai : blanc · deuxième : jaune · troisième : orange · après trois erreurs, le pays clignote en rouge. Molette ou pincement pour zoomer, glisser pour déplacer la carte.', { n: members.length })}
-          </p>
-          <p className="st-list-names">{members.map(countryName).sort((a, b) => a.localeCompare(b, locale())).join(' · ')}</p>
+          <p>{spec.info}</p>
+          <p className="st-list-names">{members.map(name).sort((a, b) => a.localeCompare(b, locale())).join(' · ')}</p>
+          {!spec.countries && <p className="st-source">{t('Contours : IGN, ADMIN EXPRESS 2026, sous Licence Ouverte.')}</p>}
         </section>
       </main>
     </div>
