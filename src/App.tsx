@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import Hub from './hub/Hub'
 import { CloudSync } from './ui/Account'
 import Celebrations from './ui/Celebrations'
+import DuelLayer from './ui/DuelLayer'
 import OfflineBadge from './ui/OfflineBadge'
 import { t, useLang } from './lib/i18n'
 import { useRoute } from './lib/router'
@@ -36,6 +37,7 @@ const PhotoGuessr = lazy(() => import('./games/guessr/PhotoGuessr'))
 const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
 const OpenFront = lazy(() => import('./games/openfront/OpenFront'))
 const Expedition = lazy(() => import('./games/expedition/Expedition'))
+const DuelPage = lazy(() => import('./duel/DuelPage'))
 
 export default function App() {
   const route = useRoute()
@@ -137,6 +139,9 @@ export default function App() {
     case 'openfront':
       content = <OpenFront key={key} />
       break
+    case 'duel':
+      content = <DuelPage key={key} code={sub} params={route.params} />
+      break
     default:
       content = <Hub />
   }
@@ -150,6 +155,7 @@ export default function App() {
         </div>
       </Suspense>
       <Celebrations />
+      <DuelLayer route={route} />
       <OfflineBadge />
       <CloudSync />
     </>

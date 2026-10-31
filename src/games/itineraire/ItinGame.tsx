@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Atlas } from '../../geo/atlas'
-import { isSolved, MARK_EMOJI, nextCountries, scoreGuess, shortestPath, startConnected, type Mark } from '../../geo/graph'
+import { isSolved, MARK_EMOJI, nextCountries, remaining, scoreGuess, shortestPath, startConnected, type Mark } from '../../geo/graph'
+import { useDuelProgress } from '../../lib/duelRoom'
 import { dailyResult, recordPlay, saveDailyResult, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, todayKey } from '../../lib/util'
 import { addRecord, computeStats, type GameRecord, type ItinSettings } from './history'
@@ -81,6 +82,8 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
   const connected = useMemo(() => startConnected(g, start, guessedSet), [g, start, guessedSet])
   const next = useMemo(() => (hints >= 1 && !over ? nextCountries(g, start, end, guessedSet) : []), [g, start, end, guessedSet, hints, over])
   const solution = useMemo(() => shortestPath(g, start, end), [g, start, end])
+  const left = useMemo(() => remaining(g, start, end, guessedSet), [g, start, end, guessedSet])
+  useDuelProgress(challenge.active && !over ? { left, unit: 'pays' } : null)
 
   useEffect(() => {
     if (slot.storageKey) save(slot.storageKey, { guesses, hints })
