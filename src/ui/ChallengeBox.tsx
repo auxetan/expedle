@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { challengeUrl, compare, readChallenge, rememberChallenge, type Result } from '../lib/challenge'
-import { addFriend, challengeBoard, myFriends, sendChallenge, submitChallenge, useAccount, type ChallengeRow, type Friend } from '../lib/cloud'
+import { addFriend, challengeBoard, cloudEnabled, myFriends, sendChallenge, submitChallenge, useAccount, type ChallengeRow, type Friend } from '../lib/cloud'
+import { duelGame } from '../lib/duel'
 import { plural, t } from '../lib/i18n'
 import { copyText } from '../lib/util'
 import { gameInfo } from './gameInfo'
@@ -182,6 +183,11 @@ export default function ChallengeBox({ game, path, seed, result }: Props) {
           <button className="ui-btn line" onClick={() => void invite()} title={t('Le lien fait jouer exactement la même partie.')}>
             ⚔️ {challenge ? t('Défier un autre ami') : t('Défier un ami')}
           </button>
+          {cloudEnabled && duelGame(game) && (
+            <a className="ui-btn line" href={`#/duel?jeu=${game}`} title={t('La même partie au même moment : le plus rapide gagne.')}>
+              {t('Défier en direct')}
+            </a>
+          )}
         </div>
 
         {friends && friends.length > 0 && (
