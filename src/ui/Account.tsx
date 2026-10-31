@@ -16,6 +16,7 @@ export default function AccountBox() {
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [leaving, setLeaving] = useState(false)
   const codeRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -37,6 +38,29 @@ export default function AccountBox() {
   }
 
   if (account.state === 'loading') return <p className="ui-note">{t('Connexion au compte…')}</p>
+
+  // un compte élève sans email ne se retrouve pas après déconnexion : on prévient avant
+  if (account.state === 'in' && account.anonymous)
+    return (
+      <div className="ui-field ui-account">
+        <span>{t('Compte')}</span>
+        <p className="ui-note">{account.syncing ? t('Synchronisation…') : t('Compte élève, sans email : il n’existe que sur cet appareil.')}</p>
+        {account.error && <p className="ui-error">{account.error}</p>}
+        {leaving ? (
+          <div className="ui-confirm">
+            <span>{t('Te déconnecter ? Ce compte sans email ne pourra pas être retrouvé, ni ta place dans ta classe.')}</span>
+            <button className="danger" onClick={() => void signOut()}>
+              {t('Oui, me déconnecter')}
+            </button>
+            <button onClick={() => setLeaving(false)}>{t('Annuler')}</button>
+          </div>
+        ) : (
+          <button className="ui-btn-line" onClick={() => setLeaving(true)}>
+            {t('Se déconnecter')}
+          </button>
+        )}
+      </div>
+    )
 
   if (account.state === 'in')
     return (
