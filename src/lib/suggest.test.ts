@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
 import { record } from './savoir'
 import type { Play } from './stats'
-import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, REVISION, suggest } from './suggest'
+import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, REVISION, SIGNATURE, suggest } from './suggest'
 
 const NOW = new Date(2026, 9, 18, 15).getTime()
 const game = (href: string) => ALL_GAMES.find((g) => g.href === href)!
@@ -34,9 +34,10 @@ describe('suggestions', () => {
     expect(rank('#/globle')).toBeGreaterThan(rank('#/worldle'))
   })
 
-  it('propose les classiques à qui débute, et un programme varié', () => {
+  it('propose l’expédition du jour d’abord, puis les classiques à qui débute, et un programme varié', () => {
     const list = suggest(ALL_GAMES, [], () => false, NOW)
-    expect(list[0].reason).toBe('Parfait pour commencer')
+    expect(list[0].game.href).toBe(SIGNATURE)
+    expect(list[1].reason).toBe('Parfait pour commencer')
     const program = dailyProgram(ALL_GAMES, [], () => false, NOW)
     const sections = program.map((g) => GAME_SECTIONS.find((s) => s.games.includes(g))!.label)
     for (const label of new Set(sections)) expect(sections.filter((x) => x === label).length).toBeLessThanOrEqual(2)
@@ -64,9 +65,13 @@ describe('suggestions', () => {
     const history = ALL_GAMES.filter((g) => g.dailyId).map((g, i) => play(g.dailyId!, 72 + i))
     expect(suggest(ALL_GAMES, history, () => false, NOW).map((s) => s.game)).not.toContain(REVISION)
     record('PE', 'capitale', false, NOW - 3600000)
-    expect(suggest(ALL_GAMES, history, () => false, NOW)[0]).toMatchObject({ game: REVISION, reason: 'Tes points faibles t’attendent' })
+    // l'expédition du jour garde la tête ; la révision la suit, devant tous les autres jeux du jour
+    const list = suggest(ALL_GAMES, history, () => false, NOW)
+    expect(list[0].game.href).toBe(SIGNATURE)
+    expect(list[1]).toMatchObject({ game: REVISION, reason: 'Tes points faibles t’attendent' })
     expect(dailyProgram(ALL_GAMES, history, () => false, NOW)).toContain(REVISION)
-    expect(suggest(ALL_GAMES, history, (g) => g === REVISION, NOW)[0].game).not.toBe(REVISION)
+    // faite aujourd'hui, elle passe derrière tout le reste
+    expect(suggest(ALL_GAMES, history, (g) => g === REVISION, NOW).at(-1)!.game).toBe(REVISION)
     // une fois les réponses revues, le programme du jour ne bouge pas
     record('PE', 'capitale', true, NOW)
     expect(dailyProgram(ALL_GAMES, history, () => false, NOW + 3600000)).toContain(REVISION)
