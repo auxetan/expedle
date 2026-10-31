@@ -9,13 +9,13 @@ import ChallengeBox from '../../ui/ChallengeBox'
 import CountUp from '../../ui/CountUp'
 import GameHud from '../../ui/GameHud'
 import Joker from '../../ui/Joker'
-import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './bank'
+import { CATEGORIES, francophonieQuestions, pickQuestions, questionBank, type BankQuestion } from './bank'
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
 import { feedback, runOf } from '../../lib/feedback'
 
-type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
+type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales' | 'francophonie'
 
 interface Item {
   id?: string
@@ -24,11 +24,19 @@ interface Item {
   cat: string
   q: string
   big?: string
+  // le gros texte est un drapeau
+  flag?: boolean
   answer: string
   options: string[]
 }
 
-const MODE_TABS: Record<Kind, string> = { culture: msg('Culture G'), jour: msg('Du jour'), drapeaux: msg('Drapeaux'), capitales: msg('Capitales') }
+const MODE_TABS: Record<Kind, string> = {
+  culture: msg('Culture G'),
+  jour: msg('Du jour'),
+  drapeaux: msg('Drapeaux'),
+  capitales: msg('Capitales'),
+  francophonie: msg('Francophonie'),
+}
 
 const COUNT = 10
 const TIME = 20000
@@ -38,6 +46,7 @@ const TITLES: Record<Kind, string> = {
   jour: msg('Quiz du jour'),
   drapeaux: msg('Drapeaux'),
   capitales: msg('Capitales'),
+  francophonie: msg('Francophonie'),
 }
 
 function sovereign() {
@@ -51,6 +60,8 @@ function wrongOptions<T>(pool: T[], correct: T, same: (t: T) => boolean, rng: ()
 }
 
 function buildItems(kind: Kind, rng: () => number, category: string | null): Item[] {
+  if (kind === 'francophonie')
+    return francophonieQuestions(rng, COUNT).map((q) => ({ code: q.code, cat: q.cat, q: q.q, big: q.big, flag: q.flag, answer: q.a, options: shuffle([q.a, ...q.w], rng) }))
   if (kind === 'drapeaux' || kind === 'capitales') {
     const pool = sovereign()
     return shuffle(pool, rng)
@@ -92,7 +103,7 @@ function itemsFromIds(ids: string[], rng: () => number): Item[] {
 
 
 export default function Quiz({ kind: raw }: { kind?: string }) {
-  const kind: Kind = raw === 'jour' || raw === 'drapeaux' || raw === 'capitales' ? raw : 'culture'
+  const kind: Kind = raw === 'jour' || raw === 'drapeaux' || raw === 'capitales' || raw === 'francophonie' ? raw : 'culture'
   const day = todayKey()
   const done = kind === 'jour' ? dailyResult<{ score: number; good: number }>('quiz-jour', day) : null
   const [challenge] = useState(readChallenge)
@@ -219,7 +230,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
   return (
     <div className="qz">
       <AppBar title="Quiz">
-        {(['culture', 'jour', 'drapeaux', 'capitales'] as Kind[]).map((k) => (
+        {(['culture', 'jour', 'drapeaux', 'capitales', 'francophonie'] as Kind[]).map((k) => (
           <SubLink key={k} href={`#/quiz/${k === 'culture' ? '' : k}`} active={k === kind}>
             {t(MODE_TABS[k])}
           </SubLink>
@@ -310,7 +321,7 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
           </div>
           <main className="qz-card" key={`${i}-${run}-${item.id}`}>
             <h2 className="qz-q">{item.q}</h2>
-            {item.big && <div className={kind === 'drapeaux' ? 'qz-big flag' : 'qz-big'}>{item.big}</div>}
+            {item.big && <div className={kind === 'drapeaux' || item.flag ? 'qz-big flag' : 'qz-big'}>{item.big}</div>}
             <div className="qz-options stagger">
               {item.options.map((opt, k) => {
                 const state =
