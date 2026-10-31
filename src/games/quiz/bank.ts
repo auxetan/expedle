@@ -1,4 +1,4 @@
-import { COUNTRIES, CONTINENT_NAMES, countryName, flagEmoji } from '../../geo/countries'
+import { COUNTRIES, CONTINENT_NAMES, countryName, flagEmoji, FRANCOPHONES, FRENCH_SPOKEN, type CountryMeta } from '../../geo/countries'
 import { mulberry32, shuffle } from '../../lib/util'
 import { CITY_STATS, COUNTRY_STATS } from '../classement/data'
 import {
@@ -18,7 +18,7 @@ import {
   WORLD_CUPS,
 } from './facts'
 import { QUESTIONS } from './questions'
-import { msg } from '../../lib/i18n'
+import { msg, t } from '../../lib/i18n'
 
 export interface BankQuestion {
   id: string
@@ -195,6 +195,32 @@ export function questionBank(): BankQuestion[] {
 
   bank = out
   return bank
+}
+
+export interface FrancoQuestion extends Omit<BankQuestion, 'id'> {
+  code: string
+  flag?: boolean
+}
+
+// Le quiz Francophonie : la capitale ou le drapeau d'un pays de langue officielle française, ou ce pays parmi
+// trois du même continent qui ne le sont pas (jamais un pays où le français reste très parlé).
+export function francophonieQuestions(rng: () => number, count: number): FrancoQuestion[] {
+  const all = COUNTRIES.filter((c) => !c.territory && c.capital !== '—')
+  const pool = all.filter((c) => FRANCOPHONES.has(c.code))
+  const others = all.filter((c) => !FRANCOPHONES.has(c.code) && !FRENCH_SPOKEN.has(c.code))
+  const wrong = (from: CountryMeta[], c: CountryMeta) => {
+    const list = from.filter((o) => o !== c)
+    return [...shuffle(list.filter((o) => o.continent === c.continent), rng), ...shuffle(list.filter((o) => o.continent !== c.continent), rng)].slice(0, 3)
+  }
+  return shuffle(pool, rng)
+    .slice(0, count)
+    .map((c, i) => {
+      const name = countryName(c.code)
+      const base = { cat: 'Francophonie', code: c.code }
+      if (i % 3 === 0) return { ...base, q: t('Quelle est la capitale de ce pays ?'), big: name, a: c.capital, w: wrong(pool, c).map((o) => o.capital) }
+      if (i % 3 === 1) return { ...base, q: t('À quel pays appartient ce drapeau ?'), big: flagEmoji(c.code), flag: true, a: name, w: wrong(pool, c).map((o) => countryName(o.code)) }
+      return { ...base, q: t('Dans lequel de ces pays le français est-il langue officielle ?'), a: name, w: wrong(others, c).map((o) => countryName(o.code)) }
+    })
 }
 
 // Une catégorie au hasard puis une question : la géographie, très nombreuse, n'écrase pas le reste.
