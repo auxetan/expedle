@@ -13,13 +13,17 @@ interface Props {
   score?: number
   time?: { left: number; total: number }
   lives?: { left: number; total: number }
-  // une vie continue (Survival) : une jauge, dont chaque perte ou gain s'affiche un instant
-  gauge?: { value: number; max: number }
+  // une vie continue (Survival, les vivres de l'Expédition) : une jauge, dont chaque perte ou gain s'affiche un instant ;
+  // un cœur par défaut
+  gauge?: { value: number; max: number; icon?: ReactNode }
   // une partie sans fin : seules les `trail` dernières cases restent à l'écran
   trail?: number
+  // ce que Pépite dit d'elle-même (l'Expédition : « Dernière frontière ! »), à la place du mot du palier
+  say?: string | null
 }
 
-const tenth = (n: number) => fmt(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+// une vie à décimales (Survival) garde son dixième ; des vivres entiers s'affichent entiers
+const tenth = (n: number) => (Number.isInteger(n) ? fmt(n) : fmt(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
 
 function Heart({ full }: { full: boolean }) {
   return (
@@ -29,8 +33,9 @@ function Heart({ full }: { full: boolean }) {
   )
 }
 
-export default function GameHud({ steps, label, score, time, lives, gauge, trail }: Props) {
+export default function GameHud({ steps, label, score, time, lives, gauge, trail, say }: Props) {
   const { combo, mood, word } = hudState(steps)
+  const said = say ?? (word && t(word))
   const answered = steps.filter((s) => s !== null).length
   const current = steps.indexOf(null)
 
@@ -87,7 +92,7 @@ export default function GameHud({ steps, label, score, time, lives, gauge, trail
         )}
         {gauge && (
           <span className={`hud-gauge ${ratio <= 0.25 ? 'low' : ratio <= 0.5 ? 'warn' : ''}`} role="img" aria-label={t('Vie : {n}', { n: tenth(gauge.value) })}>
-            <Heart full />
+            {gauge.icon ?? <Heart full />}
             <span className="hud-gauge-bar">
               <i style={{ width: `${Math.min(1, ratio) * 100}%` }} />
             </span>
@@ -116,9 +121,9 @@ export default function GameHud({ steps, label, score, time, lives, gauge, trail
           </span>
         )}
         <span className="hud-pepite">
-          {word && (
-            <span key={answered} className="hud-word">
-              {t(word)}
+          {said && (
+            <span key={`${answered}:${said}`} className="hud-word">
+              {said}
             </span>
           )}
           <Mascot mood={shown} size={34} />

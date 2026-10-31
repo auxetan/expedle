@@ -17,6 +17,8 @@ interface AnyResult {
   good?: number
   tries?: number
   placed?: number
+  // l'Expédition : frontières passées
+  steps?: number
 }
 
 // Parties commencées mais pas terminées (Travle, Worldle et Globle gardent la partie en cours).
@@ -31,6 +33,7 @@ const IN_PROGRESS: Record<string, () => string> = {
   geogrid: () => `geogrid:${todayKey()}`,
   statele: () => `statele:${todayKey()}`,
   dailygeo: () => `dailygeo:${todayKey()}`,
+  expedition: () => `expedition:${todayKey()}`,
 }
 
 function resultLabel(id: string, r: AnyResult): string {
@@ -46,6 +49,7 @@ function resultLabel(id: string, r: AnyResult): string {
   if (id === 'geogrid') return `${r.score}/9`
   if (id === 'statele') return r.won ? `${r.guesses}/6` : t('perdu')
   if (id === 'dailygeo') return `${r.score}/100`
+  if (id === 'expedition') return r.won ? plural(r.steps!, '{n} frontière', '{n} frontières') : t('bloqué')
   if (id === 'factle') return r.won ? `${r.tries}/5` : t('perdu')
   if (id === 'wikitrivia') return `${r.placed}/15`
   if (id === 'tightrope') return `${r.good}/9`
@@ -58,8 +62,9 @@ export function dailyStatus(g: GameEntry): DailyStatus {
   const res = dailyResult<AnyResult>(g.dailyId, g.weekly ? weekKey() : undefined)
   if (res) return { state: 'done', label: resultLabel(g.dailyId, res) }
   const key = IN_PROGRESS[g.dailyId]?.()
-  // GeoGrid compte ses essais, les autres jeux gardent la liste des pays proposés
-  const guesses = key ? load<{ guesses: string[] | number }>(key, { guesses: 0 }).guesses : 0
-  if (Array.isArray(guesses) ? guesses.length : guesses) return { state: 'progress', label: t('en cours') }
+  // GeoGrid compte ses essais, l'Expédition garde son chemin, les autres jeux la liste des pays proposés
+  const saved = key ? load<{ guesses?: string[] | number; run?: { path: string[] } }>(key, {}) : {}
+  const moves = Array.isArray(saved.guesses) ? saved.guesses.length : (saved.guesses ?? (saved.run ? saved.run.path.length - 1 : 0))
+  if (moves) return { state: 'progress', label: t('en cours') }
   return { state: 'todo', label: t('à jouer') }
 }
