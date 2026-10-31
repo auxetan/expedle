@@ -31,6 +31,7 @@ export const GAME_SECTIONS: GameSection[] = [
     label: 'Géographie',
     tint: 'teal',
     games: [
+      { href: '#/expedition', title: 'L’Expédition', tagline: 'Passer chaque douane jusqu’au bout du monde', rhythm: 'quotidien', dailyId: 'expedition', icon: 'expedition', family: VOYAGER },
       { href: '#/itineraire', title: 'Travle', tagline: 'Relier deux pays par la terre', rhythm: 'quotidien', dailyId: 'itineraire', icon: 'travle', family: VOYAGER },
       { href: '#/itineraire/hebdo', title: 'Travle : défi hebdo', tagline: 'Un long trajet, chaque lundi', rhythm: 'hebdo', dailyId: 'itineraire-hebdo', weekly: true, icon: 'travle-hebdo', family: VOYAGER },
       { href: '#/itineraire/usa', title: 'Travle USA', tagline: 'D’un État américain à l’autre', rhythm: 'quotidien', dailyId: 'itineraire-usa', icon: 'travle-usa', family: VOYAGER },

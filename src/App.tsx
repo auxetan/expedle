@@ -35,6 +35,7 @@ const Tightrope = lazy(() => import('./games/tightrope/Tightrope'))
 const PhotoGuessr = lazy(() => import('./games/guessr/PhotoGuessr'))
 const GeoGuessr = lazy(() => import('./games/guessr/GeoGuessr'))
 const OpenFront = lazy(() => import('./games/openfront/OpenFront'))
+const Expedition = lazy(() => import('./games/expedition/Expedition'))
 const Classe = lazy(() => import('./hub/Classe'))
 const JoinClass = lazy(() => import('./hub/Classe').then((m) => ({ default: m.JoinClass })))
 
@@ -134,6 +135,9 @@ export default function App() {
       break
     case 'geoguessr':
       content = <GeoGuessr key={key} daily={sub === 'jour'} />
+      break
+    case 'expedition':
+      content = <Expedition key={key} mode={sub} />
       break
     case 'openfront':
       content = <OpenFront key={key} />

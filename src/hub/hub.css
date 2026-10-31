@@ -162,6 +162,21 @@
   background: var(--hover);
 }
 
+/* le jeu signature, l'Expédition, tant qu'elle reste à faire dans la journée */
+.home-next.signature {
+  border-color: color-mix(in srgb, var(--or) 60%, var(--line));
+  background: color-mix(in srgb, var(--or) 7%, var(--card));
+}
+
+.home-next.signature .home-next-text small {
+  color: var(--or);
+}
+
+.home-next.signature .home-next-go {
+  background: var(--or);
+  color: #1f1e1c;
+}
+
 .home-next-text {
   flex: 1;
   min-width: 0;

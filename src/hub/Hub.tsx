@@ -3,7 +3,7 @@ import { evaluate, levelOf } from '../lib/achievements'
 import { coin } from '../lib/feedback'
 import { fmt, locale, ordinal, t, tx } from '../lib/i18n'
 import { plays, summarize } from '../lib/stats'
-import { dailyProgram, NEW_GAMES, playIds, PROGRAM_SIZE, suggest } from '../lib/suggest'
+import { dailyProgram, NEW_GAMES, playIds, PROGRAM_SIZE, SIGNATURE, suggest } from '../lib/suggest'
 import { load, save, todayKey, weekKey } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import { dailyStatus } from '../ui/daily'
@@ -133,10 +133,10 @@ export default function Hub() {
         </section>
 
         {nextUp && (
-          <a href={nextUp.game.href} className="home-next">
+          <a href={nextUp.game.href} className={nextUp.game.href === SIGNATURE ? 'home-next signature' : 'home-next'}>
             <GameIcon icon={nextUp.game.icon} size={64} />
             <span className="home-next-text">
-              <small>{t('À jouer maintenant')}</small>
+              <small>{nextUp.game.href === SIGNATURE ? t('Le jeu du jour') : t('À jouer maintenant')}</small>
               <b>{t(nextUp.game.title)}</b>
               <span>{t(nextUp.reason)}</span>
             </span>
