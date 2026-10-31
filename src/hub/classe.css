@@ -1,0 +1,154 @@
+/* Mode classe : une carte par classe, dans la colonne des Défis (cf-main) */
+.cl-card {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.cl-card h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.cl-card h3 {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cl-card .cf-code {
+  background: var(--bg2);
+}
+
+.cl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.cl-head small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cl-pins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cl-pins li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--bg2);
+  font-size: 14px;
+}
+
+.cl-pins a {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.cl-pins a:hover {
+  text-decoration: underline;
+}
+
+.cl-done {
+  color: var(--good);
+  font-weight: 500;
+}
+
+.cl-select {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--fg);
+  font: 15px var(--font);
+}
+
+/* un nom de classe, pas un code ami : sans l'espacement des codes */
+.cf-add .cl-name {
+  letter-spacing: normal;
+}
+
+.cl-card .ch-list .ui-confirm {
+  flex-wrap: nowrap;
+}
+
+.cl-quiet {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.cl-quiet:hover {
+  color: var(--bad);
+}
+
+/* sans compte : l'élève d'un côté, le professeur de l'autre */
+.cl-who {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+  gap: 0 16px;
+}
+
+.cl-who .ui-btn {
+  align-self: flex-start;
+}
+
+/* le bloc Compte se fond dans la carte du professeur */
+.cl-who .ui-account {
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.cl-join .ui-field {
+  margin-bottom: 0;
+}
+
+.cl-join .ui-btn {
+  align-self: flex-start;
+}
+
+.cl-code {
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.cl-join-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
