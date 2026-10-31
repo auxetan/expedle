@@ -9,6 +9,7 @@ import { countryCenter, distanceKm, rhumbBearing } from '../../geo/measure'
 import { readChallenge } from '../../lib/challenge'
 import { feedback, runOf } from '../../lib/feedback'
 import { fmt, msg, plural, t } from '../../lib/i18n'
+import { useDuelProgress } from '../../lib/duelRoom'
 import { stamp } from '../../lib/passport'
 import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
 import { copyText, load, save, seededRng, todayKey } from '../../lib/util'
@@ -271,6 +272,7 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
 
   const crossed = run.path.length - 1
   const left = exp.end ? hops(atlas.neighbors, at, exp.closed).get(exp.end) : undefined
+  useDuelProgress(challenge && st === 'en route' && left !== undefined ? { left, unit: 'frontieres' } : null)
   const borders = bordersOf(atlas.neighbors, at)
   const center = countryCenter(atlas, at)
   const playing = st === 'en route' && !desk && !bonus

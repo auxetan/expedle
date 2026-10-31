@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { evaluate, levelOf, loadSeen, saveSeen, TIER_XP, type Tier } from '../lib/achievements'
 import { HISTORY_CHANGED } from '../lib/cloud'
+import { isDuelPlay } from '../lib/duelRoom'
 import { plural, t } from '../lib/i18n'
 import { feedback } from '../lib/feedback'
 import { plays, PLAYED, streakStep, victoryOf, type Play } from '../lib/stats'
@@ -99,6 +100,8 @@ export default function Celebrations() {
     // la fin de partie se signale d'un son ; le message, s'il y en a un, vient ensuite
     const onPlay = (e: Event) => {
       const play = (e as CustomEvent<Play>).detail
+      // pendant un duel, la partie du jeu se tait : c'est l'issue du duel qu'on fête
+      if (isDuelPlay(play)) return onSync()
       const tier = victoryOf(play)
       feedback(tier ? 'win' : play.win === false || play.pts < 30 ? 'lose' : 'good')
       if (!showing.current) {
