@@ -1,6 +1,5 @@
-import { COUNTRIES, type Continent } from '../../geo/countries'
-import { getWorld } from '../../geo/world'
-import { msg } from '../../lib/i18n'
+import type { Continent } from '../../geo/countries'
+import { msg, t } from '../../lib/i18n'
 
 export type Ask = 'pays' | 'capitales' | 'drapeaux'
 
@@ -25,6 +24,31 @@ export const REGIONS: Region[] = [
 
 export const ASK_LABEL: Record<Ask, string> = { pays: msg('les pays'), capitales: msg('les capitales'), drapeaux: msg('les drapeaux') }
 
+// La France : ses régions, et ses départements par leur nom, leur numéro ou leur préfecture.
+export type FranceAsk = 'regions' | 'departements' | 'numeros' | 'prefectures'
+
+export const FRANCE_ASKS: FranceAsk[] = ['regions', 'departements', 'numeros', 'prefectures']
+
+const FRANCE_LABEL: Record<FranceAsk, string> = {
+  regions: msg('les régions'),
+  departements: msg('les départements'),
+  numeros: msg('les numéros des départements'),
+  prefectures: msg('les préfectures'),
+}
+
+export function parseFranceId(id: string): FranceAsk | null {
+  const ask = id.replace(/^france-/, '') as FranceAsk
+  return id.startsWith('france-') && FRANCE_ASKS.includes(ask) ? ask : null
+}
+
+// Le titre d'un quiz, dans la langue du site.
+export function quizTitle(id: string): string | null {
+  const france = parseFranceId(id)
+  if (france) return t('{region} : {ask}', { region: t('France'), ask: t(FRANCE_LABEL[france]) })
+  const q = parseQuizId(id)
+  return q && t('{region} : {ask}', { region: t(q.region.name), ask: t(ASK_LABEL[q.ask]) })
+}
+
 export function quizId(region: string, ask: Ask): string {
   return ask === 'pays' ? region : `${region}-${ask}`
 }
@@ -34,11 +58,4 @@ export function parseQuizId(id: string): { region: Region; ask: Ask } | null {
   const region = REGIONS.find((r) => r.id === regionId)
   if (!region || !['pays', 'capitales', 'drapeaux'].includes(ask)) return null
   return { region, ask: ask as Ask }
-}
-
-export function quizMembers(region: Region): string[] {
-  const present = new Set(getWorld().codes)
-  return COUNTRIES.filter(
-    (c) => !c.territory && present.has(c.code) && region.continents.includes(c.continent) && c.capital !== '—',
-  ).map((c) => c.code)
 }
