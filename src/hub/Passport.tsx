@@ -8,6 +8,7 @@ import { plays } from '../lib/stats'
 import { hashString } from '../lib/util'
 import AppBar from '../ui/AppBar'
 import { loadProfile } from '../ui/Panels'
+import { InkFilter } from '../ui/StampArt'
 import Book, { type Face } from './passport/Book'
 import { mrz } from './passport/mrz'
 import { BackCover, Cover, DataPage, InsideBack, InsideCover, NotesPage, PER_PAGE, VisaPage, type Holder, type Visa } from './passport/pages'
@@ -81,16 +82,7 @@ export default function Passport() {
   return (
     <div className="home pp-page">
       <AppBar title={t('Passeport')} />
-      {/* encre des tampons : un trait irrégulier, un peu passé par endroits */}
-      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden>
-        <filter id="pp-ink" x="-5%" y="-5%" width="110%" height="110%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" result="grain" />
-          <feDisplacementMap in="SourceGraphic" in2="grain" scale="2.2" result="rough" />
-          <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="11" result="blot" />
-          <feColorMatrix in="blot" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -0.3" result="mask" />
-          <feComposite in="rough" in2="mask" operator="in" />
-        </filter>
-      </svg>
+      <InkFilter />
       <main className="pp-main">
         <Book faces={faces} />
       </main>
