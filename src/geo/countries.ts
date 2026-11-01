@@ -270,6 +270,13 @@ export const COUNTRIES: CountryMeta[] = RAW.split('\n').map((line) => {
 
 export const COUNTRY_BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]))
 
+// Les pays où le français est langue officielle (2026). Le Mali (2023), le Burkina Faso (2023) et le Niger (2025)
+// en ont fait une langue de travail.
+export const FRANCOPHONES = new Set('BE BJ BI CM CA CF KM CG CD CI DJ FR GA GN GQ HT LU MG MC RW SN SC CH TD TG VU'.split(' '))
+
+// Le français y reste très parlé sans être langue officielle.
+export const FRENCH_SPOKEN = new Set('BF ML NE MA DZ TN MR LB MU'.split(' '))
+
 // Une réponse est acceptée dans n'importe quelle langue : le navigateur connaît le nom de chaque pays
 // dans des dizaines de langues (Intl.DisplayNames), sans rien à télécharger.
 const LOCALES = 'en es de it pt nl pl sv da nb fi cs sk hu ro tr el ru uk bg sr hr sl lt lv et ca eu ga cy is sq ar he fa ur hi bn ta zh ja ko id ms vi th tl sw am'.split(' ')

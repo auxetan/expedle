@@ -14,7 +14,7 @@ import { BackCover, Cover, DataPage, InsideBack, InsideCover, NotesPage, PER_PAG
 import './passport.css'
 
 // Les jeux qui délivrent des tampons, rappelés en fin de passeport.
-const STAMPING = ['worldle', 'globle', 'countryle', 'flagle', 'dailygeo', 'geogrid', 'factle', 'itineraire', 'cartographe', 'quiz-drapeaux', 'quiz-capitales', 'geoguessr', 'photoguessr']
+const STAMPING = ['worldle', 'globle', 'countryle', 'flagle', 'dailygeo', 'geogrid', 'factle', 'itineraire', 'cartographe', 'quiz-drapeaux', 'quiz-capitales', 'quiz-francophonie', 'geoguessr', 'photoguessr']
 
 // Le numéro du passeport : le code ami quand on est connecté, sinon un numéro tiré de l'appareil.
 function passportNumber(code: string, seed: string): string {

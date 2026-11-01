@@ -40,6 +40,7 @@ export const GAMES: Record<string, GameInfo> = {
   'quiz-culture': { title: 'Quiz culture G', href: '#/quiz', unit: pts },
   'quiz-drapeaux': { title: 'Drapeaux', href: '#/quiz/drapeaux', unit: pts },
   'quiz-capitales': { title: 'Capitales', href: '#/quiz/capitales', unit: pts },
+  'quiz-francophonie': { title: 'Francophonie', href: '#/quiz/francophonie', unit: pts },
   jetpunk: { title: 'JetPunk', href: '#/jetpunk', unit: (s) => `${s} %` },
   worldle: { title: 'Worldle', href: '#/worldle', unit: (s) => `${s}/6`, lower: true },
   expedition: { title: 'L’Expédition', href: '#/expedition', unit: (s) => plural(s, '{n} frontière', '{n} frontières'), lower: true },

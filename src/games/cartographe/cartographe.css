@@ -182,6 +182,14 @@
   stroke: var(--sea-line);
 }
 
+/* les cadres de l'outre-mer, rapproché de la métropole */
+.st-inset {
+  fill: none;
+  stroke: var(--sea-line);
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 .st-land {
   stroke: var(--bg);
   stroke-width: 0.8;
@@ -398,6 +406,10 @@
 
 .st-list-names {
   font-size: 14px;
+}
+
+.st-info .st-source {
+  font-size: 12px;
 }
 
 @media (max-width: 640px) {

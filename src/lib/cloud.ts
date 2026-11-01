@@ -34,6 +34,8 @@ export const realtime = cloud
 export interface Account {
   state: 'off' | 'loading' | 'out' | 'in'
   email: string
+  // un compte élève : ni email ni mot de passe, il n'existe que sur cet appareil
+  anonymous: boolean
   userId: string
   // code ami, à donner pour être ajouté
   code: string
@@ -41,7 +43,7 @@ export interface Account {
   error: string
 }
 
-let account: Account = { state: cloudEnabled ? 'loading' : 'off', email: '', userId: '', code: '', syncing: false, error: '' }
+let account: Account = { state: cloudEnabled ? 'loading' : 'off', email: '', anonymous: false, userId: '', code: '', syncing: false, error: '' }
 const listeners = new Set<() => void>()
 
 function set(patch: Partial<Account>) {
@@ -115,20 +117,23 @@ function defaultName() {
 }
 
 // Un nouvel appareil reprend le profil du compte ; un nouveau compte reprend le profil de l'appareil.
+// Un élève garde un profil public neutre (« Joueur 1234 ») : son pseudo de l'appareil ne quitte pas l'appareil.
 async function ensureProfile(sb: SupabaseClient, userId: string) {
   const local = load<PublicProfile>('profile', { name: '', avatar: '🧭' })
   const { data, error } = await sb.from('profiles').select('name, avatar, code').eq('id', userId).maybeSingle()
   if (error) throw error
   if (data) {
-    save('profile', { name: data.name, avatar: data.avatar })
     set({ code: data.code ?? '' })
+    if (account.anonymous) return
+    save('profile', { name: data.name, avatar: data.avatar })
     window.dispatchEvent(new Event(PROFILE_CHANGED))
     return
   }
-  const profile = { name: validName(local.name) ? local.name.trim() : defaultName(), avatar: local.avatar }
+  const profile = { name: validName(local.name) && !account.anonymous ? local.name.trim() : defaultName(), avatar: local.avatar }
   const { data: created, error: insertError } = await sb.from('profiles').insert({ id: userId, ...profile }).select('code').single()
   if (insertError) throw insertError
   set({ code: created.code ?? '' })
+  if (account.anonymous) return
   save('profile', profile)
   window.dispatchEvent(new Event(PROFILE_CHANGED))
 }
@@ -137,7 +142,7 @@ export const PROFILE_CHANGED = 'cg:profile'
 
 let profileTimer = 0
 export function pushProfile(profile: PublicProfile) {
-  if (account.state !== 'in' || !validName(profile.name)) return
+  if (account.state !== 'in' || account.anonymous || !validName(profile.name)) return
   clearTimeout(profileTimer)
   profileTimer = window.setTimeout(async () => {
     const sb = await cloud()
@@ -271,7 +276,13 @@ export function startCloud() {
   started = true
   void cloud().then((sb) =>
     sb.auth.onAuthStateChange((event, session) => {
-      set({ state: session ? 'in' : 'out', email: session?.user.email ?? '', userId: session?.user.id ?? '', ...(session ? {} : { code: '' }) })
+      set({
+        state: session ? 'in' : 'out',
+        email: session?.user.email ?? '',
+        anonymous: session?.user.is_anonymous ?? false,
+        userId: session?.user.id ?? '',
+        ...(session ? {} : { code: '' }),
+      })
       // pas d'appel à Supabase dans ce rappel : la bibliothèque attend qu'il se termine
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) setTimeout(() => void sync(true))
     }),
@@ -434,4 +445,108 @@ export async function addFriend(code: string): Promise<Friend> {
 export async function removeFriend(code: string): Promise<void> {
   const { error } = await (await cloud()).rpc('remove_friend', { p_code: code })
   if (error) throw new Error(error.message)
+}
+
+/* Mode classe : un professeur (compte avec email) crée une classe, ses élèves la rejoignent avec son code et un
+   pseudo, sur un compte anonyme. */
+
+export interface ClassInfo {
+  id: string
+  code: string
+  name: string
+  // les jeux à faire, épinglés par le professeur : des adresses du site
+  games: string[]
+  // fermée, la classe n'accepte plus de nouveaux élèves
+  open: boolean
+  teacher: boolean
+  // le pseudo de l'élève dans cette classe
+  pseudo: string | null
+  members: number
+}
+
+export interface ClassRow {
+  rank: number
+  pseudo: string
+  points: number
+  plays: number
+  me: boolean
+}
+
+// tant que la migration des classes n'est pas passée, ses fonctions et ses tables manquent
+const CLASSES_MISSING = new Set(['PGRST202', 'PGRST205', '42P01', '42883'])
+
+function classError(e: { code?: string; message: string }): Error {
+  if (CLASSES_MISSING.has(e.code ?? '')) return new Error(t('Le mode classe n’est pas encore ouvert sur Expedle. Reviens bientôt !'))
+  const known: Record<string, string> = {
+    unknown_code: t('Aucune classe n’a ce code. Vérifie-le auprès de ton professeur.'),
+    closed: t('Cette classe n’accepte plus de nouveaux élèves.'),
+    pseudo_taken: t('Ce pseudo est déjà pris dans la classe : choisis-en un autre.'),
+    bad_pseudo: t('Ton pseudo doit faire de 2 à 20 caractères, sans @.'),
+    bad_name: t('Le nom de la classe doit faire de 2 à 40 caractères.'),
+    own_class: t('C’est ta propre classe : tu la suis déjà comme professeur.'),
+    anonymous: t('Pour créer une classe, connecte-toi avec ton email.'),
+  }
+  return new Error(known[e.message] ?? e.message)
+}
+
+// Avant toute connexion : une fonction absente (migration pas encore passée) ne donne pas la même erreur qu'une
+// fonction réservée aux comptes. Aucun compte élève n'est créé tant que le mode classe n'est pas ouvert.
+export async function classesReady(): Promise<boolean> {
+  const { error } = await (await cloud()).rpc('my_classes')
+  return !error || !CLASSES_MISSING.has(error.code)
+}
+
+export async function myClasses(): Promise<ClassInfo[]> {
+  const { data, error } = await (await cloud()).rpc('my_classes')
+  if (error) throw classError(error)
+  return data as ClassInfo[]
+}
+
+export async function createClass(name: string): Promise<ClassInfo> {
+  const { data, error } = await (await cloud()).rpc('create_class', { p_name: name.trim() })
+  if (error) throw classError(error)
+  return { ...(data as Omit<ClassInfo, 'teacher' | 'pseudo' | 'members'>), teacher: true, pseudo: null, members: 0 }
+}
+
+// Un élève n'a ni email ni mot de passe : sans compte, il en reçoit un anonyme, propre à cet appareil.
+export async function joinClass(code: string, pseudo: string): Promise<{ id: string; name: string }> {
+  const sb = await cloud()
+  if (account.state !== 'in') {
+    const { error } = await sb.auth.signInAnonymously()
+    if (error) {
+      if (error.code === 'anonymous_provider_disabled') throw new Error(t('Les comptes élèves ne sont pas encore ouverts sur Expedle. Reviens bientôt !'))
+      if (error.status === 429) throw new Error(t('Trop de demandes : attends une minute avant de réessayer.'))
+      throw new Error(error.message || t('Une erreur est survenue. Réessaie.'))
+    }
+  }
+  const { data, error } = await sb.rpc('join_class', { p_code: code, p_pseudo: pseudo.trim() })
+  if (error) throw classError(error)
+  return (data as { id: string; name: string }[])[0]
+}
+
+export async function classBoard(id: string, since: Date): Promise<ClassRow[]> {
+  const { data, error } = await (await cloud()).rpc('class_board', { p_class: id, p_since: since.toISOString() })
+  if (error) throw classError(error)
+  return data as ClassRow[]
+}
+
+export async function updateClass(id: string, patch: Partial<Pick<ClassInfo, 'games' | 'open'>>): Promise<void> {
+  const { error } = await (await cloud()).from('classes').update(patch).eq('id', id)
+  if (error) throw classError(error)
+}
+
+export async function deleteClass(id: string): Promise<void> {
+  const { error } = await (await cloud()).from('classes').delete().eq('id', id)
+  if (error) throw classError(error)
+}
+
+// Le professeur retire un élève (désigné par son pseudo, unique dans la classe) ; un élève quitte sa classe.
+export async function removeMember(classId: string, pseudo: string): Promise<void> {
+  const { error } = await (await cloud()).from('class_members').delete().eq('class_id', classId).eq('pseudo', pseudo)
+  if (error) throw classError(error)
+}
+
+export async function leaveClass(classId: string): Promise<void> {
+  const { error } = await (await cloud()).from('class_members').delete().eq('class_id', classId).eq('user_id', account.userId)
+  if (error) throw classError(error)
 }

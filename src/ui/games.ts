@@ -76,6 +76,7 @@ export const GAME_SECTIONS: GameSection[] = [
       { href: '#/quiz', title: 'Quiz culture G', tagline: 'Des milliers de questions', rhythm: 'libre', icon: 'quiz-culture-g' },
       { href: '#/quiz/drapeaux', title: 'Drapeaux', tagline: 'Un pays, un drapeau', rhythm: 'libre', icon: 'drapeaux' },
       { href: '#/quiz/capitales', title: 'Capitales', tagline: 'Chaque pays et sa capitale', rhythm: 'libre', icon: 'capitales' },
+      { href: '#/quiz/francophonie', title: 'Francophonie', tagline: 'Les pays de langue française, leurs capitales et leurs drapeaux', rhythm: 'libre', icon: 'francophonie' },
     ],
   },
 ]

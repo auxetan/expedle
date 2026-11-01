@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadUsaAtlas, worldAtlas } from './atlas'
+import { FR_REGIONS, loadFrance, loadUsaAtlas, worldAtlas } from './atlas'
 import { remaining } from './graph'
 
 describe('atlases', () => {
@@ -11,6 +11,21 @@ describe('atlases', () => {
     expect(usa.neighbors.has('15')).toBe(false)
     expect(remaining(usa.graph, '53', '06', new Set())).toBe(1)
     expect(usa.name('37')).toBe('Caroline du Nord')
+  })
+
+  it('draws the French départements and rebuilds the régions from them', async () => {
+    const { departements, regions, frames } = await loadFrance()
+    const listed = Object.values(FR_REGIONS).flat()
+    expect(departements.codes).toHaveLength(101)
+    expect(listed).toHaveLength(101)
+    expect(new Set(listed)).toEqual(new Set(departements.codes))
+    expect([...regions.codes].sort()).toEqual(Object.keys(FR_REGIONS).sort())
+    expect(departements.neighbors.get('29')).toEqual(new Set(['22', '56']))
+    expect(regions.neighbors.get('Bretagne')).toEqual(new Set(['Normandie', 'Pays de la Loire']))
+    // la Corse et l'outre-mer n'ont pas de frontière terrestre avec le reste
+    expect(regions.neighbors.has('Corse')).toBe(false)
+    expect(departements.neighbors.has('974')).toBe(false)
+    expect(frames.map((f) => f.id).sort()).toEqual(['971', '972', '973', '974', '976'])
   })
 
   it('names world countries in French with their continent', () => {
