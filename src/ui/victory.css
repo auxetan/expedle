@@ -55,8 +55,8 @@
   height: 144px;
 }
 
-/* lueur et ondes, plus grandes que la pépite, centrées sur elle */
-.vic-hero > span {
+/* lueur et ondes, plus grandes que la pépite, centrées sur elle ; Pépite est aussi un span, mais elle remplit le cadre */
+.vic-hero > span:not(.vic-nugget) {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -66,9 +66,6 @@
 .vic-hero .vic-nugget {
   position: absolute;
   inset: 8px;
-}
-
-.vic-hero .vic-nugget {
   width: 128px;
   height: 128px;
   overflow: visible;
@@ -147,6 +144,7 @@
   animation: rise-in 0.45s 0.3s backwards;
 }
 
+/* le total n'apparaît qu'avec la première ligne de gains, sinon il afficherait un instant « +0 » */
 .vic-total {
   font-size: clamp(56px, 17vw, 76px);
   line-height: 1;
@@ -154,7 +152,12 @@
   letter-spacing: -0.03em;
   color: var(--or);
   font-variant-numeric: tabular-nums;
-  animation: rise-in 0.45s 0.4s backwards;
+  visibility: hidden;
+}
+
+.vic-total.on {
+  visibility: visible;
+  animation: rise-in 0.35s backwards;
 }
 
 .vic-rows {
