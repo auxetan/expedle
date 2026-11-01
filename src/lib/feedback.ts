@@ -1,7 +1,7 @@
 import { load, save } from './util'
 
 // Sons et vibrations des jeux. Les sons sont synthétisés à la volée (Web Audio) : aucun fichier à charger.
-export type Cue = 'good' | 'bad' | 'tap' | 'win' | 'lose' | 'page'
+export type Cue = 'good' | 'bad' | 'tap' | 'win' | 'lose' | 'page' | 'stamp'
 
 export interface FeedbackSettings {
   sound: boolean
@@ -12,7 +12,7 @@ export const feedbackSettings = (): FeedbackSettings => load<FeedbackSettings>('
 export const saveFeedbackSettings = (s: FeedbackSettings) => save('feedback', s)
 
 // notes (Hz), durée de chacune (s), forme d'onde
-const SOUNDS: Record<Exclude<Cue, 'page'>, { notes: number[]; step: number; wave: OscillatorType; gain: number }> = {
+const SOUNDS: Record<Exclude<Cue, 'page' | 'stamp'>, { notes: number[]; step: number; wave: OscillatorType; gain: number }> = {
   good: { notes: [660, 990], step: 0.07, wave: 'sine', gain: 0.07 },
   bad: { notes: [220, 165], step: 0.09, wave: 'triangle', gain: 0.07 },
   tap: { notes: [880], step: 0.03, wave: 'sine', gain: 0.035 },
@@ -27,6 +27,7 @@ const VIBRATIONS: Record<Cue, number[]> = {
   win: [20, 50, 20, 50, 40],
   lose: [60],
   page: [5],
+  stamp: [22],
 }
 
 let audio: AudioContext | null = null
@@ -47,6 +48,34 @@ function rustle(ctx: AudioContext) {
   amp.gain.value = 0.12
   source.connect(band).connect(amp).connect(ctx.destination)
   source.start()
+}
+
+// Un coup de tampon : un choc sourd qui tombe d'une octave, et le claquement sec du papier.
+function thump(ctx: AudioContext) {
+  const t0 = ctx.currentTime
+  const osc = ctx.createOscillator()
+  const amp = ctx.createGain()
+  osc.frequency.setValueAtTime(150, t0)
+  osc.frequency.exponentialRampToValueAtTime(50, t0 + 0.12)
+  amp.gain.setValueAtTime(0.0001, t0)
+  amp.gain.exponentialRampToValueAtTime(0.3, t0 + 0.006)
+  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.24)
+  osc.connect(amp).connect(ctx.destination)
+  osc.start(t0)
+  osc.stop(t0 + 0.26)
+  const length = Math.round(ctx.sampleRate * 0.07)
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+  const high = ctx.createBiquadFilter()
+  high.type = 'highpass'
+  high.frequency.value = 1800
+  const gain = ctx.createGain()
+  gain.gain.value = 0.16
+  source.connect(high).connect(gain).connect(ctx.destination)
+  source.start(t0)
 }
 
 function context(): AudioContext | null {
@@ -71,6 +100,7 @@ function play(cue: Cue, level: number) {
   const ctx = context()
   if (!ctx) return
   if (cue === 'page') return rustle(ctx)
+  if (cue === 'stamp') return thump(ctx)
   const { notes, step, wave, gain } = SOUNDS[cue]
   const pitch = cue === 'good' || cue === 'tap' ? lift(level) : 1
   const t0 = ctx.currentTime

@@ -1,4 +1,4 @@
-/* L'Expédition (Expedition.tsx, Carnet.tsx) */
+/* L'Expédition (Expedition.tsx, Carnet.tsx) : le passeport du voyage, ses visas et ses tampons */
 .ex {
   min-height: 100vh;
   background: var(--bg);
@@ -7,304 +7,415 @@
 }
 
 .ex-main {
-  max-width: 720px;
+  max-width: 520px;
   margin: 0 auto;
-  padding: 18px 16px 60px;
+  padding: 14px 14px 60px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .ex-head h1 {
   margin: 0;
-  font-size: clamp(24px, 5vw, 32px);
+  font-size: clamp(21px, 5.4vw, 28px);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 
 .ex-head p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 14.5px;
 }
 
-/* la carte, centrée sur le pays où l'on se trouve */
-.ex-map {
-  position: relative;
-  border-radius: 22px;
-  border: 1px solid var(--line);
-  background: var(--bg2);
-  overflow: hidden;
-}
-
-.ex-map svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.ex-map path {
-  fill: var(--card);
-  stroke: var(--line);
-  stroke-width: 0.6;
-  transition: fill 0.2s;
-}
-
-.ex-map path.trail {
-  fill: color-mix(in srgb, var(--teal) 30%, var(--card));
-}
-
-.ex-map path.here {
-  fill: var(--teal);
-}
-
-.ex-map path.border {
-  fill: color-mix(in srgb, var(--or) 16%, var(--card));
-  stroke: var(--or);
-  stroke-width: 1.2;
-  cursor: pointer;
-}
-
-.ex-map path.border:hover {
-  fill: color-mix(in srgb, var(--or) 38%, var(--card));
-}
-
-.ex-map path.goal {
-  fill: color-mix(in srgb, var(--or) 55%, var(--card));
-}
-
-.ex-route {
-  fill: none;
-  stroke: var(--or);
-  stroke-width: 2.2;
-  stroke-dasharray: 5 5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
-}
-
-.ex-beacon {
-  fill: none;
-  stroke: var(--or);
-  stroke-width: 2;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ex-beacon 1.8s ease-out infinite;
-}
-
-.ex-arrow path {
-  fill: var(--or);
-}
-
-/* Pépite, là où l'on se trouve ; elle saute à chaque frontière passée */
-.ex-me {
-  position: absolute;
-  translate: -50% -85%;
-  pointer-events: none;
-  animation: ex-hop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.ex-borders h2,
-.ex-desk h2,
-.ex-end h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.ex-cards {
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 10px;
-}
-
-.ex-card {
+/* la route du jour : une case par frontière, reliées par un pointillé */
+.xp-journey {
   position: relative;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 4px;
-  padding: 12px 8px 10px;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 12px 10px;
   border-radius: 18px;
   border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--fg);
-  font-family: var(--font);
-  animation: rise-in 0.3s ease-out backwards;
+  background:
+    linear-gradient(90deg, var(--line) 50%, transparent 0) center / 7px 1.5px repeat-x,
+    var(--card);
+  list-style: none;
 }
 
-.ex-card:hover:not(:disabled) {
-  border-color: var(--or);
-}
-
-.ex-card b {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.ex-card small {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.ex-card.seen {
-  opacity: 0.75;
-}
-
-.ex-card.shut {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.ex-card.shut .ex-shape path {
-  fill: var(--muted);
-}
-
-.ex-cache {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--or);
-  color: #1f1e1c;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.ex-shape path {
-  fill: var(--fg);
-}
-
-/* le guichet de la douane */
-.ex-desk {
+.xp-journey li {
   position: relative;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--muted) 60%, transparent);
+  background: var(--card);
+  font-size: 17px;
+}
+
+.xp-journey li.flag {
+  border: none;
+  background: none;
+  font-size: 24px;
+}
+
+.xp-journey li.goal {
+  opacity: 0.55;
+}
+
+.xp-journey li.now {
+  border: 2px solid var(--or);
+  animation: xp-pulse 1.6s ease-in-out infinite;
+}
+
+.xp-journey li.done {
+  border: 2px solid var(--ink);
+  background: color-mix(in srgb, var(--ink) 30%, var(--card));
+  animation: xp-slot 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.xp-journey li.done.wrong {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 18%, var(--card));
+}
+
+/* Pépite, au-dessus de la frontière à venir ; elle y saute à chaque tampon */
+.xp-pep {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 6px);
+  translate: -50% 0;
+  animation: xp-hop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+/* le passeport : une page de papier, et la suivante dessous, prête quand celle-ci tourne */
+.xp-book {
+  position: relative;
+  width: min(100%, 420px);
+  margin: 4px auto 0;
+  aspect-ratio: 1 / 1.3;
+  perspective: 1800px;
+}
+
+.xp-page {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  overflow: hidden;
+  border-radius: 4px 14px 14px 4px;
+  box-shadow: 0 26px 50px -26px rgba(0, 0, 0, 0.75);
+  transform-origin: left center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.xp-page.top.hit {
+  animation: xp-hit 0.32s ease-out 0.44s;
+}
+
+.xp-page.top.flip {
+  animation: xp-flip 0.85s cubic-bezier(0.35, 0.1, 0.25, 1) forwards;
+}
+
+/* une ombre glisse sur la page qui tourne */
+.xp-page.top.flip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.35), transparent 70%);
+  animation: xp-shade 0.85s ease-in forwards;
+  pointer-events: none;
+}
+
+.xp-visa,
+.xp-souvenir {
+  display: flex;
+  flex-direction: column;
+  padding: 6cqw 6cqw 5cqw;
+}
+
+.xp-visa-head {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font: 700 3.4cqw/1 'Courier New', monospace;
+  letter-spacing: 0.22em;
+  color: #8a7a5c;
+}
+
+.xp-visa-body {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  align-items: center;
+  gap: 3cqw;
+}
+
+/* la silhouette, en relief comme une gravure */
+.xp-silhouette {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0.5cqw 0 rgba(255, 255, 255, 0.7)) drop-shadow(0 -0.4cqw 0 rgba(59, 51, 38, 0.35));
+}
+
+.xp-silhouette path {
+  fill: #4a3f2e;
+}
+
+.xp-map {
+  width: 100%;
+  height: auto;
+  border-radius: 3cqw;
+  background: #e6dcc4;
+  box-shadow: inset 0 0 0 1px #d2c4a2;
+}
+
+.xp-map path {
+  fill: #d8cba8;
+  stroke: #c3b28b;
+  stroke-width: 0.6;
+}
+
+.xp-map path.from {
+  fill: #a8bfb4;
+}
+
+.xp-map path.next {
+  fill: #c99a3e;
+  stroke: #8a6420;
+  stroke-width: 1.2;
+}
+
+.xp-q {
+  position: relative;
+  margin: 2.5cqw 0 3cqw;
+  text-align: center;
+  font: 600 5.6cqw/1.1 'Times New Roman', Georgia, serif;
+  color: #3b3326;
+}
+
+.xp-options {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.4cqw;
+}
+
+.xp-options button {
+  min-height: 11.5cqw;
+  padding: 1.5cqw;
+  border-radius: 3cqw;
+  border: 1px solid #cdbf9e;
+  background: #fbf7ec;
+  color: #3b3326;
+  font: 600 4.1cqw/1.1 var(--font);
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+
+.xp-options button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.xp-options button.right {
+  background: #8fbf8f;
+  border-color: #6d9f6d;
+  color: #1f1e1c;
+}
+
+.xp-options button.wrong {
+  background: #d9705f;
+  border-color: #b9483a;
+  color: #1f1e1c;
+  animation: shake 0.4s;
+}
+
+.xp-options button.dim {
+  opacity: 0.45;
+}
+
+.xp-note {
+  position: relative;
+  margin: 2.4cqw 0 0;
+  text-align: center;
+  font: italic 4cqw 'Times New Roman', Georgia, serif;
+  color: #8a3a2f;
+}
+
+/* le tampon en bois s'abat, l'encre prend, le tampon se relève */
+.xp-tool {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  z-index: 3;
+  width: 40cqw;
+  translate: -50% -60%;
+  filter: drop-shadow(0 3cqw 3cqw rgba(0, 0, 0, 0.35));
+  animation: xp-press 1.15s cubic-bezier(0.45, 0, 0.2, 1) both;
+  pointer-events: none;
+}
+
+.xp-ink {
+  left: 50%;
+  top: 30%;
+  width: 54cqw;
+  translate: -50% -50%;
+  rotate: -8deg;
+  animation: xp-ink 0.5s ease-out 0.44s both;
+}
+
+.xp-ink.shape-0 {
+  width: 46cqw;
+}
+
+.xp-refused {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  padding: 2cqw 5cqw;
+  translate: -50% -50%;
+  rotate: -12deg;
+  border: 1.2cqw solid #b9483a;
+  border-radius: 2cqw;
+  color: #b9483a;
+  font: 800 9cqw/1 var(--font);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  filter: url(#pp-ink);
+  mix-blend-mode: multiply;
+  animation: xp-slam 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.xp-refused.xp-halt {
+  top: 82%;
+  font-size: 6.4cqw;
+  animation-delay: calc(0.55s + 8 * 0.22s);
+}
+
+/* l'arrivée : la couverture se referme sur le voyage, puis s'ouvre sur la page souvenir */
+.xp-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  container-type: size;
+  overflow: hidden;
+  border-radius: 4px 14px 14px 4px;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  animation: xp-close 0.8s cubic-bezier(0.35, 0.1, 0.25, 1) both;
+}
+
+.xp-cover.open {
+  animation: xp-open 0.8s cubic-bezier(0.35, 0.1, 0.25, 1) both;
+}
+
+.xp-cover-title {
+  font-size: 7.4cqw;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+
+.xp-souvenir-route {
+  position: relative;
+  margin: 2cqw 0 0;
+  font: 600 5cqw 'Times New Roman', Georgia, serif;
+  color: #3b3326;
+}
+
+.xp-souvenir .pp-stamp {
+  width: 34cqw;
+}
+
+.xp-souvenir .pp-stamp.shape-0 {
+  width: 29cqw;
+}
+
+.xp-drop {
+  animation: xp-drop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+/* la première fois, trois cartes posées sur le passeport */
+.xp-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(20, 19, 17, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.xp-intro-card {
+  width: 100%;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 18px 16px 16px;
+  padding: 22px 18px 16px;
   border-radius: 22px;
-  border: 1.5px solid var(--or);
+  border: 1px solid var(--line);
   background: var(--card);
   text-align: center;
   animation: rise-in 0.3s ease-out;
 }
 
-.ex-desk > small {
-  font-size: 12px;
+.xp-intro-art {
+  font-size: 34px;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--or);
 }
 
-.ex-desk.bonus {
-  border-color: var(--teal);
-}
-
-.ex-desk.bonus > small {
-  color: var(--teal);
-}
-
-.ex-options {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.ex-options button {
-  min-height: 46px;
-  padding: 10px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font);
-  font-size: 15px;
-}
-
-.ex-options button.right {
-  background: var(--good);
-  border-color: var(--good);
-  color: #1f1e1c;
-}
-
-.ex-options button.wrong {
-  background: var(--bad);
-  border-color: var(--bad);
-  color: #1f1e1c;
-  animation: shake 0.4s;
-}
-
-.ex-options button.dim {
-  opacity: 0.45;
-}
-
-/* la douane renforcée en drapeaux, chacun nommé une fois la réponse donnée */
-.ex-options.flags button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.ex-flag {
-  display: block;
-  width: 100%;
-  max-width: 120px;
-  aspect-ratio: 4 / 3;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg2);
-  box-shadow: 0 0 0 1px var(--line);
-}
-
-.ex-flag img {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.ex-options.flags small {
-  font-size: 12.5px;
-}
-
-.ex-note {
+.xp-intro-card h2 {
   margin: 0;
-  font-size: 14px;
-  color: var(--muted);
+  font-size: 21px;
+  font-weight: 500;
 }
 
-.ex-back {
+.xp-intro-card p {
+  margin: 0;
+  color: var(--soft, var(--muted));
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.xp-intro-dots {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.xp-intro-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.xp-intro-dots i.on {
+  background: var(--or);
+}
+
+.ex-link {
   border: none;
   background: none;
   color: var(--muted);
-  font-family: var(--font);
-  font-size: 13.5px;
+  font: 13.5px var(--font);
   text-decoration: underline;
 }
 
-/* le tampon du passeport, qui s'abat sur le guichet */
-.ex-stamp {
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  translate: -50% -50%;
-  rotate: -9deg;
-  padding: 8px 16px;
-  border: 3px solid var(--good);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--card) 70%, transparent);
-  color: var(--good);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  animation: ex-stamp 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-}
-
+/* la fin */
 .ex-end {
   display: flex;
   flex-direction: column;
@@ -313,6 +424,13 @@
   border-radius: 22px;
   border: 1px solid var(--line);
   background: var(--card);
+  animation: rise-in 0.4s ease-out;
+}
+
+.ex-end h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 500;
 }
 
 .ex-stars {
@@ -355,23 +473,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ex-facts dd small {
-  color: var(--muted);
+.ex-facts .gold {
+  color: var(--or);
+  font-weight: 600;
 }
 
 .ex-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-/* le sac de vivres, dans la jauge du bandeau */
-.hud-gauge .ex-bag path {
-  fill: none;
-  stroke: var(--fg);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 /* Ma carte du monde */
@@ -466,27 +576,117 @@
   font-size: 15px;
 }
 
-@keyframes ex-beacon {
+@keyframes xp-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--or) 22%, transparent);
+  }
+}
+
+@keyframes xp-slot {
   from {
+    transform: scale(0.4);
+  }
+}
+
+@keyframes xp-hop {
+  from {
+    opacity: 0;
+    transform: translate(-60%, -14px) scale(0.7);
+  }
+}
+
+@keyframes xp-press {
+  0% {
+    opacity: 0;
+    transform: translateY(-70%) scale(1.15) rotate(-6deg);
+  }
+  20% {
     opacity: 1;
-    transform: scale(0.6);
+  }
+  38% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  46% {
+    transform: translateY(0) scale(1.03, 0.94);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(-6%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80%) scale(1.1);
+  }
+}
+
+@keyframes xp-ink {
+  from {
+    opacity: 0;
+    scale: 1.12;
+    filter: blur(1.5px);
   }
   to {
-    opacity: 0;
-    transform: scale(2.2);
+    opacity: 0.88;
   }
 }
 
-@keyframes ex-hop {
-  from {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.7);
+@keyframes xp-hit {
+  25% {
+    transform: translate(0.6%, 0.4%) rotate(0.25deg);
+  }
+  55% {
+    transform: translate(-0.4%, -0.2%) rotate(-0.15deg);
   }
 }
 
-@keyframes ex-stamp {
+@keyframes xp-flip {
+  to {
+    transform: rotateY(-178deg);
+  }
+}
+
+@keyframes xp-shade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes xp-slam {
   from {
     opacity: 0;
-    transform: scale(2.4);
+    scale: 2.2;
+  }
+}
+
+@keyframes xp-close {
+  from {
+    transform: rotateY(-178deg);
+  }
+}
+
+@keyframes xp-open {
+  to {
+    transform: rotateY(-178deg);
+  }
+}
+
+@keyframes xp-drop {
+  from {
+    opacity: 0;
+    scale: 1.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp-tool,
+  .xp-pep,
+  .xp-journey li.now {
+    animation: none;
+  }
+
+  .xp-page.top.flip,
+  .xp-cover,
+  .xp-cover.open {
+    animation-duration: 0.01s;
   }
 }

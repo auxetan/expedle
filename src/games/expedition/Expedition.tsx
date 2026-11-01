@@ -1,72 +1,46 @@
-// L'Expédition, le jeu signature d'Expedle : chaque jour, relier deux pays par la terre en passant les frontières, en
-// reconnaissant chaque pays à la douane. Aussi le Tour du monde, sans destination, et la carte de ses expéditions.
+// L'Expédition, le jeu signature d'Expedle : un voyage de 5 à 7 pays par jour, un visa à chaque frontière, un tampon
+// à chaque visa. Le passeport se remplit sous les yeux du joueur, page après page. Aussi le Tour du monde, sans fin, et
+// la carte de ses voyages.
 import { geoAzimuthalEqualArea, geoAzimuthalEquidistant, geoPath } from 'd3-geo'
 import type { FeatureCollection, Polygon } from 'geojson'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { worldAtlas, type Atlas } from '../../geo/atlas'
-import { COUNTRY_BY_CODE, flagEmoji } from '../../geo/countries'
-import { countryCenter, distanceKm, rhumbBearing } from '../../geo/measure'
+import { flagEmoji } from '../../geo/countries'
+import { countryCenter, distanceKm } from '../../geo/measure'
+import { Emblem } from '../../hub/passport/pages'
+import '../../hub/passport.css'
 import { readChallenge } from '../../lib/challenge'
-import { feedback, runOf } from '../../lib/feedback'
-import { fmt, msg, plural, t } from '../../lib/i18n'
 import { useDuelProgress } from '../../lib/duelRoom'
-import { stamp } from '../../lib/passport'
+import { feedback } from '../../lib/feedback'
+import { plural, t } from '../../lib/i18n'
+import { coverage, passport, stamp } from '../../lib/passport'
 import { bestScore, dailyResult, recordPlay, saveDailyResult, submitBest, useStopwatch } from '../../lib/stats'
-import { copyText, load, save, seededRng, todayKey } from '../../lib/util'
+import { copyText, hashString, load, save, seededRng, todayKey } from '../../lib/util'
 import AppBar, { SubLink } from '../../ui/AppBar'
 import ChallengeBox from '../../ui/ChallengeBox'
 import GameHud from '../../ui/GameHud'
 import Mascot from '../../ui/Mascot'
 import NextGame from '../../ui/NextGame'
-import { COUNTRY_STATS } from '../classement/data'
-import { flagUrl, hasFlag } from '../flagle/game'
+import StampArt, { InkFilter, inkOf, shapeOf } from '../../ui/StampArt'
 import Carnet from './Carnet'
-import {
-  answerCustoms,
-  bordersOf,
-  choices,
-  closedBetween,
-  cross,
-  customsDue,
-  customsQuestion,
-  dailyExpedition,
-  here,
-  hops,
-  known,
-  miss,
-  remark,
-  score,
-  shareText,
-  stars,
-  startRun,
-  status,
-  tourExpedition,
-  visited,
-  type CustomsQuestion,
-  type Expedition as Plan,
-  type Run,
-} from './game'
+import { answer, CHANCES, choices, dailyTrip, here, left, nextCountry, remark, score, shareText, stars, startRun, status, tourTrip, type Run, type Trip } from './game'
 import { saveTrip } from './trips'
 import './expedition.css'
 
-const POP = new Map(COUNTRY_STATS.map((s) => [s.code, s.pop]))
-const capital = (c: string) => COUNTRY_BY_CODE.get(c)?.capital ?? ''
-
-const WINDS = [msg('nord'), msg('nord-est'), msg('est'), msg('sud-est'), msg('sud'), msg('sud-ouest'), msg('ouest'), msg('nord-ouest')]
-const windOf = (deg: number) => WINDS[Math.round(deg / 45) % 8]
-
-// le sac de vivres, dans la jauge du bandeau
-function Bag() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden className="ex-bag">
-      <path d="M8 7V5.5a4 4 0 0 1 8 0V7M5.5 9.5A2.5 2.5 0 0 1 8 7h8a2.5 2.5 0 0 1 2.5 2.5V19a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2zM9 14h6" />
-    </svg>
-  )
-}
+// le temps de chaque geste : le tampon qui s'abat, le refus, la page qui tourne, l'arrivée
+const STAMP_MS = 1150
+const REFUSE_MS = 1800
+const FLIP_MS = 850
+const CLOSE_MS = 1700
+const DROP_MS = 220
+const IMPACT_MS = 440
+const GOLD = '#a8792a'
+const MAP_W = 300
+const MAP_H = 220
 
 // La silhouette d'un pays : sa masse principale et ses terres proches, sans les territoires lointains (la Guyane
 // n'aide pas à reconnaître la France).
-function Shape({ atlas, code, size = 72 }: { atlas: Atlas; code: string; size?: number }) {
+function Shape({ atlas, code, size = 150 }: { atlas: Atlas; code: string; size?: number }) {
   const d = useMemo(() => {
     const parts = atlas.parts.filter((p) => p.code === code)
     const main = parts.reduce((a, b) => (b.area > a.area ? b : a))
@@ -83,98 +57,229 @@ function Shape({ atlas, code, size = 72 }: { atlas: Atlas; code: string; size?: 
     return geoPath(projection)(near) ?? ''
   }, [atlas, code, size])
   return (
-    <svg className="ex-shape" viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden>
+    <svg className="xp-silhouette" viewBox={`0 0 ${size} ${size}`} aria-hidden>
       <path d={d} />
     </svg>
   )
 }
 
-// En image et non en emoji : sous Windows, l'emoji d'un drapeau s'affiche en deux lettres, la réponse en clair.
-function FlagPic({ code }: { code: string }) {
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    let alive = true
-    flagUrl(code).then((url) => alive && setSrc(url))
-    return () => {
-      alive = false
-    }
-  }, [code])
-  return <span className="ex-flag">{src && <img src={src} alt="" draggable={false} />}</span>
-}
-
-const W = 640
-const H = 380
-
-// La carte de l'expédition, centrée sur le pays où l'on se trouve : ses voisins se touchent pour passer la frontière,
-// le chemin parcouru se dessine, et la destination, hors de vue, se signale au bord par une flèche.
-function ExMap({ atlas, exp, run, onPick }: { atlas: Atlas; exp: Plan; run: Run; onPick?: (code: string) => void }) {
-  const at = here(run)
-  const view = useMemo(() => {
-    const [lon, lat] = countryCenter(atlas, at)
-    const focus = [at, ...bordersOf(atlas.neighbors, at), ...run.path.slice(-3)]
-    const fc: FeatureCollection = { type: 'FeatureCollection', features: focus.flatMap((c) => atlas.features.get(c) ?? []) }
+// La carte du visa : le pays d'où l'on vient, et celui à reconnaître, en or, au milieu de ses voisins.
+function VisaMap({ atlas, from, to }: { atlas: Atlas; from: string; to: string }) {
+  const draw = useMemo(() => {
+    const [a, b] = [countryCenter(atlas, from), countryCenter(atlas, to)]
+    const focus: FeatureCollection = { type: 'FeatureCollection', features: [from, to].flatMap((c) => atlas.features.get(c) ?? []) }
     const projection = geoAzimuthalEquidistant()
-      .rotate([-lon, -lat])
+      .rotate([-(a[0] + b[0]) / 2, -(a[1] + b[1]) / 2])
       .clipAngle(100)
       .fitExtent(
         [
-          [28, 28],
-          [W - 28, H - 28],
+          [24, 24],
+          [MAP_W - 24, MAP_H - 24],
         ],
-        fc,
+        focus,
       )
-    return { projection, path: geoPath(projection) }
-  }, [atlas, at, run.path])
-
-  const borders = new Set(bordersOf(atlas.neighbors, at, exp.closed))
-  const point = (c: string) => view.projection(countryCenter(atlas, c))
-  const trail = run.path.map(point).filter((p): p is [number, number] => !!p)
-  const me = point(at) ?? [W / 2, H / 2]
-  const goal = exp.end ? point(exp.end) : null
-  const goalInView = !!goal && goal[0] > 12 && goal[0] < W - 12 && goal[1] > 12 && goal[1] < H - 12
-  // la destination hors de vue : une flèche au bord de la carte, dans la direction où elle se trouve
-  let arrow: { x: number; y: number; deg: number } | null = null
-  if (exp.end && !goalInView) {
-    const deg = rhumbBearing(countryCenter(atlas, at), countryCenter(atlas, exp.end))
-    const [dx, dy] = [Math.sin((deg * Math.PI) / 180), -Math.cos((deg * Math.PI) / 180)]
-    const reach = Math.min(dx ? ((dx > 0 ? W - 22 : 22) - me[0]) / dx : Infinity, dy ? ((dy > 0 ? H - 22 : 22) - me[1]) / dy : Infinity)
-    arrow = { x: me[0] + dx * reach, y: me[1] + dy * reach, deg }
-  }
-
+    return geoPath(projection)
+  }, [atlas, from, to])
   return (
-    <div className="ex-map">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('Carte de l’expédition')}>
-        {[...atlas.features].map(([code, f]) => {
-          const cls = code === at ? 'here' : borders.has(code) ? 'border' : run.path.includes(code) ? 'trail' : code === exp.end ? 'goal' : ''
-          const pick = borders.has(code) && onPick ? () => onPick(code) : undefined
-          return <path key={code} d={view.path(f) ?? ''} className={cls} onClick={pick} />
-        })}
-        {trail.length > 1 && <polyline className="ex-route" points={trail.map((p) => p.join(',')).join(' ')} />}
-        {goalInView && goal && <circle className="ex-beacon" cx={goal[0]} cy={goal[1]} r={10} />}
-        {arrow && (
-          <g transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.deg})`} className="ex-arrow">
-            <path d="M0 -12 L9 6 L0 2 L-9 6 Z" />
-          </g>
-        )}
-      </svg>
-      <span key={at} className="ex-me" style={{ left: `${(me[0] / W) * 100}%`, top: `${(me[1] / H) * 100}%` }}>
-        <Mascot size={30} />
-      </span>
+    <svg className="xp-map" viewBox={`0 0 ${MAP_W} ${MAP_H}`} aria-hidden>
+      {[...atlas.features].map(([code, f]) => (
+        <path key={code} d={draw(f) ?? ''} className={code === to ? 'next' : code === from ? 'from' : ''} />
+      ))}
+    </svg>
+  )
+}
+
+// Le tampon en bois qui s'abat sur la page, à l'encre du pays.
+function StampTool({ ink }: { ink: string }) {
+  return (
+    <svg className="xp-tool" viewBox="0 0 100 120" aria-hidden>
+      <defs>
+        <linearGradient id="xp-wood" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#b98457" />
+          <stop offset="1" stopColor="#5e3b22" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="50" cy="20" rx="21" ry="17" fill="url(#xp-wood)" />
+      <rect x="42" y="33" width="16" height="33" rx="5" fill="#6b4a2e" />
+      <rect x="15" y="64" width="70" height="22" rx="6" fill="#2d2621" />
+      <rect x="11" y="84" width="78" height="10" rx="3" fill={ink} />
+    </svg>
+  )
+}
+
+interface Question {
+  // le numéro du visa : la frontière du voyage qu'il ouvre
+  n: number
+  from: string
+  to: string
+  options: string[]
+}
+
+// La route en haut du passeport : le départ, une case par frontière, et Pépite sur la case à venir.
+function Journey({ trip, run }: { trip: Trip; run: Run }) {
+  const crossed = run.path.length - 1
+  const slots = trip.end ? trip.route.slice(1) : [...run.path.slice(1).slice(-6), '']
+  const offset = trip.end ? 0 : Math.max(0, crossed - 6)
+  const at = Math.min(crossed - offset, slots.length - 1)
+  return (
+    <ol className="xp-journey" aria-label={trip.end ? t('{n} frontières sur {total}', { n: crossed, total: slots.length }) : plural(crossed, '{n} tampon', '{n} tampons')}>
+      <li className="flag">{flagEmoji(trip.start)}</li>
+      {slots.map((code, i) => {
+        const done = i + offset < crossed
+        const wrong = done && run.picks[i + offset] !== run.path[i + offset + 1]
+        const goal = !!trip.end && i === slots.length - 1
+        return (
+          <li key={i} className={done ? (wrong ? 'done wrong' : 'done') : i === at ? 'now' : goal ? 'goal' : ''} style={done ? { ['--ink' as string]: inkOf(code) } : undefined}>
+            {done || goal ? flagEmoji(code) : ''}
+            {i === at && run.mistakes < CHANCES && (
+              <span className="xp-pep" key={crossed}>
+                <Mascot size={24} />
+              </span>
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// Une page de visa : la silhouette du pays et sa place sur la carte, puis quatre noms. Une fois répondu, le tampon
+// (ou le refus) s'y imprime.
+function VisaPage({
+  atlas,
+  q,
+  label,
+  picked,
+  phase,
+  gold,
+  time,
+  onPick,
+}: {
+  atlas: Atlas
+  q: Question
+  label: string
+  picked: string | null
+  phase: string
+  gold: boolean
+  time: number
+  onPick?: (code: string) => void
+}) {
+  const name = (c: string) => atlas.name(c)
+  const ok = picked === q.to
+  return (
+    <div className="pp-paper xp-visa">
+      <div className="pp-watermark" aria-hidden />
+      <div className="xp-visa-head">
+        <span>{t('VISA')}</span>
+        <span>{label}</span>
+      </div>
+      <div className="xp-visa-body">
+        <Shape atlas={atlas} code={q.to} />
+        <VisaMap atlas={atlas} from={q.from} to={q.to} />
+      </div>
+      <p className="xp-q">{t('Quel est ce pays ?')}</p>
+      <div className="xp-options">
+        {q.options.map((o) => (
+          <button key={o} disabled={!!picked || !onPick} className={!picked ? '' : o === q.to ? 'right' : o === picked ? 'wrong' : 'dim'} onClick={() => onPick?.(o)}>
+            {name(o)}
+          </button>
+        ))}
+      </div>
+      {picked && ok && (
+        <div className={`pp-stamp xp-ink shape-${shapeOf(q.to)}`} style={{ color: gold ? GOLD : inkOf(q.to) }}>
+          <StampArt code={q.to} time={time} line={t('L’EXPÉDITION')} />
+        </div>
+      )}
+      {picked && !ok && phase !== 'ask' && <div className="xp-refused">{t('REFUSÉ')}</div>}
+      {picked && !ok && <p className="xp-note">{t('C’était {country}.', { country: name(q.to) })}</p>}
     </div>
   )
 }
 
-interface Saved {
-  run: Run
-  // chaque passage à la douane, juste ou faux, pour le bandeau
-  log: boolean[]
+// La page souvenir : les tampons du voyage, qui retombent un à un ; le dernier, à l'arrivée, est doré.
+function Souvenir({ atlas, trip, run, day, arrived, time }: { atlas: Atlas; trip: Trip; run: Run; day: string; arrived: boolean; time: number }) {
+  const [, m, d] = day.split('-')
+  const stamps = run.path.slice(1).slice(-8)
+  return (
+    <div className="pp-paper xp-souvenir">
+      <div className="pp-watermark" aria-hidden />
+      <div className="xp-visa-head">
+        <span>{trip.end ? t('Voyage du {date}', { date: `${d}/${m}` }) : t('Tour du monde')}</span>
+        <span>{plural(stamps.length, '{n} tampon', '{n} tampons')}</span>
+      </div>
+      {trip.end && (
+        <p className="xp-souvenir-route">
+          {atlas.name(trip.start)} → {atlas.name(trip.end)}
+        </p>
+      )}
+      {stamps.map((code, i) => {
+        const h = hashString(code + i)
+        const last = arrived && i === stamps.length - 1
+        return (
+          <div
+            key={`${code}${i}`}
+            className={`pp-stamp xp-drop shape-${shapeOf(code)}`}
+            style={{
+              left: `${5 + (i % 2) * 47 + (h % 7)}%`,
+              top: `${17 + Math.floor(i / 2) * 20 + ((h >> 4) % 5)}%`,
+              rotate: `${((h >> 7) % 21) - 10}deg`,
+              color: last ? GOLD : inkOf(code),
+              animationDelay: `${0.55 + (i * DROP_MS) / 1000}s`,
+            }}
+          >
+            <StampArt code={code} time={time} line={t('L’EXPÉDITION')} />
+          </div>
+        )
+      })}
+      {!arrived && <div className="xp-refused xp-halt">{t('VOYAGE INTERROMPU')}</div>}
+    </div>
+  )
 }
 
-interface Desk {
-  to: string
-  options: string[]
-  picked?: string
+// La première fois : le voyage, le visa, les chances, en trois cartes.
+function Intro({ trip, atlas, onDone }: { trip: Trip; atlas: Atlas; onDone: () => void }) {
+  const [step, setStep] = useState(0)
+  const cards = [
+    {
+      title: t('Ton voyage du jour'),
+      text: trip.end
+        ? t('{start} → {end} : {n} frontières à passer.', { start: atlas.name(trip.start), end: atlas.name(trip.end), n: trip.route.length - 1 })
+        : t('Départ : {start}. Va aussi loin que possible.', { start: atlas.name(trip.start) }),
+      art: `${flagEmoji(trip.start)} ✈ ${trip.end ? flagEmoji(trip.end) : '🌍'}`,
+    },
+    { title: t('À chaque frontière, un visa'), text: t('Reconnais le pays à sa forme et à sa place sur la carte : tu gagnes son tampon.'), art: '🛂' },
+    { title: t('Trois chances'), text: t('Une erreur ne t’arrête pas, mais à la troisième, le voyage s’interrompt.'), art: '❤️ ❤️ ❤️' },
+  ]
+  const card = cards[step]
+  return (
+    <div className="xp-intro" role="dialog" aria-label={card.title}>
+      <div className="xp-intro-card" key={step}>
+        <span className="xp-intro-art" aria-hidden>
+          {card.art}
+        </span>
+        <h2>{card.title}</h2>
+        <p>{card.text}</p>
+        <div className="xp-intro-dots" aria-hidden>
+          {cards.map((_, i) => (
+            <i key={i} className={i === step ? 'on' : ''} />
+          ))}
+        </div>
+        <div className="ex-actions">
+          <button className="ui-btn" onClick={() => (step < cards.length - 1 ? setStep(step + 1) : onDone())}>
+            {step < cards.length - 1 ? t('Suivant') : t('C’est parti !')}
+          </button>
+          {step < cards.length - 1 && (
+            <button className="ex-link" onClick={onDone}>
+              {t('Passer')}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
+
+type Phase = 'ask' | 'stamp' | 'refuse' | 'flip' | 'close' | 'souvenir' | 'fin'
 
 function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
   const [challenge] = useState(readChallenge)
@@ -182,104 +287,122 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
   const seed = challenge?.seed ?? day
   const official = !tour && !challenge
   const pool = atlas.playable
-  const [exp] = useState(() => {
-    if (!tour) return dailyExpedition(atlas.neighbors, pool, atlas.region, seed)
+  const [tourSeed] = useState(() => `tour-${Math.random().toString(36).slice(2, 8)}`)
+  const [trip] = useState<Trip>(() => {
+    if (!tour) return dailyTrip(atlas.neighbors, pool, atlas.region, seed)
     const starts = pool.filter((c) => atlas.neighbors.get(c)?.size)
-    return tourExpedition(starts[Math.floor(Math.random() * starts.length)])
+    return tourTrip(starts[Math.floor(Math.random() * starts.length)])
   })
-  // l'expédition du jour reprend où on l'a laissée ; le Tour du monde repart de zéro
-  const key = tour ? null : `expedition:${seed}`
-  const [{ run, log }, setState] = useState<Saved>(() => (key && load<Saved | null>(key, null)) || { run: startRun(exp), log: [] })
-  const [desk, setDesk] = useState<Desk | null>(null)
-  const [bonus, setBonus] = useState<{ q: CustomsQuestion; code: string; picked?: string } | null>(null)
-  const [copied, setCopied] = useState(false)
-  const elapsed = useStopwatch()
-  const st = status(exp, run)
-  const at = here(run)
-  const name = (c: string) => atlas.name(c)
-  const ended = useRef(st !== 'en route')
-
-  function update(next: Saved) {
-    setState(next)
-    if (key) save(key, next)
+  // le voyage du jour reprend où on l'a laissé ; le Tour du monde repart de zéro
+  const key = tour ? null : `expedition:v2:${seed}`
+  const [run, setRun] = useState<Run>(() => (key && load<Run | null>(key, null)) || startRun(trip))
+  const nextOf = (r: Run) => (status(trip, r) === 'en route' ? nextCountry(atlas.neighbors, trip, r, tour ? tourSeed : seed) : null)
+  const questionOf = (r: Run): Question | null => {
+    const to = nextOf(r)
+    return to ? { n: r.path.length, from: here(r), to, options: choices(atlas.neighbors, atlas.region, pool, here(r), to, seededRng(`${tour ? tourSeed : seed}:${r.path.length}:${to}`)) } : null
   }
+  const [q, setQ] = useState<Question | null>(() => questionOf(run))
+  const [under, setUnder] = useState<Question | null>(null)
+  const [picked, setPicked] = useState<string | null>(null)
+  const done = !q
+  const [phase, setPhase] = useState<Phase>(done ? 'fin' : 'ask')
+  const [intro, setIntro] = useState(() => !done && !load<boolean>('expedition-intro', false))
+  const [fresh, setFresh] = useState<number | null>(null)
+  const [copied, setCopied] = useState(false)
+  // la date imprimée sur les tampons du voyage
+  const [now] = useState(Date.now)
+  const elapsed = useStopwatch()
+  const ended = useRef(done)
+  const timers = useRef<number[]>([])
+  const after = (ms: number, fn: () => void) => timers.current.push(window.setTimeout(fn, ms))
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
-  // la fin, inscrite une seule fois : historique, résultat du jour, carte de ses expéditions
-  function finish(next: Run) {
+  const st = status(trip, run)
+  const arrived = st === 'arrivé'
+  useDuelProgress(challenge && st === 'en route' ? { left: left(trip, run), unit: 'frontieres' } : null)
+
+  // la fin, inscrite une seule fois : historique, résultat du jour, passeport, carte des voyages
+  function finish(r: Run) {
     if (ended.current) return
     ended.current = true
     const ms = elapsed()
-    const arrived = status(exp, next) === 'arrivé'
+    const ok = status(trip, r) === 'arrivé'
+    const before = coverage(passport()).stamped
+    stamp(r.path.slice(1), 'expedition')
+    setFresh(coverage(passport()).stamped - before)
     if (tour) {
-      const n = visited(next)
+      const n = r.path.length - 1
       submitBest('expedition-tour', n)
-      recordPlay('expedition-tour', { pts: Math.min(100, n * 4), s: n, ms, sub: 'libre' })
+      recordPlay('expedition-tour', { pts: Math.min(100, n * 5), s: n, ms, sub: 'libre' })
     } else {
-      if (official && !dailyResult('expedition', day)) saveDailyResult('expedition', { won: arrived, steps: next.path.length - 1, supplies: next.supplies }, day)
-      recordPlay('expedition', { pts: score(atlas.neighbors, exp, next), s: next.path.length - 1, win: arrived, ms, sub: challenge ? 'defi' : undefined })
+      if (official && !dailyResult('expedition', day)) saveDailyResult('expedition', { won: ok, steps: r.path.length - 1, mistakes: r.mistakes }, day)
+      recordPlay('expedition', { pts: score(trip, r), s: r.mistakes, win: ok, ms, sub: challenge ? 'defi' : undefined })
     }
-    saveTrip({ day, start: exp.start, end: exp.end, path: next.path, arrived, tour, at: Date.now() })
+    saveTrip({ day, start: trip.start, end: trip.end, path: r.path, arrived: ok, tour, at: Date.now() })
   }
 
-  function pass(to: string, logged: boolean[]) {
-    const next = cross(exp, run, to)
-    stamp(to, 'expedition')
-    update({ run: next, log: logged })
-    if (status(exp, next) !== 'en route') return finish(next)
-    if (customsDue(next)) setBonus({ q: customsQuestion(to, at, pool, atlas.region, capital, (c) => POP.get(c), hasFlag, seededRng(`${seed}:douane:${next.path.length}`)), code: to })
+  // le voyage fini : le livret se referme, puis se rouvre sur la page souvenir où retombent les tampons
+  function closeTrip(r: Run) {
+    setPhase('close')
+    after(CLOSE_MS, () => {
+      setPhase('souvenir')
+      r.path.slice(1).slice(-8).forEach((_, i) => after(550 + i * DROP_MS + 120, () => feedback('stamp')))
+      after(550 + Math.min(8, r.path.length - 1) * DROP_MS + 700, () => {
+        finish(r)
+        setPhase('fin')
+      })
+    })
   }
 
-  function choose(to: string) {
-    if (known(run, to)) return pass(to, log)
-    setDesk({ to, options: choices(atlas.neighbors, atlas.region, pool, at, to, seededRng(`${seed}:${run.path.length}:${to}`)) })
-  }
-
-  function answer(opt: string) {
-    if (!desk || desk.picked) return
-    const ok = opt === desk.to
-    feedback(ok ? 'good' : 'bad', runOf(log))
-    setDesk({ ...desk, picked: opt })
-    window.setTimeout(
-      () => {
-        setDesk(null)
-        if (ok) return pass(desk.to, [...log, true])
-        const next = miss(run, desk.to)
-        update({ run: next, log: [...log, false] })
-        if (status(exp, next) !== 'en route') finish(next)
-      },
-      ok ? 900 : 1400,
-    )
-  }
-
-  function answerBonus(opt: string) {
-    if (!bonus || bonus.picked) return
-    const ok = opt === bonus.q.answer
-    feedback(ok ? 'good' : 'bad')
-    setBonus({ ...bonus, picked: opt })
-    window.setTimeout(() => {
-      setBonus(null)
-      update({ run: answerCustoms(run, ok), log })
-    }, 1300)
+  function choose(code: string) {
+    if (phase !== 'ask' || !q) return
+    const next = answer(run, q.to, code)
+    const ok = code === q.to
+    setPicked(code)
+    setRun(next)
+    if (key) save(key, next)
+    const following = questionOf(next)
+    if (ok) {
+      setPhase('stamp')
+      after(IMPACT_MS, () => feedback('stamp'))
+    } else {
+      setPhase('refuse')
+      feedback('bad')
+      after(120, () => feedback('stamp'))
+    }
+    after(ok ? STAMP_MS : REFUSE_MS, () => {
+      if (!following) return closeTrip(next)
+      setUnder(following)
+      setPhase('flip')
+      feedback('page')
+      after(FLIP_MS, () => {
+        setQ(following)
+        setUnder(null)
+        setPicked(null)
+        setPhase('ask')
+      })
+    })
   }
 
   async function share() {
     const text = tour
-      ? `🧭 ${t('Tour du monde')} · ${plural(visited(run), '{n} pays traversé', '{n} pays traversés')}\n${run.path.map(flagEmoji).join('')}\nexpedle.com`
-      : shareText(exp, run, seed, name)
+      ? `🧭 ${t('Tour du monde')} · ${plural(run.path.length - 1, '{n} tampon', '{n} tampons')}\n${run.path.map(flagEmoji).join('')}\nexpedle.com`
+      : shareText(trip, run, seed, (c) => atlas.name(c))
     setCopied(await copyText(text))
     window.setTimeout(() => setCopied(false), 1800)
   }
 
   const crossed = run.path.length - 1
-  const left = exp.end ? hops(atlas.neighbors, at, exp.closed).get(exp.end) : undefined
-  useDuelProgress(challenge && st === 'en route' && left !== undefined ? { left, unit: 'frontieres' } : null)
-  const borders = bordersOf(atlas.neighbors, at)
-  const center = countryCenter(atlas, at)
-  const playing = st === 'en route' && !desk && !bonus
-  const mark = (o: string) => (!bonus?.picked ? '' : o === bonus.q.answer ? 'right' : o === bonus.picked ? 'wrong' : 'dim')
+  const total = trip.route.length - 1
+  const label = (v: Question) => (trip.end ? `${v.n} / ${total}` : `N° ${v.n}`)
+  const lastIsGoal = !!q && q.to === trip.end
+  const showSouvenir = phase === 'close' || phase === 'souvenir' || phase === 'fin'
+  const s = stars(trip, run)
+  const cov = coverage(passport())
 
   return (
     <div className="ex">
+      <InkFilter />
       <AppBar title={t('L’Expédition')}>
         <SubLink href="#/expedition" active={!tour}>
           {t('Du jour')}
@@ -291,169 +414,102 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
       </AppBar>
       <main className="ex-main">
         <header className="ex-head">
-          <h1>{tour ? t('Tour du monde') : `${name(exp.start)} → ${name(exp.end)}`}</h1>
-          {st === 'en route' && (
-            <p>
-              {tour
-                ? t('Passe le plus de frontières possible avant d’être à court de vivres.')
-                : `${t('{goal} à {km} km, direction {wind}', {
-                    goal: name(exp.end),
-                    km: fmt(Math.round(distanceKm(center, countryCenter(atlas, exp.end)) / 100) * 100),
-                    wind: t(windOf(rhumbBearing(center, countryCenter(atlas, exp.end)))),
-                  })}${left === undefined ? '' : ` · ${plural(left, 'encore {n} frontière au moins', 'encore {n} frontières au moins')}`}`}
-            </p>
-          )}
+          <h1>{tour ? t('Tour du monde') : `${flagEmoji(trip.start)} ${atlas.name(trip.start)} → ${atlas.name(trip.end)} ${flagEmoji(trip.end)}`}</h1>
+          {st === 'en route' && <p>{tour ? t('Reconnais chaque pays et va aussi loin que possible.') : t('Reconnais chaque pays pour obtenir ton visa.')}</p>}
         </header>
 
         <GameHud
-          steps={[...log, ...(st === 'en route' ? [null] : [])]}
-          trail={12}
-          label={tour ? plural(visited(run), '{n} pays traversé', '{n} pays traversés') : plural(crossed, '{n} frontière passée', '{n} frontières passées')}
-          gauge={{ value: Math.max(0, run.supplies), max: Math.max(exp.supplies, run.supplies), icon: <Bag /> }}
-          say={remark(atlas.neighbors, exp, run, tour ? bestScore('expedition-tour') : null)}
+          steps={[...run.picks.map((p, i) => p === run.path[i + 1]), ...(st === 'en route' ? [null] : [])]}
+          trail={tour ? 12 : undefined}
+          label={tour ? plural(crossed, '{n} tampon', '{n} tampons') : t('{n} frontières sur {total}', { n: crossed, total })}
+          lives={{ left: CHANCES - run.mistakes, total: CHANCES }}
+          say={remark(trip, run, tour ? bestScore('expedition-tour') : null)}
         />
 
-        <ExMap atlas={atlas} exp={exp} run={run} onPick={playing ? choose : undefined} />
+        <Journey trip={trip} run={run} />
 
-        {playing && (
-          <section className="ex-borders">
-            <h2>{t('Quelle frontière passer ?')}</h2>
-            <div className="ex-cards">
-              {borders.map((n) => {
-                const shut = closedBetween(exp.closed, at, n)
-                const cache = n === exp.cache && !run.cacheTaken
-                return (
-                  <button key={n} className={shut ? 'ex-card shut' : run.path.includes(n) ? 'ex-card seen' : 'ex-card'} disabled={shut} onClick={() => choose(n)}>
-                    <Shape atlas={atlas} code={n} />
-                    <b>{known(run, n) ? name(n) : '?'}</b>
-                    <small>{shut ? t('Frontière fermée aujourd’hui') : t(windOf(rhumbBearing(center, countryCenter(atlas, n))))}</small>
-                    {cache && <span className="ex-cache">{t('Vivres +2')}</span>}
-                  </button>
-                )
-              })}
+        <div className="xp-book">
+          {(showSouvenir || under) && (
+            <div className="xp-page">
+              {showSouvenir ? (
+                <Souvenir atlas={atlas} trip={trip} run={run} day={seed} arrived={arrived} time={now} />
+              ) : (
+                <VisaPage atlas={atlas} q={under!} label={label(under!)} picked={null} phase="ask" gold={false} time={now} />
+              )}
             </div>
-          </section>
-        )}
-
-        {desk && (
-          <section className="ex-desk" key={desk.to}>
-            <small>{t('Douane')}</small>
-            <h2>{t('Ce pays, c’est… ?')}</h2>
-            <Shape atlas={atlas} code={desk.to} size={150} />
-            <div className="ex-options">
-              {desk.options.map((o) => (
-                <button key={o} className={!desk.picked ? '' : o === desk.to ? 'right' : o === desk.picked ? 'wrong' : 'dim'} disabled={!!desk.picked} onClick={() => answer(o)}>
-                  {name(o)}
-                </button>
-              ))}
+          )}
+          {q && phase !== 'souvenir' && phase !== 'fin' && (
+            <div className={`xp-page top${phase === 'flip' ? ' flip' : ''}${phase === 'stamp' ? ' hit' : ''}`}>
+              <VisaPage atlas={atlas} q={q} label={label(q)} picked={picked} phase={phase} gold={lastIsGoal} time={now} onPick={phase === 'ask' && !intro ? choose : undefined} />
+              {phase === 'stamp' && <StampTool ink={lastIsGoal ? GOLD : inkOf(q.to)} />}
             </div>
-            {desk.picked === desk.to && (
-              <div className="ex-stamp" aria-live="polite">
-                {flagEmoji(desk.to)} {name(desk.to)}
+          )}
+          {(phase === 'close' || phase === 'souvenir') && (
+            <div className={`xp-cover${phase === 'souvenir' ? ' open' : ''}`}>
+              <div className="pp-leather">
+                <span className="pp-gold pp-cover-country">{t('République d’Expedle')}</span>
+                <Emblem />
+                <span className="pp-gold xp-cover-title">{arrived ? t('Voyage accompli') : t('Fin du voyage')}</span>
+                <span className="pp-gold pp-cover-sub">{tour ? plural(crossed, '{n} tampon', '{n} tampons') : `${atlas.name(trip.start)} → ${atlas.name(trip.end)}`}</span>
               </div>
-            )}
-            {desk.picked && desk.picked !== desk.to && <p className="ex-note">{t('Raté, la réponse : {country}. Deux vivres de moins.', { country: name(desk.to) })}</p>}
-            {!desk.picked && (
-              <button className="ex-back" onClick={() => setDesk(null)}>
-                {t('Choisir une autre frontière')}
-              </button>
-            )}
-          </section>
-        )}
+            </div>
+          )}
+          {intro && (
+            <Intro
+              trip={trip}
+              atlas={atlas}
+              onDone={() => {
+                setIntro(false)
+                save('expedition-intro', true)
+              }}
+            />
+          )}
+        </div>
 
-        {bonus && (
-          <section className="ex-desk bonus">
-            <small>{t('Douane renforcée')}</small>
-            {bonus.q.kind === 'capitale' ? (
-              <>
-                <h2>{t('{country} : quelle capitale ?', { country: name(bonus.code) })}</h2>
-                <div className="ex-options">
-                  {bonus.q.options.map((o) => (
-                    <button key={o} className={mark(o)} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : bonus.q.kind === 'drapeau' ? (
-              <>
-                <h2>{t('{country} : quel drapeau ?', { country: name(bonus.code) })}</h2>
-                <div className="ex-options flags">
-                  {bonus.q.options.map((o, i) => (
-                    <button
-                      key={o}
-                      className={mark(o)}
-                      disabled={!!bonus.picked}
-                      onClick={() => answerBonus(o)}
-                      aria-label={bonus.picked ? undefined : t('Drapeau {n}', { n: i + 1 })}
-                    >
-                      <FlagPic code={o} />
-                      {bonus.picked && <small>{name(o)}</small>}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>{t('{country} face à {other} : plus ou moins d’habitants ?', { country: name(bonus.code), other: name(bonus.q.than) })}</h2>
-                <div className="ex-options two">
-                  {(['plus', 'moins'] as const).map((o) => (
-                    <button key={o} className={mark(o)} disabled={!!bonus.picked} onClick={() => answerBonus(o)}>
-                      {t(o)}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            {bonus.picked && <p className="ex-note">{bonus.picked === bonus.q.answer ? t('Bien vu : un vivre de plus.') : t('Raté, pas de vivre en plus.')}</p>}
-          </section>
-        )}
-
-        {st !== 'en route' && (
+        {phase === 'fin' && (
           <section className="ex-end">
             <h2>
               {tour
-                ? t('Tour du monde terminé : {n} pays', { n: visited(run) })
-                : st === 'arrivé'
-                  ? t('Arrivé : {country} !', { country: name(exp.end) })
-                  : t('Bloqué : {country}, à court de vivres', { country: name(at) })}
+                ? t('Tour du monde : {n} tampons', { n: crossed })
+                : arrived
+                  ? t('Arrivé : {country} !', { country: atlas.name(trip.end) })
+                  : t('Voyage interrompu : {country}', { country: atlas.name(here(run)) })}
             </h2>
             {!tour && (
-              <p className="ex-stars" aria-label={t('{n} étoiles sur 3', { n: stars(exp, run) })}>
-                {'★'.repeat(stars(exp, run))}
-                <span>{'★'.repeat(3 - stars(exp, run))}</span>
+              <p className="ex-stars" aria-label={plural(s, '{n} étoile sur 3', '{n} étoiles sur 3')}>
+                {'★'.repeat(s)}
+                <span>{'★'.repeat(CHANCES - s)}</span>
               </p>
             )}
             <p className="ex-flags">{run.path.map(flagEmoji).join(' ')}</p>
             <dl className="ex-facts">
-              {!tour && (
-                <div>
-                  <dt>{t('Frontières passées')}</dt>
-                  <dd>
-                    {crossed} <small>{t('record possible {n}', { n: exp.optimal })}</small>
-                  </dd>
-                </div>
-              )}
+              <div>
+                <dt>{t('Pays tamponnés')}</dt>
+                <dd>{crossed}</dd>
+              </div>
+              <div>
+                <dt>{t('Erreurs')}</dt>
+                <dd>
+                  {run.mistakes} / {CHANCES}
+                </dd>
+              </div>
               {tour && bestScore('expedition-tour') !== null && (
                 <div>
                   <dt>{t('Ton record')}</dt>
-                  <dd>{plural(bestScore('expedition-tour')!, '{n} pays', '{n} pays')}</dd>
+                  <dd>{plural(bestScore('expedition-tour')!, '{n} tampon', '{n} tampons')}</dd>
                 </div>
               )}
               <div>
-                <dt>{t('Vivres restants')}</dt>
-                <dd>{Math.max(0, run.supplies)}</dd>
-              </div>
-              <div>
-                <dt>{t('Douanes réussies')}</dt>
+                <dt>{t('Ton passeport')}</dt>
                 <dd>
-                  {log.filter(Boolean).length} / {log.length}
+                  {fresh ? <b className="gold">{plural(fresh, '+{n} nouveau', '+{n} nouveaux')} · </b> : null}
+                  {t('{n} pays sur {total}', { n: cov.stamped, total: cov.total })}
                 </dd>
               </div>
             </dl>
             <div className="ex-actions">
               <button className="ui-btn" onClick={share}>
-                {copied ? t('Résultat copié !') : t('Partager l’expédition')}
+                {copied ? t('Résultat copié !') : t('Partager le voyage')}
               </button>
               {tour ? (
                 <button className="ui-btn line" onClick={() => (window.location.hash = `#/expedition/tour?r=${Date.now()}`)}>
@@ -464,15 +520,11 @@ function Play({ atlas, tour }: { atlas: Atlas; tour: boolean }) {
                   {t('Tour du monde')}
                 </a>
               )}
-              <a className="ui-btn line" href="#/expedition/carte">
-                {t('Ma carte')}
+              <a className="ui-btn line" href="#/passeport">
+                {t('Mon passeport')}
               </a>
             </div>
-            {tour ? (
-              <NextGame />
-            ) : (
-              <ChallengeBox game="expedition" path="/expedition" seed={seed} result={{ pts: score(atlas.neighbors, exp, run), s: crossed, win: st === 'arrivé', ms: 0 }} />
-            )}
+            {tour ? <NextGame /> : <ChallengeBox game="expedition" path="/expedition" seed={seed} result={{ pts: score(trip, run), s: run.mistakes, win: arrived, ms: 0 }} />}
           </section>
         )}
       </main>
