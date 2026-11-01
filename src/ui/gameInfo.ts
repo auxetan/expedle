@@ -58,6 +58,7 @@ export const GAMES: Record<string, GameInfo> = {
   geoguessr: { title: 'GeoGuessr', href: '#/geoguessr', unit: pts },
   'photoguessr-jour': { title: 'PhotoGuessr : défi du jour', href: '#/photoguessr/jour', unit: pts },
   'geoguessr-jour': { title: 'GeoGuessr : défi du jour', href: '#/geoguessr/jour', unit: pts },
+  revision: { title: 'Révision du jour', href: '#/revision', unit: (s) => plural(s, '{n} bonne réponse', '{n} bonnes réponses'), untimed: true },
 }
 
 // le titre est traduit à l'affichage : t(gameInfo(g).title)

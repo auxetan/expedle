@@ -1,0 +1,142 @@
+/* La révision reprend la carte de question du quiz (quiz.css) ; ici, ce qui lui est propre. */
+
+.rv-shape {
+  display: block;
+  width: min(240px, 60vw);
+  height: auto;
+  margin: 0 auto 22px;
+  animation: pop-in 0.4s ease-out;
+}
+
+.rv-shape path {
+  fill: var(--fg);
+}
+
+.rv-flag {
+  width: min(240px, 64vw);
+  aspect-ratio: 4 / 3;
+  margin: 0 auto 22px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg2);
+}
+
+.rv-flag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rv-place {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* la question, la carte et les quatre lettres tiennent dans un écran */
+  max-height: 44vh;
+  margin: -6px 0 18px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--info) 8%, var(--bg));
+}
+
+.rv-land {
+  fill: color-mix(in srgb, var(--fg) 14%, var(--bg));
+  stroke: var(--card);
+  stroke-width: 0.7;
+  transition: fill 0.25s;
+}
+
+.rv-land.opt {
+  fill: color-mix(in oklab, var(--teal) 50%, var(--bg));
+  cursor: pointer;
+}
+
+.rv-land.right {
+  fill: var(--good);
+}
+
+.rv-land.wrong {
+  fill: var(--bad);
+}
+
+.rv-land.dim {
+  fill: color-mix(in srgb, var(--fg) 26%, var(--bg));
+}
+
+.rv-mark {
+  cursor: pointer;
+}
+
+.rv-mark circle {
+  fill: var(--fg);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.rv-mark text {
+  fill: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.rv-mark.right circle {
+  fill: var(--good);
+}
+
+.rv-mark.wrong circle {
+  fill: var(--bad);
+}
+
+.rv-mark.dim {
+  opacity: 0.6;
+}
+
+.rv-mark .rv-name {
+  fill: var(--fg);
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+
+/* sur la carte, quatre lettres sur une ligne : les noms n'arrivent qu'avec la réponse */
+.qz-options.rv-letters {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.rv-letters .qz-opt {
+  justify-content: center;
+}
+
+.rv .qz-final small {
+  font-size: 40%;
+  color: var(--muted);
+}
+
+.rv-empty {
+  text-align: center;
+}
+
+.rv-empty h2 {
+  margin: 6px 0 10px;
+  font-weight: 500;
+}
+
+.rv-empty p {
+  max-width: 46ch;
+  margin: 0 auto 22px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.rv-empty .qz-cta,
+.rv .qz-actions .qz-ghost {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.rv-empty .qz-cta {
+  color: var(--bg);
+}

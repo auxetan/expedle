@@ -1,8 +1,20 @@
 import { GAMES } from '../ui/gameInfo'
 import { GAME_SECTIONS, type GameEntry } from '../ui/games'
 import { msg } from './i18n'
+import { due } from './savoir'
 import type { Play } from './stats'
 import { hashString, load, save, todayKey } from './util'
+
+// La révision du jour n'a pas sa place parmi les jeux de l'accueil : elle n'est proposée, comme un jeu du jour, que
+// tant que des réponses attendent d'être revues.
+export const REVISION: GameEntry = {
+  href: '#/revision',
+  title: msg('Révision du jour'),
+  tagline: msg('Tes points faibles, revus au bon moment'),
+  rhythm: 'quotidien',
+  dailyId: 'revision',
+  icon: 'revision',
+}
 
 // Les jeux arrivés récemment, mis en avant tant qu'on ne les a pas essayés.
 // le jeu signature d'Expedle, proposé en premier chaque jour tant qu'il n'est pas fait
@@ -72,7 +84,16 @@ export function suggest(games: GameEntry[], history: Play[], done: (g: GameEntry
       const reason = beginner && STARTERS.has(g.href) ? msg('Parfait pour commencer') : (reasons.sort((a, b) => b[0] - a[0])[0]?.[1] ?? msg('Pour varier les plaisirs'))
       return { game: g, reason, score }
     })
+    .concat(due(now).length ? [revision(history, done, now, day)] : [])
     .sort((a, b) => b.score - a.score)
+}
+
+// Des réponses attendent : la révision passe devant un jeu du jour ordinaire, après l'expédition du jour, les favoris
+// et les nouveautés.
+function revision(history: Play[], done: (g: GameEntry) => boolean, now: number, day: string): Suggestion {
+  let score = done(REVISION) ? -100 : 75
+  if (history.some((p) => p.g === REVISION.dailyId && p.t > now - 2 * HOUR)) score -= 30
+  return { game: REVISION, reason: msg('Tes points faibles t’attendent'), score: score + (hashString(day + REVISION.href) % 100) / 12 }
 }
 
 // Le programme du jour : cinq jeux du jour choisis à la première visite et gardés toute la journée, pour qu'il ne
@@ -83,7 +104,8 @@ export function dailyProgram(games: GameEntry[], history: Play[], done: (g: Game
   const key = `programme:${todayKey(new Date(now))}`
   const kept = load<string[] | null>(key, null)
   const dailies = games.filter((g) => g.dailyId && !g.weekly)
-  const fromKept = kept?.map((href) => dailies.find((g) => g.href === href)).filter((g): g is GameEntry => !!g)
+  // entrée au programme ce matin, la révision y reste même une fois les réponses revues
+  const fromKept = kept?.map((href) => [...dailies, REVISION].find((g) => g.href === href)).filter((g): g is GameEntry => !!g)
   if (fromKept?.length === PROGRAM_SIZE) return fromKept
   // deux jeux au plus par rubrique, pour un programme varié
   const perSection = new Map<string, number>()

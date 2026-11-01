@@ -12,6 +12,7 @@ import ChallengeBox from '../../ui/ChallengeBox'
 import { useTheme } from '../../ui/theme'
 import { plural, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { record } from '../../lib/savoir'
 import { feedback } from '../../lib/feedback'
 
 const PALETTES = {
@@ -157,6 +158,11 @@ export default function ItinGame({ atlas, puzzle, slot, settings, hard, shareUrl
     if (guessedSet.has(target)) return flash(t('Déjà essayé'))
     setGuesses([...guesses, target])
     feedback('tap')
+    // un pays qui raccourcit le trajet était bien placé parmi ses voisins ; une île n'a pas de voisins à connaître
+    if (atlas.id === 'monde' && atlas.neighbors.has(target)) {
+      const mark = scoreGuess(g, start, end, guesses, target)
+      record(target, 'voisins', mark === 'optimal' || mark === 'good')
+    }
     setQuery('')
     setOpen(false)
     setMessage('')

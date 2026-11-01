@@ -17,6 +17,7 @@ import { evaluate, MAX_GUESSES, pickTarget, squares, stateBonus, targets, worldB
 import './worldle.css'
 import { locale, msg, t } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { record } from '../../lib/savoir'
 import { feedback } from '../../lib/feedback'
 
 interface Saved {
@@ -139,6 +140,7 @@ function Game({ atlas, mode, variant }: { atlas: Atlas; mode?: string; variant: 
     // plus le pays proposé est proche, plus la note monte
     if (!done) return feedback('tap', Math.round(evaluate(atlas, target, code, v.maxKm).proximity / 20))
     if (win && variant === 'worldle') stamp(target, 'worldle')
+    if (variant === 'worldle') record(target, 'forme', win)
     if (!practice && !dailyResult(variant, day)) saveDailyResult(variant, { won: win, guesses: n }, day)
     recordPlay(variant, { pts: points(win, n), s: n, win, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })
   }

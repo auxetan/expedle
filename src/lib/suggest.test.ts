@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALL_GAMES, GAME_SECTIONS } from '../ui/games'
+import { record } from './savoir'
 import type { Play } from './stats'
-import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, SIGNATURE, suggest } from './suggest'
+import { dailyProgram, nextGame, playIds, PROGRAM_SIZE, REVISION, SIGNATURE, suggest } from './suggest'
 
 const NOW = new Date(2026, 9, 18, 15).getTime()
 const game = (href: string) => ALL_GAMES.find((g) => g.href === href)!
@@ -57,6 +58,23 @@ describe('suggestions', () => {
     const next = nextGame(ALL_GAMES, history, done, NOW)!
     expect(next.game.href).not.toBe('#/worldle')
     expect(program).toContain(next.game)
+  })
+
+  it('propose la révision du jour tant que des réponses attendent, et la garde au programme', () => {
+    // chaque jeu du jour déjà essayé, aucun favori : rien d'autre ne passe devant
+    const history = ALL_GAMES.filter((g) => g.dailyId).map((g, i) => play(g.dailyId!, 72 + i))
+    expect(suggest(ALL_GAMES, history, () => false, NOW).map((s) => s.game)).not.toContain(REVISION)
+    record('PE', 'capitale', false, NOW - 3600000)
+    // l'expédition du jour garde la tête ; la révision la suit, devant tous les autres jeux du jour
+    const list = suggest(ALL_GAMES, history, () => false, NOW)
+    expect(list[0].game.href).toBe(SIGNATURE)
+    expect(list[1]).toMatchObject({ game: REVISION, reason: 'Tes points faibles t’attendent' })
+    expect(dailyProgram(ALL_GAMES, history, () => false, NOW)).toContain(REVISION)
+    // faite aujourd'hui, elle passe derrière tout le reste
+    expect(suggest(ALL_GAMES, history, (g) => g === REVISION, NOW).at(-1)!.game).toBe(REVISION)
+    // une fois les réponses revues, le programme du jour ne bouge pas
+    record('PE', 'capitale', true, NOW)
+    expect(dailyProgram(ALL_GAMES, history, () => false, NOW + 3600000)).toContain(REVISION)
   })
 
   it('propose encore un jeu quand le programme est terminé', () => {

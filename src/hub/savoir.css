@@ -1,0 +1,237 @@
+.sv {
+  --sv-sea: color-mix(in srgb, var(--info) 8%, var(--card));
+  --sv-land: color-mix(in srgb, var(--fg) 16%, var(--bg));
+  --sv-off: color-mix(in srgb, var(--fg) 8%, var(--bg));
+}
+
+.sv-main {
+  padding-bottom: 80px;
+}
+
+.sv-hero {
+  padding: 26px 0 18px;
+}
+
+.sv-hero h1 {
+  margin: 0 0 10px;
+  font-weight: 400;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.015em;
+}
+
+.sv-hero p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.sv-go {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+
+.sv-go .ui-btn {
+  text-decoration: none;
+}
+
+.sv-go span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.sv-hero .sv-empty {
+  margin-top: 14px;
+  color: var(--fg);
+}
+
+.sv-map {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--sv-sea);
+}
+
+.sv-map svg {
+  display: block;
+  touch-action: none;
+}
+
+.sv-land,
+.sv-off,
+.sv-dot {
+  stroke: var(--bg);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.sv-land,
+.sv-dot {
+  cursor: pointer;
+  transition: fill 0.3s;
+}
+
+.sv-land:hover,
+.sv-dot:hover {
+  filter: brightness(1.12);
+}
+
+.sv-off {
+  fill: var(--sv-off);
+}
+
+.sv-dot {
+  stroke-width: 1.2;
+}
+
+.sv-picked {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.sv-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sv-zoom button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 12px 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sv-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sv-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--sv-land);
+}
+
+.sv-ramp {
+  width: 72px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--teal) 32%, var(--sv-land)), var(--teal));
+}
+
+.sv-stats {
+  margin: 18px 4px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* La fiche d'un pays, posée en bas de l'écran : la carte reste utilisable derrière */
+.sv-sheet {
+  position: fixed;
+  z-index: 20;
+  inset-inline: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  max-width: 440px;
+  margin-inline: auto;
+  padding: 14px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  animation: rise-in 0.25s ease-out;
+}
+
+.sv-sheet header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sv-sheet-flag {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.sv-sheet h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.sv-sheet header b {
+  font-weight: 500;
+  color: var(--teal);
+}
+
+.sv-sheet ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.sv-sheet li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.sv-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.sv-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--teal);
+}
+
+.sv-sheet small {
+  min-width: 4.5em;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-sheet em {
+  margin-right: 8px;
+  font-style: normal;
+  color: var(--orange);
+}

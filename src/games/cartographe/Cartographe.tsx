@@ -17,6 +17,7 @@ import { ASK_LABEL, parseQuizId, quizId, quizMembers, REGIONS, type Ask, type Re
 import './cartographe.css'
 import { locale, msg, plural, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { record as recordSavoir, type Facet } from '../../lib/savoir'
 import { feedback } from '../../lib/feedback'
 
 type PlayMode = 'epingler' | 'saisir' | 'placer' | 'apprendre'
@@ -121,6 +122,9 @@ function prompt(code: string, ask: Ask): string {
   if (ask === 'drapeaux') return flagEmoji(code)
   return countryName(code)
 }
+
+// chaque réponse compte pour ce que le quiz montrait : le nom (savoir situer le pays), la capitale ou le drapeau
+const FACET: Record<Ask, Facet> = { pays: 'position', capitales: 'capitale', drapeaux: 'drapeau' }
 
 function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode }) {
   const world = getWorld()
@@ -247,6 +251,7 @@ function Quiz({ region, ask, mode }: { region: Region; ask: Ask; mode: PlayMode 
     feedback(status === 'fail' ? 'bad' : 'good', run.current)
     run.current = status === 'fail' ? 0 : run.current + 1
     if (status !== 'fail') stamp(current, 'cartographe')
+    recordSavoir(current, FACET[ask], status !== 'fail')
     const t = targets.get(current)!
     const next = new Map(targets)
     next.set(current, { ...t, status })

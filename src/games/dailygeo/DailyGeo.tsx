@@ -14,6 +14,7 @@ import '../worldle/worldle.css'
 import { capitalChoices, clues, MAX_GUESSES, score, target as pickTarget } from './game'
 import './dailygeo.css'
 import { stamp } from '../../lib/passport'
+import { record } from '../../lib/savoir'
 import { feedback } from '../../lib/feedback'
 
 interface Saved {
@@ -59,6 +60,7 @@ export default function DailyGeo({ mode }: { mode?: string }) {
   function answer(capital: string) {
     const ms = elapsed()
     update({ ...state, capital, ms })
+    record(target, 'capitale', capital === meta.capital)
     const total = score(found, state.guesses.length, capital === meta.capital)
     if (!practice && !dailyResult('dailygeo', day)) saveDailyResult('dailygeo', { score: total }, day)
     recordPlay('dailygeo', { pts: total, s: total, win: found, ms, sub: challenge ? 'defi' : practice ? 'libre' : undefined })

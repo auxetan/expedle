@@ -95,6 +95,12 @@ Icône de Frontières, où l'on conquiert le monde case après case contre des a
 Icône de JetPunk, des quiz où l'on remplit un tableau de réponses contre la montre. Une feuille de quiz crème aux angles arrondis avec quatre lignes : trois réponses déjà remplies (barres taupe) et une dernière case vide où clignote un curseur presque noir. Un petit chronomètre rond taupe posé sur le coin supérieur droit de la feuille, l'aiguille presque noire près de la fin.
 ```
 
+### `revision.png` : Révision du jour
+
+```
+Icône de la Révision du jour, où l'on revoit ses points faibles au bon moment, comme avec des fiches. Une boîte à fiches taupe vue de face, ouverte en haut ; trois fiches crème en dépassent en éventail, celle du milieu un peu plus haute. Sur la face de la boîte, une flèche circulaire presque noire qui tourne dans le sens des aiguilles d'une montre.
+```
+
 ## 2. La monnaie : les pépites
 
 ### `pepite.png` : une pépite

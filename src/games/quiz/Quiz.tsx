@@ -13,6 +13,7 @@ import { CATEGORIES, pickQuestions, questionBank, type BankQuestion } from './ba
 import './quiz.css'
 import { locale, msg, t, tx } from '../../lib/i18n'
 import { stamp } from '../../lib/passport'
+import { record as recordSavoir } from '../../lib/savoir'
 import { feedback, runOf } from '../../lib/feedback'
 
 type Kind = 'culture' | 'jour' | 'drapeaux' | 'capitales'
@@ -149,6 +150,8 @@ export default function Quiz({ kind: raw }: { kind?: string }) {
     const ok = opt === item.answer
     feedback(ok ? 'good' : 'bad', runOf(results))
     if (ok && item.code) stamp(item.code, 'quiz-' + kind)
+    // seuls les quiz Drapeaux et Capitales portent sur un pays
+    if (item.code) recordSavoir(item.code, kind === 'drapeaux' ? 'drapeau' : 'capitale', ok)
     const pts = ok ? 100 + Math.round((remaining / TIME) * 100) : 0
     setPicked(opt)
     setGain(pts)
