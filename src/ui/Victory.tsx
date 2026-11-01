@@ -144,7 +144,7 @@ export default function Victory({ win, onDone }: { win: Win; onDone: () => void 
         </div>
         <div className="vic-copy">
           <p className="vic-title">{t(TITLES[win.tier])}</p>
-          <div className="vic-total" ref={figure}>
+          <div className={rows ? 'vic-total on' : 'vic-total'} ref={figure}>
             +{fmt(shown)}
           </div>
           {several && (
