@@ -1,25 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { worldAtlas } from '../../geo/atlas'
-import {
-  answerCustoms,
-  choices,
-  customsQuestion,
-  cross,
-  customsDue,
-  dailyExpedition,
-  here,
-  hops,
-  miss,
-  remark,
-  route,
-  score,
-  shareText,
-  stars,
-  startRun,
-  status,
-  tourExpedition,
-  type Expedition,
-} from './game'
+import { answer, CHANCES, choices, dailyTrip, hops, left, nextCountry, remark, route, score, shareText, stars, startRun, status, tourTrip, type Trip } from './game'
 
 // une ligne A-B-C-D-E, et un détour B-X-D
 const LINE = new Map<string, Set<string>>([
@@ -30,106 +11,98 @@ const LINE = new Map<string, Set<string>>([
   ['E', new Set(['D'])],
   ['X', new Set(['B', 'D'])],
 ])
-const exp = (p: Partial<Expedition> = {}): Expedition => ({ start: 'A', end: 'E', closed: null, cache: null, optimal: 4, supplies: 9, ...p })
+const trip: Trip = { start: 'A', end: 'E', route: ['A', 'B', 'C', 'D', 'E'] }
 
 describe('chemins', () => {
-  it('compte les frontières à passer, une frontière fermée en moins', () => {
+  it('compte les frontières et tire un plus court chemin, le même pour une même graine', () => {
     expect(hops(LINE, 'A').get('E')).toBe(4)
-    expect(hops(LINE, 'A', ['B', 'C']).get('E')).toBe(4)
-    expect(route(LINE, 'A', 'E', ['B', 'C'])).toEqual(['A', 'B', 'X', 'D', 'E'])
-    expect(hops(LINE, 'A', ['A', 'B']).get('E')).toBeUndefined()
+    expect(route(LINE, 'A', 'E', () => 0)).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(route(LINE, 'A', 'E', () => 0.99)).toEqual(['A', 'B', 'X', 'D', 'E'])
   })
 })
 
-describe('expédition du jour', () => {
+describe('voyage du jour', () => {
   const atlas = worldAtlas()
 
-  it('est la même pour tout le monde le même jour, et change le lendemain', () => {
-    const a = dailyExpedition(atlas.neighbors, atlas.playable, atlas.region, '2026-10-29')
-    expect(dailyExpedition(atlas.neighbors, atlas.playable, atlas.region, '2026-10-29')).toEqual(a)
-    expect(dailyExpedition(atlas.neighbors, atlas.playable, atlas.region, '2026-10-30')).not.toEqual(a)
+  it('est le même pour tout le monde le même jour, et change le lendemain', () => {
+    const a = dailyTrip(atlas.neighbors, atlas.playable, atlas.region, '2026-11-02')
+    expect(dailyTrip(atlas.neighbors, atlas.playable, atlas.region, '2026-11-02')).toEqual(a)
+    expect(dailyTrip(atlas.neighbors, atlas.playable, atlas.region, '2026-11-03')).not.toEqual(a)
   })
 
-  it('relie toujours deux régions par un vrai chemin, détour de la frontière fermée compris', () => {
-    for (const day of ['2026-10-29', '2026-11-02', '2026-12-25', '2027-03-14', '2027-07-01']) {
-      const e = dailyExpedition(atlas.neighbors, atlas.playable, atlas.region, day)
-      expect(atlas.region(e.start)).not.toBe(atlas.region(e.end))
-      expect(e.optimal).toBeGreaterThanOrEqual(7)
-      expect(hops(atlas.neighbors, e.start, e.closed).get(e.end)).toBe(e.optimal)
-      expect(e.supplies).toBe(e.optimal + 5)
+  it('relie deux régions en 5 à 7 frontières, de voisin en voisin', () => {
+    for (const day of ['2026-11-02', '2026-11-09', '2026-12-25', '2027-03-14', '2027-07-01']) {
+      const t = dailyTrip(atlas.neighbors, atlas.playable, atlas.region, day)
+      expect(atlas.region(t.start)).not.toBe(atlas.region(t.end))
+      expect(t.route.length - 1).toBeGreaterThanOrEqual(5)
+      expect(t.route.length - 1).toBeLessThanOrEqual(7)
+      expect(t.route[0]).toBe(t.start)
+      expect(t.route.at(-1)).toBe(t.end)
+      t.route.slice(1).forEach((c, i) => expect(atlas.neighbors.get(t.route[i])?.has(c)).toBe(true))
     }
   })
 })
 
 describe('en route', () => {
-  it('coûte un vivre par frontière et deux par erreur à la douane', () => {
-    let run = startRun(exp())
-    run = cross(exp(), run, 'B')
-    expect(here(run)).toBe('B')
-    expect(run.supplies).toBe(8)
-    run = miss(run, 'C')
-    expect(run.supplies).toBe(6)
-    expect(run.revealed).toContain('C')
-    expect(here(run)).toBe('B')
+  it('passe chaque frontière, même après une erreur, et arrive', () => {
+    let run = startRun(trip)
+    run = answer(run, 'B', 'B')
+    run = answer(run, 'C', 'X')
+    expect(run.path).toEqual(['A', 'B', 'C'])
+    expect(run.mistakes).toBe(1)
+    expect(left(trip, run)).toBe(2)
+    run = answer(answer(run, 'D', 'D'), 'E', 'E')
+    expect(status(trip, run)).toBe('arrivé')
   })
 
-  it('rend des vivres à la réserve, une seule fois', () => {
-    const e = exp({ cache: 'X' })
-    let run = cross(e, startRun(e), 'B')
-    run = cross(e, run, 'X')
-    expect(run.supplies).toBe(9 - 2 + 2)
-    run = cross(e, run, 'B')
-    run = cross(e, run, 'X')
-    expect(run.supplies).toBe(9 - 4 + 2)
-  })
-
-  it('arrive, ou reste bloqué faute de vivres', () => {
-    let run = startRun(exp())
-    for (const c of ['B', 'C', 'D', 'E']) run = cross(exp(), run, c)
-    expect(status(exp(), run)).toBe('arrivé')
-    const short = exp({ supplies: 2 })
-    expect(status(short, miss(startRun(short), 'B'))).toBe('bloqué')
-  })
-
-  it('pose une question à la douane toutes les trois frontières, et rend un vivre si elle est juste', () => {
-    let run = startRun(exp())
-    for (const c of ['B', 'C']) run = cross(exp(), run, c)
-    expect(customsDue(run)).toBe(false)
-    run = cross(exp(), run, 'D')
-    expect(customsDue(run)).toBe(true)
-    run = answerCustoms(run, true)
-    expect(customsDue(run)).toBe(false)
-    expect(run.supplies).toBe(9 - 3 + 1)
+  it('s’arrête à la troisième erreur, là où l’on est', () => {
+    let run = startRun(trip)
+    for (const [next, pick] of [
+      ['B', 'X'],
+      ['C', 'X'],
+      ['D', 'X'],
+    ])
+      run = answer(run, next, pick)
+    expect(run.mistakes).toBe(CHANCES)
+    expect(run.path).toEqual(['A', 'B', 'C'])
+    expect(status(trip, run)).toBe('interrompu')
   })
 })
 
-describe('fin d’expédition', () => {
-  it('note l’arrivée selon les vivres restants, et un échec selon le chemin fait', () => {
-    let run = startRun(exp())
-    for (const c of ['B', 'C', 'D', 'E']) run = cross(exp(), run, c)
-    expect(score(LINE, exp(), run)).toBe(100)
-    expect(stars(exp(), run)).toBe(3)
-    const stuck = { ...cross(exp(), cross(exp(), startRun(exp()), 'B'), 'C'), supplies: 0 }
-    expect(score(LINE, exp(), stuck)).toBe(20)
-    expect(stars(exp(), stuck)).toBe(0)
+describe('fin de voyage', () => {
+  it('note l’arrivée selon les erreurs, et un voyage interrompu selon le chemin fait', () => {
+    let run = startRun(trip)
+    for (const c of ['B', 'C', 'D', 'E']) run = answer(run, c, c)
+    expect([score(trip, run), stars(trip, run)]).toEqual([100, 3])
+    let slip = startRun(trip)
+    for (const [n, p] of [
+      ['B', 'B'],
+      ['C', 'X'],
+      ['D', 'D'],
+      ['E', 'E'],
+    ])
+      slip = answer(slip, n, p)
+    expect([score(trip, slip), stars(trip, slip)]).toEqual([80, 2])
+    const stuck = { path: ['A', 'B', 'C'], picks: [], mistakes: 3 }
+    expect([score(trip, stuck), stars(trip, stuck)]).toEqual([20, 0])
   })
 
-  it('se partage en drapeaux, la route dans l’ordre', () => {
-    const e = exp({ start: 'PT', end: 'FR', optimal: 2, supplies: 7 })
-    let run = startRun(e)
-    run = cross(e, run, 'ES')
-    run = cross(e, run, 'FR')
-    const text = shareText(e, run, '2026-10-29', (c) => ({ PT: 'Portugal', FR: 'France' })[c] ?? c)
+  it('se partage en drapeaux et en étoiles', () => {
+    const t: Trip = { start: 'PT', end: 'FR', route: ['PT', 'ES', 'FR'] }
+    let run = startRun(t)
+    run = answer(run, 'ES', 'ES')
+    run = answer(run, 'FR', 'IT')
+    const text = shareText(t, run, '2026-11-02', (c) => ({ PT: 'Portugal', FR: 'France' })[c] ?? c)
     expect(text).toContain('Portugal → France')
     expect(text).toContain('🇵🇹🇪🇸🇫🇷 🏁')
+    expect(text).toContain('★★☆')
     expect(text).toContain('expedle.com')
   })
 })
 
 describe('douane', () => {
   it('propose le bon pays parmi quatre, avec d’autres voisins pour brouiller', () => {
-    const pool = ['A', 'B', 'C', 'D', 'E', 'X']
-    const options = choices(LINE, () => 'Z', pool, 'B', 'C', () => 0.42)
+    const options = choices(LINE, () => 'Z', ['A', 'B', 'C', 'D', 'E', 'X'], 'B', 'C', () => 0.42)
     expect(options).toHaveLength(4)
     expect(options).toContain('C')
     expect(new Set(options).size).toBe(4)
@@ -137,61 +110,31 @@ describe('douane', () => {
   })
 })
 
-describe('douane renforcée', () => {
-  const capital = (c: string) => ({ A: 'Alpha', B: 'Bêta', C: 'Gamma', D: 'Delta', E: 'Epsilon', X: 'Xi' })[c] ?? ''
-  const pop = (c: string) => ({ A: 10, B: 30, C: 20 })[c as 'A']
-  const flag = (c: string) => c !== 'E'
-  const pool = ['A', 'B', 'C', 'D', 'E', 'X']
-
-  it('demande la capitale parmi quatre, ou compare la population avec le pays d’avant', () => {
-    const cap = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.1)
-    expect(cap).toMatchObject({ kind: 'capitale', answer: 'Gamma' })
-    if (cap.kind === 'capitale') expect(cap.options).toContain('Gamma')
-    const comp = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.9)
-    expect(comp).toEqual({ kind: 'population', than: 'B', answer: 'moins' })
-  })
-
-  it('montre le drapeau du pays parmi quatre, sans pays au drapeau inconnu', () => {
-    const q = customsQuestion('C', 'B', pool, () => 'Z', capital, pop, flag, () => 0.5)
-    expect(q).toMatchObject({ kind: 'drapeau', answer: 'C' })
-    if (q.kind !== 'drapeau') return
-    expect(q.options).toHaveLength(4)
-    expect(new Set(q.options).size).toBe(4)
-    expect(q.options).toContain('C')
-    expect(q.options).not.toContain('E')
-  })
-
-  it('se rabat sur la capitale quand la population ou le drapeau manque', () => {
-    expect(customsQuestion('D', 'C', ['C', 'D', 'E', 'X'], () => 'Z', capital, pop, flag, () => 0.9).kind).toBe('capitale')
-    expect(customsQuestion('E', 'D', pool, () => 'Z', capital, pop, flag, () => 0.5).kind).toBe('capitale')
+describe('Tour du monde', () => {
+  it('va de voisin en voisin sans repasser par un pays déjà vu, tant qu’il en reste', () => {
+    const tour = tourTrip('B')
+    let run = startRun(tour)
+    const next = nextCountry(LINE, tour, run, 's')!
+    expect(['A', 'C', 'X']).toContain(next)
+    run = answer(run, next, next)
+    expect(nextCountry(LINE, tour, run, 's')).not.toBe('B')
+    expect(status(tour, run)).toBe('en route')
   })
 })
 
 describe('Pépite en route', () => {
-  it('compte les dernières frontières, puis se tait à l’arrivée', () => {
-    let run = startRun(exp())
-    expect(remark(LINE, exp(), run, null)).toBeNull()
-    run = cross(exp(), run, 'B')
-    expect(remark(LINE, exp(), run, null)).toBe('Plus que 3 frontières')
-    run = cross(exp(), cross(exp(), run, 'C'), 'D')
-    expect(remark(LINE, exp(), run, null)).toBe('Dernière frontière !')
-    expect(remark(LINE, exp(), cross(exp(), run, 'E'), null)).toBeNull()
+  it('compte les dernières frontières et prévient à la dernière chance', () => {
+    let run = answer(startRun(trip), 'B', 'B')
+    expect(remark(trip, run, null)).toBe('Plus que 3 frontières')
+    run = answer(answer(run, 'C', 'C'), 'D', 'D')
+    expect(remark(trip, run, null)).toBe('Dernière frontière !')
+    const shaky = { path: ['A', 'B'], picks: ['X', 'X'], mistakes: 2 }
+    expect(remark(trip, shaky, null)).toBe('Plus qu’une chance !')
   })
 
-  it('prévient quand les vivres se comptent au plus juste', () => {
-    const tight = exp({ supplies: 4 })
-    expect(remark(LINE, tight, startRun(tight), null)).toBe('Plus droit à l’erreur')
-    expect(remark(LINE, tight, miss(startRun(tight), 'B'), null)).toBe('Il nous manque des vivres…')
-  })
-
-  it('pousse vers le record du Tour du monde, puis le fête', () => {
-    const tour = tourExpedition('A')
-    let run = startRun(tour)
-    expect(remark(LINE, tour, run, null)).toBeNull()
-    expect(remark(LINE, tour, run, 3)).toBe('Encore 3 pays pour battre ton record')
-    for (const c of ['B', 'C', 'D']) run = cross(tour, run, c)
-    expect(remark(LINE, tour, run, 3)).toBe('Nouveau record !')
-    expect(remark(LINE, tour, { ...run, supplies: 1 }, null)).toBe('Dernier vivre !')
+  it('pousse vers le record du Tour du monde', () => {
+    const tour = tourTrip('A')
+    expect(remark(tour, startRun(tour), 2)).toBe('Encore 3 tampons pour battre ton record')
+    expect(remark(tour, { path: ['A', 'B', 'C', 'D'], picks: [], mistakes: 0 }, 2)).toBe('Nouveau record !')
   })
 })
-
